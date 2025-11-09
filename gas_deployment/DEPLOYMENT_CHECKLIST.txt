@@ -1,0 +1,167 @@
+================================================================================
+Job Medley Insight Suite - GAS完全デプロイメントチェックリスト
+================================================================================
+
+【プロジェクト情報】
+- 対象Phase: Phase 1-14 完全機能版
+- 総ファイル数: 28ファイル（実行ファイル26 + ドキュメント2）
+- 総サイズ: 約1.2MB
+- 推定所要時間: 90-120分
+
+================================================================================
+Phase 0: 事前準備（所要時間: 10分）
+================================================================================
+
+□ 0-1. 既存GASプロジェクトの完全バックアップを取得
+□ 0-2. 全28ファイル存在確認
+□ 0-3. スプレッドシート準備
+□ 0-4. 依存関係順序の理解（MenuIntegration.gsは最後！）
+
+================================================================================
+Phase 1-7: GASスクリプトファイル（17個、所要時間: 65分）
+================================================================================
+
+【依存関係順序でアップロード】
+
+□ 1. RegionStateService.gs (7.5KB)
+□ 2. DataServiceProvider.gs (19KB)
+□ 3. DataManagementUtilities.gs (14KB)
+□ 4. DataImportAndValidation.gs (54KB)
+□ 5. UnifiedDataImporter.gs (48KB)
+□ 6. MapVisualization.gs (5.4KB)
+□ 7. MapPhase12_14_DataBridge.gs (13KB)
+□ 8. MapCompleteDataBridge.gs (30KB)
+□ 9. PersonaDifficultyChecker.gs (17KB)
+□ 10. Phase1-6UnifiedVisualizations.gs (109KB)
+□ 11. Phase7DataManagement.gs (25KB)
+□ 12. Phase7UnifiedVisualizations.gs (109KB)
+□ 13. Phase8UnifiedVisualizations.gs (68KB)
+□ 14. Phase10UnifiedVisualizations.gs (96KB)
+□ 15. QualityAndRegionDashboards.gs (60KB)
+□ 16. RegionDashboard.gs (26KB)
+□ 17. MenuIntegration.gs (17KB) ⚠️ 最後にアップロード！
+
+================================================================================
+Phase 8: HTMLファイル（8個、所要時間: 20分）
+================================================================================
+
+□ 18. map_complete_integrated.html (171KB) ★Phase 12-14 + クロス分析
+□ 19. map_complete_prototype_Ver2.html (116KB)
+□ 20. MapComplete.html (20KB)
+□ 21. Upload_Enhanced.html (22KB)
+□ 22. PersonaDifficultyCheckerUI.html (21KB)
+□ 23. Phase7Upload.html (17KB)
+□ 24. BubbleMap.html (8.1KB)
+□ 25. HeatMap.html (9.4KB)
+
+================================================================================
+Phase 9: 設定ファイル（1個、所要時間: 2分）
+================================================================================
+
+□ 26. appsscript.json (80bytes) - V8ランタイム設定確認
+
+================================================================================
+Phase 10: 動作検証（所要時間: 30分）
+================================================================================
+
+□ 10-1. メニュー表示確認（スプレッドシートリロード）
+□ 10-2. Phase 1-6機能検証（地図・統計・ペルソナ・フロー）
+□ 10-3. Phase 7機能検証（5つの高度分析）
+□ 10-4. Phase 8機能検証（キャリア・学歴分析）
+□ 10-5. Phase 10機能検証（転職意欲・緊急度分析）
+□ 10-6. Phase 12-14機能検証（需給バランス・希少人材・人材プロファイル）
+□ 10-7. クロス分析機能詳細検証
+       □ 27軸 × 27軸選択肢表示確認
+       □ 市区町村選択動作確認
+       □ クロス集計実行確認
+       □ ヒートマップ描画確認
+       □ CSV出力確認
+□ 10-8. データインポート機能検証
+
+================================================================================
+Phase 11: エラーハンドリング確認（所要時間: 10分）
+================================================================================
+
+□ 11-1. データなし時の動作確認
+□ 11-2. 不正データでの動作確認
+□ 11-3. 大量データでの動作確認（5000件以上）
+
+================================================================================
+Phase 12: 最終確認（所要時間: 5分）
+================================================================================
+
+□ 12-1. 全ファイルアップロード確認（.gs:17個、.html:8個、json:1個）
+□ 12-2. ドキュメント確認（README.md、DEPLOYMENT_CHECKLIST.txt）
+□ 12-3. バックアップ確認
+
+================================================================================
+全ファイルリスト（26ファイル）
+================================================================================
+
+【GASスクリプト: 17個 (759KB)】
+RegionStateService.gs, DataServiceProvider.gs, DataManagementUtilities.gs,
+DataImportAndValidation.gs, UnifiedDataImporter.gs, MapVisualization.gs,
+MapPhase12_14_DataBridge.gs, MapCompleteDataBridge.gs, PersonaDifficultyChecker.gs,
+Phase1-6UnifiedVisualizations.gs, Phase7DataManagement.gs, Phase7UnifiedVisualizations.gs,
+Phase8UnifiedVisualizations.gs, Phase10UnifiedVisualizations.gs, QualityAndRegionDashboards.gs,
+RegionDashboard.gs, MenuIntegration.gs
+
+【HTML: 8個 (385KB)】
+map_complete_integrated.html, map_complete_prototype_Ver2.html, MapComplete.html,
+Upload_Enhanced.html, PersonaDifficultyCheckerUI.html, Phase7Upload.html,
+BubbleMap.html, HeatMap.html
+
+【設定: 1個 (80bytes)】
+appsscript.json
+
+================================================================================
+ロールバック手順
+================================================================================
+
+問題発生時:
+1. エラー内容を記録
+2. バックアップから復元（ファイル > コピーを作成）
+3. 問題ファイルを特定（最後にアップロードしたファイル）
+4. Phase 1から段階的に再デプロイ
+5. README.mdのトラブルシューティング参照
+
+================================================================================
+重要な依存関係
+================================================================================
+
+- MenuIntegration.gs → 全.gsファイル（必ず最後にアップロード）
+- MapCompleteDataBridge.gs → MapPhase12_14_DataBridge.gs, RegionStateService.gs
+- UnifiedDataImporter.gs → DataImportAndValidation.gs
+- DataManagementUtilities.gs → DataServiceProvider.gs
+
+================================================================================
+HTMLファイル参照関係
+================================================================================
+
+- MenuIntegration.gs → Upload_Enhanced.html (line 126)
+- DataServiceProvider.gs → MapComplete.html, map_complete_prototype_Ver2.html
+- PersonaDifficultyChecker.gs → PersonaDifficultyCheckerUI.html
+- Phase7DataManagement.gs → Phase7Upload.html
+- MapVisualization.gs → BubbleMap.html, HeatMap.html
+
+================================================================================
+デプロイ後の推奨事項
+================================================================================
+
+1. 初回実行時はブラウザキャッシュをクリア
+2. データインポート前に既存データバックアップ
+3. Apps Script実行時間制限（6分）に注意
+4. 定期バックアップ実施（週1回推奨）
+5. クロス分析は市区町村単位で実行（パフォーマンス最適化）
+
+================================================================================
+デプロイ完了署名
+================================================================================
+
+デプロイ実施者: _______________________
+デプロイ完了日時: ____年____月____日 ____時____分
+検証完了日時: ____年____月____日 ____時____分
+
+================================================================================
+END OF CHECKLIST
+================================================================================

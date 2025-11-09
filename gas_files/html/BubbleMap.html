@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <title>希望勤務地バブルマップ</title>
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY"></script>
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f5f5;
+    }
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+    .sidebar {
+      width: 350px;
+      background: white;
+      padding: 20px;
+      overflow-y: auto;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    }
+    .map-container {
+      flex: 1;
+      position: relative;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    h2 {
+      color: #667eea;
+      font-size: 20px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #667eea;
+    }
+    .stats-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+    .stats-label {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-bottom: 5px;
+    }
+    .stats-value {
+      font-size: 28px;
+      font-weight: bold;
+    }
+    .top10-list {
+      list-style: none;
+      margin-top: 10px;
+    }
+    .top10-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      margin-bottom: 5px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .top10-rank {
+      font-weight: bold;
+      color: #667eea;
+      margin-right: 10px;
+    }
+    .top10-prefecture {
+      flex: 1;
+    }
+    .top10-count {
+      font-weight: bold;
+      color: #333;
+    }
+    .gender-chart {
+      margin-top: 15px;
+      height: 150px;
+    }
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      font-size: 18px;
+      color: #667eea;
+    }
+    .error {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      padding: 30px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      max-width: 400px;
+    }
+    .error-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+    .error-message {
+      color: #721c24;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <h2>📊 統計情報</h2>
+
+      <div class="stats-card">
+        <div class="stats-label">総求職者数</div>
+        <div class="stats-value" id="totalCount">-</div>
+      </div>
+
+      <div class="stats-card">
+        <div class="stats-label">平均年齢</div>
+        <div class="stats-value" id="avgAge">-</div>
+      </div>
+
+      <h2>📍 希望勤務地 TOP10</h2>
+      <ul class="top10-list" id="top10List"></ul>
+
+      <h2>👥 性別分布</h2>
+      <div class="gender-chart" id="genderChart"></div>
+    </div>
+
+    <div class="map-container">
+      <div class="loading" id="loading">
+        🔄 データ読み込み中...
+      </div>
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <script>
+    let map;
+    let markers = [];
+
+    // Google Charts読み込み
+    google.charts.load('current', {'packages':['corechart']});
+
+    // 初期化
+    function init() {
+      // 日本中心の地図を初期化
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 36.5, lng: 138.0 },
+        zoom: 6,
+        mapTypeId: 'roadmap'
+      });
+
+      // データ読み込み
+      loadData();
+    }
+
+    // データ読み込み
+    function loadData() {
+      document.getElementById('loading').style.display = 'block';
+
+      Promise.all([
+        callGAS('getMapMetricsData'),
+        callGAS('getApplicantsStats'),
+        callGAS('getDesiredWorkTop10')
+      ]).then(([mapData, stats, top10]) => {
+        document.getElementById('loading').style.display = 'none';
+
+        // 統計情報表示
+        displayStats(stats);
+
+        // TOP10表示
+        displayTop10(top10);
+
+        // 地図にマーカー表示
+        displayMarkers(mapData);
+
+        // 性別グラフ表示
+        google.charts.setOnLoadCallback(() => displayGenderChart(stats.byGender));
+
+      }).catch(error => {
+        document.getElementById('loading').innerHTML = `
+          <div class="error">
+            <div class="error-icon">⚠️</div>
+            <div class="error-message">
+              <strong>データ読み込みエラー</strong><br><br>
+              ${error.message}
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // GAS関数呼び出しヘルパー
+    function callGAS(functionName) {
+      return new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          [functionName]();
+      });
+    }
+
+    // 統計情報表示
+    function displayStats(stats) {
+      document.getElementById('totalCount').textContent = stats.total.toLocaleString();
+      document.getElementById('avgAge').textContent = stats.avgAge + '歳';
+    }
+
+    // TOP10表示
+    function displayTop10(top10) {
+      const listEl = document.getElementById('top10List');
+      listEl.innerHTML = '';
+
+      top10.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.className = 'top10-item';
+        li.innerHTML = `
+          <span class="top10-rank">${index + 1}</span>
+          <span class="top10-prefecture">${item.prefecture}</span>
+          <span class="top10-count">${item.count.toLocaleString()}人</span>
+        `;
+        listEl.appendChild(li);
+      });
+    }
+
+    // マーカー表示
+    function displayMarkers(data) {
+      // 既存マーカーをクリア
+      markers.forEach(marker => marker.setMap(null));
+      markers = [];
+
+      // 最大値を取得（バブルサイズ計算用）
+      const maxCount = Math.max(...data.map(item => item.count));
+
+      data.forEach(item => {
+        // バブルサイズ計算（10-50px）
+        const radius = 10 + (item.count / maxCount) * 40;
+
+        // サークルマーカー作成
+        const circle = new google.maps.Circle({
+          strokeColor: '#667eea',
+          strokeOpacity: 0.8,
+          strokeWeight: 2,
+          fillColor: '#667eea',
+          fillOpacity: 0.35,
+          map: map,
+          center: { lat: item.lat, lng: item.lng },
+          radius: radius * 1000 // メートル単位
+        });
+
+        // 情報ウィンドウ
+        const infoWindow = new google.maps.InfoWindow({
+          content: `
+            <div style="padding: 10px;">
+              <strong style="font-size: 16px; color: #667eea;">${item.prefecture}</strong><br>
+              <span style="font-size: 14px;">希望者数: <strong>${item.count.toLocaleString()}人</strong></span>
+            </div>
+          `
+        });
+
+        // クリックイベント
+        circle.addListener('click', () => {
+          infoWindow.setPosition({ lat: item.lat, lng: item.lng });
+          infoWindow.open(map);
+        });
+
+        markers.push(circle);
+      });
+    }
+
+    // 性別グラフ表示
+    function displayGenderChart(byGender) {
+      const data = google.visualization.arrayToDataTable([
+        ['性別', '人数'],
+        ...Object.entries(byGender)
+      ]);
+
+      const options = {
+        pieHole: 0.4,
+        colors: ['#667eea', '#764ba2'],
+        legend: { position: 'bottom' },
+        chartArea: { width: '90%', height: '70%' }
+      };
+
+      const chart = new google.visualization.PieChart(document.getElementById('genderChart'));
+      chart.draw(data, options);
+    }
+
+    // ページ読み込み時に実行
+    window.onload = init;
+  </script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+{
+  "total_tests": 31,
+  "passed": 31,
+  "failed": 0,
+  "success_rate": 100.0,
+  "test_results": [
+    {
+      "test": "Phase 1: ファイル存在確認",
+      "status": "PASS",
+      "message": "4つの必須ファイルが存在します"
+    },
+    {
+      "test": "Phase 1: Applicants構造検証",
+      "status": "PASS",
+      "message": "Applicants.csv: 7487行、必須カラムすべて存在"
+    },
+    {
+      "test": "Phase 1: DesiredWork構造検証",
+      "status": "PASS",
+      "message": "DesiredWork.csv: 24410行、944市町村"
+    },
+    {
+      "test": "Phase 1: AggDesired構造検証",
+      "status": "PASS",
+      "message": "AggDesired.csv: 944市町村、合計24410件"
+    },
+    {
+      "test": "Phase 1: MapMetrics構造検証",
+      "status": "PASS",
+      "message": "MapMetrics.csv: 944市町村、座標データ正常"
+    },
+    {
+      "test": "Phase 1: データ整合性検証",
+      "status": "PASS",
+      "message": "Applicants: 7487人、DesiredWork: 7417人（ユニーク）、24410件、AggDesired合計: 24410件 [OK]一致"
+    },
+    {
+      "test": "Phase 3: ファイル存在確認",
+      "status": "PASS",
+      "message": "3つの必須ファイルが存在します"
+    },
+    {
+      "test": "Phase 3: PersonaSummary構造検証",
+      "status": "PASS",
+      "message": "PersonaSummary.csv: 24ペルソナ、合計7487人"
+    },
+    {
+      "test": "Phase 3: PersonaDetails構造検証",
+      "status": "PASS",
+      "message": "PersonaDetails.csv: 12行、合計7487人"
+    },
+    {
+      "test": "Phase 3: PersonaSummaryByMunicipality構造検証",
+      "status": "PASS",
+      "message": "PersonaSummaryByMunicipality.csv: 4885行、944市町村"
+    },
+    {
+      "test": "Phase 3: ペルソナ合計一致検証",
+      "status": "PASS",
+      "message": "PersonaSummary=7487人、PersonaDetails=7487人 [OK]一致"
+    },
+    {
+      "test": "Phase 7: ファイル存在確認",
+      "status": "PASS",
+      "message": "4/4ファイルが存在: SupplyDensityMap.csv, AgeGenderCrossAnalysis.csv, MobilityScore.csv, DetailedPersonaProfile.csv"
+    },
+    {
+      "test": "Phase 7: SupplyDensityMap構造検証",
+      "status": "PASS",
+      "message": "SupplyDensityMap.csv: 944市町村、合計24410人"
+    },
+    {
+      "test": "Phase 7: QualificationDistribution構造検証",
+      "status": "PASS",
+      "message": "QualificationDistribution.csv: 462資格、合計10575件"
+    },
+    {
+      "test": "Phase 7: AgeGenderCrossAnalysis構造検証",
+      "status": "PASS",
+      "message": "AgeGenderCrossAnalysis.csv: 12行、合計7487人"
+    },
+    {
+      "test": "Phase 7: MobilityScore構造検証",
+      "status": "PASS",
+      "message": "MobilityScore.csv: 7417人、スコア範囲: 0.00～1.00"
+    },
+    {
+      "test": "Phase 7: DetailedPersonaProfile構造検証",
+      "status": "PASS",
+      "message": "DetailedPersonaProfile.csv: 34ペルソナ、合計7486人"
+    },
+    {
+      "test": "Phase 8: ファイル存在確認",
+      "status": "PASS",
+      "message": "3ファイルが存在"
+    },
+    {
+      "test": "Phase 8: CareerDistribution構造検証",
+      "status": "PASS",
+      "message": "CareerDistribution.csv: 1627キャリア、合計2263人"
+    },
+    {
+      "test": "Phase 8: CareerAgeCross構造検証",
+      "status": "PASS",
+      "message": "CareerAgeCross.csv: 1696行、合計2263人"
+    },
+    {
+      "test": "Phase 8: CareerAgeCross_Matrix構造検証",
+      "status": "PASS",
+      "message": "CareerAgeCross_Matrix.csv: 1627キャリア × 6年齢層"
+    },
+    {
+      "test": "Phase 8: 行列整合性検証",
+      "status": "PASS",
+      "message": "CareerAgeCross=2263人、Matrix=2263人 [OK]一致"
+    },
+    {
+      "test": "Phase 10: ファイル存在確認",
+      "status": "PASS",
+      "message": "5ファイルが存在"
+    },
+    {
+      "test": "Phase 10: UrgencyDistribution構造検証",
+      "status": "PASS",
+      "message": "UrgencyDistribution.csv: 4ランク、合計7487人"
+    },
+    {
+      "test": "Phase 10: UrgencyAgeCross構造検証",
+      "status": "PASS",
+      "message": "UrgencyAgeCross.csv: 24行、合計7487人"
+    },
+    {
+      "test": "Phase 10: UrgencyEmploymentCross構造検証",
+      "status": "PASS",
+      "message": "UrgencyEmploymentCross.csv: 12行、合計7486人"
+    },
+    {
+      "test": "Phase 10: UrgencyByMunicipality構造検証",
+      "status": "PASS",
+      "message": "UrgencyByMunicipality.csv: 944市町村"
+    },
+    {
+      "test": "Phase 10: マトリックス整合性検証",
+      "status": "PASS",
+      "message": "AgeCross=7487人（Matrix一致）、EmploymentCross=7486人（Matrix一致）"
+    },
+    {
+      "test": "Phase 10: 全体合計一致検証",
+      "status": "PASS",
+      "message": "Distribution=7487人、AgeCross=7487人 [OK]一致、EmploymentCross=7486人（差=1人、許容範囲内）"
+    },
+    {
+      "test": "統合: 全Phaseの総人数一致検証",
+      "status": "PASS",
+      "message": "Phase 1=7487人、Phase 3=7487人、Phase 8=2263人、Phase 10=7487人 [OK]整合性あり"
+    },
+    {
+      "test": "統合: 統計値の妥当性検証",
+      "status": "PASS",
+      "message": "全Phaseの統計値が妥当な範囲内"
+    }
+  ]
+}

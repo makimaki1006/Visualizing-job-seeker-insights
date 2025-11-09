@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "C:\Users\fuji1\OneDrive\Pythonスクリプト保管\job_medley_project\python_scripts\test_integration_feasibility.py", line 520, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\fuji1\OneDrive\Pythonスクリプト保管\job_medley_project\python_scripts\test_integration_feasibility.py", line 452, in main
+    print("=" * 100)
+    ~~~~~^^^^^^^^^^^
+ValueError: I/O operation on closed file.

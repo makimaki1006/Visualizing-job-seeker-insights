@@ -1,0 +1,472 @@
+
+=== エッジケーステスト開始 ===
+
+
+=== ネガティブテスト開始 ===
+
+
+=== セキュリティテスト開始 ===
+
+
+=== パフォーマンステスト開始 ===
+
+
+=== データ整合性テスト開始 ===
+
+
+=== UIテスト開始 ===
+
+Test 1.1: 空データ処理
+
+Test 1.2: 特殊文字処理
+
+Test 1.3: 境界値テスト
+
+Test 1.4: 極端に長い文字列
+
+Test 1.5: urgency_scoreの境界値
+Test 2.1: 不正なデータ型
+
+Test 2.2: 存在しない軸
+
+Test 2.3: 同じ軸を選択（X=Y）
+
+Test 2.4: データが極端に偏っている
+
+Test 2.5: 資格名の部分一致問題
+
+Test 2.6: 循環参照・再帰的データ
+Test 3.1: XSS攻撃対策
+
+Test 3.2: CSVインジェクション対策
+
+Test 3.3: HTMLインジェクション対策
+
+Test 3.4: SQLインジェクション風の入力
+
+Test 3.5: プロトタイプ汚染攻撃
+Test 4.1: 大量データ処理
+
+Test 4.2: 複雑なマトリックス
+
+Test 4.3: メモリ効率
+
+Test 4.4: 資格パース処理のパフォーマンス
+
+Test 4.5: ソートパフォーマンス
+Test 5.1: クロス集計の合計値検証
+
+Test 5.2: 資格保有率の精度
+
+Test 5.3: 重複カウント防止
+
+Test 5.4: パーセンテージ計算の精度
+
+Test 5.5: データ型の一貫性
+
+Test 5.6: 空セルの扱い
+Test 6.1: ドロップダウンの選択肢数
+
+Test 6.2: 長いラベルの表示
+
+Test 6.3: テーブルの横スクロール
+
+Test 6.4: CSV出力のフォーマット
+
+Test 6.5: ヒートマップカラースケール
+
+================================================================================
+深いテスト結果サマリー
+================================================================================
+
+【エッジケーステスト】
+  成功: 43件 / 失敗: 0件 / 合計: 43件
+
+  ✅ PASSED: Empty array: rows.length = 0
+  ✅ PASSED: Empty array: cols.length = 0
+  ✅ PASSED: Null applicant: age_bucket = "不明"
+  ✅ PASSED: Undefined applicant: age_bucket = "不明"
+  ✅ PASSED: Empty string applicant: age_bucket = "不明"
+  ✅ PASSED: Empty qualifications: qual:介護福祉士 = "なし"
+  ✅ PASSED: Single data: rows.length = 1
+  ✅ PASSED: Single data: cols.length = 1
+  ✅ PASSED: Single data: matrix["女性"]["30代"] = 1
+  ✅ PASSED: 括弧付き資格名: 正確にマッチング
+  ✅ PASSED: 改行含むデータ: そのまま返却
+  ✅ PASSED: タブ含むデータ: そのまま返却
+  ✅ PASSED: ダブルクォート含むデータ: そのまま返却
+  ✅ PASSED: シングルクォート含むデータ: そのまま返却
+  ✅ PASSED: スラッシュ含む資格名: 正確にマッチング
+  ✅ PASSED: 空白のみのデータ: そのまま返却
+  ✅ PASSED: 0件: rows.length = 0
+  ✅ PASSED: 0件: cols.length = 0
+  ✅ PASSED: 1件: rows.length = 1
+  ✅ PASSED: 1件: cols.length = 1
+  ✅ PASSED: 50×50マトリックス: rows.length = 50
+  ✅ PASSED: 50×50マトリックス: cols.length = 50
+  ✅ PASSED: 全て同じ値: rows.length = 1
+  ✅ PASSED: 全て同じ値: cols.length = 1
+  ✅ PASSED: 全て同じ値: count = 100
+  ✅ PASSED: 1000文字の資格名: 正確にマッチング
+  ✅ PASSED: 10000文字の資格リスト: 正確にマッチング
+  ✅ PASSED: 極端に長い地域名: 正確に返却
+  ✅ PASSED: urgency_score=-1 → "低" (expected: "低")
+  ✅ PASSED: urgency_score=0 → "低" (expected: "低")
+  ✅ PASSED: urgency_score=3.99 → "低" (expected: "低")
+  ✅ PASSED: urgency_score=4 → "中" (expected: "中")
+  ✅ PASSED: urgency_score=4.01 → "中" (expected: "中")
+  ✅ PASSED: urgency_score=5.99 → "中" (expected: "中")
+  ✅ PASSED: urgency_score=6 → "高" (expected: "高")
+  ✅ PASSED: urgency_score=6.01 → "高" (expected: "高")
+  ✅ PASSED: urgency_score=7.99 → "高" (expected: "高")
+  ✅ PASSED: urgency_score=8 → "最高" (expected: "最高")
+  ✅ PASSED: urgency_score=8.01 → "最高" (expected: "最高")
+  ✅ PASSED: urgency_score=10 → "最高" (expected: "最高")
+  ✅ PASSED: urgency_score=100 → "最高" (expected: "最高")
+  ✅ PASSED: urgency_score=Infinity → "最高" (expected: "最高")
+  ✅ PASSED: urgency_score=-Infinity → "低" (expected: "低")
+
+【ネガティブテスト】
+  成功: 28件 / 失敗: 0件 / 合計: 28件
+
+  ✅ PASSED: applicant=null → "不明"
+  ✅ PASSED: applicant=undefined → "不明"
+  ✅ PASSED: applicant=123 → "不明"
+  ✅ PASSED: applicant="invalid" → "不明"
+  ✅ PASSED: applicant=[] → "不明"
+  ✅ PASSED: qualifications=数値 → エラー
+  ✅ PASSED: qualifications=配列 → エラー
+  ✅ PASSED: qualifications=オブジェクト → エラー
+  ✅ PASSED: 存在しない軸 → そのまま返却
+  ✅ PASSED: typoのある軸 → そのまま返却
+  ✅ PASSED: 空文字列の軸 → 空文字列返却
+  ✅ PASSED: null軸 → null返却
+  ✅ PASSED: undefined軸 → undefined返却
+  ✅ PASSED: 数値軸 → 数値返却
+  ✅ PASSED: X=Y: rows.length = 3
+  ✅ PASSED: X=Y: cols.length = 3
+  ✅ PASSED: X=Y: 対角要素 = 1
+  ✅ PASSED: X=Y: 非対角要素 = 0
+  ✅ PASSED: 極端な偏り: 主要セル = 99
+  ✅ PASSED: 極端な偏り: 少数セル = 1
+  ✅ PASSED: スパースマトリックス: rows.length = 100
+  ✅ PASSED: スパースマトリックス: cols.length = 100
+  ✅ PASSED: 部分一致防止: "介護福祉士"に"介護"は含まれない
+  ✅ PASSED: 完全一致: "介護福祉士"は含まれる
+  ✅ PASSED: スペーストリム後: "介護福祉士"は含まれる
+  ✅ PASSED: 大文字小文字: 正確にマッチング
+  ✅ PASSED: 循環参照: スキップされる
+  ✅ PASSED: 配列データ: スキップされる
+
+【セキュリティテスト】
+  成功: 17件 / 失敗: 0件 / 合計: 17件
+
+  ✅ PASSED: XSS: <script>タグをそのまま返却（エスケープは表示層で行う）
+  ✅ PASSED: XSS: イベントハンドラをそのまま返却
+  ✅ PASSED: XSS: javascript:プロトコルをそのまま返却
+  ✅ PASSED: XSS: data:プロトコルをそのまま返却
+  ✅ PASSED: XSS: SVG埋め込みをそのまま返却
+  ✅ PASSED: CSVインジェクション: =で始まる値をそのまま出力
+  ✅ PASSED: CSVインジェクション: +で始まる値をそのまま出力
+  ✅ PASSED: CSVインジェクション: -で始まる値をそのまま出力
+  ✅ PASSED: CSVインジェクション: @で始まる値をそのまま出力
+  ✅ PASSED: HTMLインジェクション: <script>タグがそのまま出力される（要エスケープ）
+  ✅ PASSED: HTMLインジェクション: <img>タグがそのまま出力される（要エスケープ）
+  ✅ PASSED: SQLインジェクション風: そのまま返却（SQLは使用していないため問題なし）
+  ✅ PASSED: SQLインジェクション風: そのまま返却
+  ✅ PASSED: SQLインジェクション風: そのまま返却
+  ✅ PASSED: プロトタイプ汚染: __proto__はスキップされる
+  ✅ PASSED: プロトタイプ汚染: constructorはスキップされる
+  ✅ PASSED: プロトタイプ汚染: prototypeはスキップされる
+
+【パフォーマンステスト】
+  成功: 15件 / 失敗: 0件 / 合計: 15件
+
+  ✅ PASSED: 10,000件処理時間: 3ms (< 100ms)
+  ✅ PASSED: 10,000件: rows.length = 10
+  ✅ PASSED: 50,000件処理時間: 17ms (< 500ms)
+  ✅ PASSED: 50,000件: rows.length = 20
+  ✅ PASSED: 100,000件処理時間: 21ms (< 1000ms)
+  ✅ PASSED: 100,000件: rows.length = 30
+  ✅ PASSED: 100×100マトリックス処理時間: 5ms (< 200ms)
+  ✅ PASSED: 100×100マトリックス: rows.length = 100
+  ✅ PASSED: 100×100マトリックス: cols.length = 100
+  ✅ PASSED: スパースマトリックス処理時間: 53ms (< 500ms)
+  ✅ PASSED: メモリ使用量: -9.78MB (< 100MB)
+  ✅ PASSED: スパースマトリックス: rows.length = 10000
+  ✅ PASSED: 資格パース処理（10,000件×100資格）: 100ms (< 500ms)
+  ✅ PASSED: ソート処理（1000種類×10,000件）: 54ms (< 500ms)
+  ✅ PASSED: ソート後rows数: 1000 (<= 1000)
+
+【データ整合性テスト】
+  成功: 28件 / 失敗: 0件 / 合計: 28件
+
+  ✅ PASSED: 合計値検証: 100 = 100
+  ✅ PASSED: 行"Y0"の合計: 34 > 0
+  ✅ PASSED: 行"Y1"の合計: 33 > 0
+  ✅ PASSED: 行"Y2"の合計: 33 > 0
+  ✅ PASSED: 列"X0"の合計: 20 > 0
+  ✅ PASSED: 列"X1"の合計: 20 > 0
+  ✅ PASSED: 列"X2"の合計: 20 > 0
+  ✅ PASSED: 列"X3"の合計: 20 > 0
+  ✅ PASSED: 列"X4"の合計: 20 > 0
+  ✅ PASSED: 資格保有者数: 40 = 40
+  ✅ PASSED: 資格非保有者数: 60 = 60
+  ✅ PASSED: 総数: 100 = 100
+  ✅ PASSED: 資格保有率: 0.400 = 0.400
+  ✅ PASSED: 重複カウント: 5回カウントされる（正常）
+  ✅ PASSED: 重複カウント: rows.length = 1
+  ✅ PASSED: 重複カウント: cols.length = 1
+  ✅ PASSED: パーセンテージA: 33.00% ≈ 33%
+  ✅ PASSED: パーセンテージC: 67.00% ≈ 67%
+  ✅ PASSED: 合計: 100.00% ≈ 100%
+  ✅ PASSED: rows is Array
+  ✅ PASSED: cols is Array
+  ✅ PASSED: matrix is Object
+  ✅ PASSED: matrix["女性"]["30代"] is Number
+  ✅ PASSED: matrix["男性"]["40代"] is Number
+  ✅ PASSED: 空セルB×C: count = 0
+  ✅ PASSED: 空セルD×A: count = 0
+  ✅ PASSED: 非空セルB×A: count = 1
+  ✅ PASSED: 非空セルD×C: count = 1
+
+【UIテスト】
+  成功: 18件 / 失敗: 0件 / 合計: 18件
+
+  ✅ PASSED: 基本属性数: 7 = 7
+  ✅ PASSED: 資格数: 20 = 20
+  ✅ PASSED: 総選択肢数: 27 = 27
+  ✅ PASSED: 資格リスト順序: 1番目 = 自動車運転免許
+  ✅ PASSED: 資格リスト順序: 20番目 = 歯科衛生士
+  ✅ PASSED: 長いラベル: "介護職員初任者研修（旧ヘルパー2級）"
+  ✅ PASSED: 長いラベルの文字数: 18 > 10
+  ✅ PASSED: 極端に長いラベル: 1000文字
+  ✅ PASSED: 横スクロールテスト: cols.length = 50
+  ✅ PASSED: 横スクロールテスト: rows.length = 10
+  ✅ PASSED: CSVヘッダー: "Y\X"を含む
+  ✅ PASSED: CSVヘッダー: ",合計"を含む
+  ✅ PASSED: CSV行数: 3 >= 2
+  ✅ PASSED: CSV行ラベル: "B,"を含む
+  ✅ PASSED: ヒートマップ: count=0 → opacity=0
+  ✅ PASSED: ヒートマップ: count=25 → opacity=0.5
+  ✅ PASSED: ヒートマップ: count=50 → opacity=0.8
+  ✅ PASSED: ヒートマップ: count=100 → opacity=0.8（上限）
+
+================================================================================
+総合結果: 149件成功 / 0件失敗 / 合計149件
+成功率: 100.0%
+================================================================================
+
+✅ 全てのテストに成功しました！
+
+=== JSON出力 ===
+
+{
+  "timestamp": "2025-11-03T03:57:14.902Z",
+  "test_type": "deep_comprehensive",
+  "summary": {
+    "total": 149,
+    "passed": 149,
+    "failed": 0,
+    "success_rate": "100.0%"
+  },
+  "categories": [
+    {
+      "name": "エッジケーステスト",
+      "passed": 43,
+      "failed": 0,
+      "total": 43,
+      "results": [
+        "✅ PASSED: Empty array: rows.length = 0",
+        "✅ PASSED: Empty array: cols.length = 0",
+        "✅ PASSED: Null applicant: age_bucket = \"不明\"",
+        "✅ PASSED: Undefined applicant: age_bucket = \"不明\"",
+        "✅ PASSED: Empty string applicant: age_bucket = \"不明\"",
+        "✅ PASSED: Empty qualifications: qual:介護福祉士 = \"なし\"",
+        "✅ PASSED: Single data: rows.length = 1",
+        "✅ PASSED: Single data: cols.length = 1",
+        "✅ PASSED: Single data: matrix[\"女性\"][\"30代\"] = 1",
+        "✅ PASSED: 括弧付き資格名: 正確にマッチング",
+        "✅ PASSED: 改行含むデータ: そのまま返却",
+        "✅ PASSED: タブ含むデータ: そのまま返却",
+        "✅ PASSED: ダブルクォート含むデータ: そのまま返却",
+        "✅ PASSED: シングルクォート含むデータ: そのまま返却",
+        "✅ PASSED: スラッシュ含む資格名: 正確にマッチング",
+        "✅ PASSED: 空白のみのデータ: そのまま返却",
+        "✅ PASSED: 0件: rows.length = 0",
+        "✅ PASSED: 0件: cols.length = 0",
+        "✅ PASSED: 1件: rows.length = 1",
+        "✅ PASSED: 1件: cols.length = 1",
+        "✅ PASSED: 50×50マトリックス: rows.length = 50",
+        "✅ PASSED: 50×50マトリックス: cols.length = 50",
+        "✅ PASSED: 全て同じ値: rows.length = 1",
+        "✅ PASSED: 全て同じ値: cols.length = 1",
+        "✅ PASSED: 全て同じ値: count = 100",
+        "✅ PASSED: 1000文字の資格名: 正確にマッチング",
+        "✅ PASSED: 10000文字の資格リスト: 正確にマッチング",
+        "✅ PASSED: 極端に長い地域名: 正確に返却",
+        "✅ PASSED: urgency_score=-1 → \"低\" (expected: \"低\")",
+        "✅ PASSED: urgency_score=0 → \"低\" (expected: \"低\")",
+        "✅ PASSED: urgency_score=3.99 → \"低\" (expected: \"低\")",
+        "✅ PASSED: urgency_score=4 → \"中\" (expected: \"中\")",
+        "✅ PASSED: urgency_score=4.01 → \"中\" (expected: \"中\")",
+        "✅ PASSED: urgency_score=5.99 → \"中\" (expected: \"中\")",
+        "✅ PASSED: urgency_score=6 → \"高\" (expected: \"高\")",
+        "✅ PASSED: urgency_score=6.01 → \"高\" (expected: \"高\")",
+        "✅ PASSED: urgency_score=7.99 → \"高\" (expected: \"高\")",
+        "✅ PASSED: urgency_score=8 → \"最高\" (expected: \"最高\")",
+        "✅ PASSED: urgency_score=8.01 → \"最高\" (expected: \"最高\")",
+        "✅ PASSED: urgency_score=10 → \"最高\" (expected: \"最高\")",
+        "✅ PASSED: urgency_score=100 → \"最高\" (expected: \"最高\")",
+        "✅ PASSED: urgency_score=Infinity → \"最高\" (expected: \"最高\")",
+        "✅ PASSED: urgency_score=-Infinity → \"低\" (expected: \"低\")"
+      ]
+    },
+    {
+      "name": "ネガティブテスト",
+      "passed": 28,
+      "failed": 0,
+      "total": 28,
+      "results": [
+        "✅ PASSED: applicant=null → \"不明\"",
+        "✅ PASSED: applicant=undefined → \"不明\"",
+        "✅ PASSED: applicant=123 → \"不明\"",
+        "✅ PASSED: applicant=\"invalid\" → \"不明\"",
+        "✅ PASSED: applicant=[] → \"不明\"",
+        "✅ PASSED: qualifications=数値 → エラー",
+        "✅ PASSED: qualifications=配列 → エラー",
+        "✅ PASSED: qualifications=オブジェクト → エラー",
+        "✅ PASSED: 存在しない軸 → そのまま返却",
+        "✅ PASSED: typoのある軸 → そのまま返却",
+        "✅ PASSED: 空文字列の軸 → 空文字列返却",
+        "✅ PASSED: null軸 → null返却",
+        "✅ PASSED: undefined軸 → undefined返却",
+        "✅ PASSED: 数値軸 → 数値返却",
+        "✅ PASSED: X=Y: rows.length = 3",
+        "✅ PASSED: X=Y: cols.length = 3",
+        "✅ PASSED: X=Y: 対角要素 = 1",
+        "✅ PASSED: X=Y: 非対角要素 = 0",
+        "✅ PASSED: 極端な偏り: 主要セル = 99",
+        "✅ PASSED: 極端な偏り: 少数セル = 1",
+        "✅ PASSED: スパースマトリックス: rows.length = 100",
+        "✅ PASSED: スパースマトリックス: cols.length = 100",
+        "✅ PASSED: 部分一致防止: \"介護福祉士\"に\"介護\"は含まれない",
+        "✅ PASSED: 完全一致: \"介護福祉士\"は含まれる",
+        "✅ PASSED: スペーストリム後: \"介護福祉士\"は含まれる",
+        "✅ PASSED: 大文字小文字: 正確にマッチング",
+        "✅ PASSED: 循環参照: スキップされる",
+        "✅ PASSED: 配列データ: スキップされる"
+      ]
+    },
+    {
+      "name": "セキュリティテスト",
+      "passed": 17,
+      "failed": 0,
+      "total": 17,
+      "results": [
+        "✅ PASSED: XSS: <script>タグをそのまま返却（エスケープは表示層で行う）",
+        "✅ PASSED: XSS: イベントハンドラをそのまま返却",
+        "✅ PASSED: XSS: javascript:プロトコルをそのまま返却",
+        "✅ PASSED: XSS: data:プロトコルをそのまま返却",
+        "✅ PASSED: XSS: SVG埋め込みをそのまま返却",
+        "✅ PASSED: CSVインジェクション: =で始まる値をそのまま出力",
+        "✅ PASSED: CSVインジェクション: +で始まる値をそのまま出力",
+        "✅ PASSED: CSVインジェクション: -で始まる値をそのまま出力",
+        "✅ PASSED: CSVインジェクション: @で始まる値をそのまま出力",
+        "✅ PASSED: HTMLインジェクション: <script>タグがそのまま出力される（要エスケープ）",
+        "✅ PASSED: HTMLインジェクション: <img>タグがそのまま出力される（要エスケープ）",
+        "✅ PASSED: SQLインジェクション風: そのまま返却（SQLは使用していないため問題なし）",
+        "✅ PASSED: SQLインジェクション風: そのまま返却",
+        "✅ PASSED: SQLインジェクション風: そのまま返却",
+        "✅ PASSED: プロトタイプ汚染: __proto__はスキップされる",
+        "✅ PASSED: プロトタイプ汚染: constructorはスキップされる",
+        "✅ PASSED: プロトタイプ汚染: prototypeはスキップされる"
+      ]
+    },
+    {
+      "name": "パフォーマンステスト",
+      "passed": 15,
+      "failed": 0,
+      "total": 15,
+      "results": [
+        "✅ PASSED: 10,000件処理時間: 3ms (< 100ms)",
+        "✅ PASSED: 10,000件: rows.length = 10",
+        "✅ PASSED: 50,000件処理時間: 17ms (< 500ms)",
+        "✅ PASSED: 50,000件: rows.length = 20",
+        "✅ PASSED: 100,000件処理時間: 21ms (< 1000ms)",
+        "✅ PASSED: 100,000件: rows.length = 30",
+        "✅ PASSED: 100×100マトリックス処理時間: 5ms (< 200ms)",
+        "✅ PASSED: 100×100マトリックス: rows.length = 100",
+        "✅ PASSED: 100×100マトリックス: cols.length = 100",
+        "✅ PASSED: スパースマトリックス処理時間: 53ms (< 500ms)",
+        "✅ PASSED: メモリ使用量: -9.78MB (< 100MB)",
+        "✅ PASSED: スパースマトリックス: rows.length = 10000",
+        "✅ PASSED: 資格パース処理（10,000件×100資格）: 100ms (< 500ms)",
+        "✅ PASSED: ソート処理（1000種類×10,000件）: 54ms (< 500ms)",
+        "✅ PASSED: ソート後rows数: 1000 (<= 1000)"
+      ]
+    },
+    {
+      "name": "データ整合性テスト",
+      "passed": 28,
+      "failed": 0,
+      "total": 28,
+      "results": [
+        "✅ PASSED: 合計値検証: 100 = 100",
+        "✅ PASSED: 行\"Y0\"の合計: 34 > 0",
+        "✅ PASSED: 行\"Y1\"の合計: 33 > 0",
+        "✅ PASSED: 行\"Y2\"の合計: 33 > 0",
+        "✅ PASSED: 列\"X0\"の合計: 20 > 0",
+        "✅ PASSED: 列\"X1\"の合計: 20 > 0",
+        "✅ PASSED: 列\"X2\"の合計: 20 > 0",
+        "✅ PASSED: 列\"X3\"の合計: 20 > 0",
+        "✅ PASSED: 列\"X4\"の合計: 20 > 0",
+        "✅ PASSED: 資格保有者数: 40 = 40",
+        "✅ PASSED: 資格非保有者数: 60 = 60",
+        "✅ PASSED: 総数: 100 = 100",
+        "✅ PASSED: 資格保有率: 0.400 = 0.400",
+        "✅ PASSED: 重複カウント: 5回カウントされる（正常）",
+        "✅ PASSED: 重複カウント: rows.length = 1",
+        "✅ PASSED: 重複カウント: cols.length = 1",
+        "✅ PASSED: パーセンテージA: 33.00% ≈ 33%",
+        "✅ PASSED: パーセンテージC: 67.00% ≈ 67%",
+        "✅ PASSED: 合計: 100.00% ≈ 100%",
+        "✅ PASSED: rows is Array",
+        "✅ PASSED: cols is Array",
+        "✅ PASSED: matrix is Object",
+        "✅ PASSED: matrix[\"女性\"][\"30代\"] is Number",
+        "✅ PASSED: matrix[\"男性\"][\"40代\"] is Number",
+        "✅ PASSED: 空セルB×C: count = 0",
+        "✅ PASSED: 空セルD×A: count = 0",
+        "✅ PASSED: 非空セルB×A: count = 1",
+        "✅ PASSED: 非空セルD×C: count = 1"
+      ]
+    },
+    {
+      "name": "UIテスト",
+      "passed": 18,
+      "failed": 0,
+      "total": 18,
+      "results": [
+        "✅ PASSED: 基本属性数: 7 = 7",
+        "✅ PASSED: 資格数: 20 = 20",
+        "✅ PASSED: 総選択肢数: 27 = 27",
+        "✅ PASSED: 資格リスト順序: 1番目 = 自動車運転免許",
+        "✅ PASSED: 資格リスト順序: 20番目 = 歯科衛生士",
+        "✅ PASSED: 長いラベル: \"介護職員初任者研修（旧ヘルパー2級）\"",
+        "✅ PASSED: 長いラベルの文字数: 18 > 10",
+        "✅ PASSED: 極端に長いラベル: 1000文字",
+        "✅ PASSED: 横スクロールテスト: cols.length = 50",
+        "✅ PASSED: 横スクロールテスト: rows.length = 10",
+        "✅ PASSED: CSVヘッダー: \"Y\\X\"を含む",
+        "✅ PASSED: CSVヘッダー: \",合計\"を含む",
+        "✅ PASSED: CSV行数: 3 >= 2",
+        "✅ PASSED: CSV行ラベル: \"B,\"を含む",
+        "✅ PASSED: ヒートマップ: count=0 → opacity=0",
+        "✅ PASSED: ヒートマップ: count=25 → opacity=0.5",
+        "✅ PASSED: ヒートマップ: count=50 → opacity=0.8",
+        "✅ PASSED: ヒートマップ: count=100 → opacity=0.8（上限）"
+      ]
+    }
+  ]
+}

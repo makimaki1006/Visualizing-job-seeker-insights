@@ -1,0 +1,141 @@
+{
+  "test_1_data_integrity": {
+    "status": "FAIL",
+    "applicants_count": 7390,
+    "desired_work_unique_ids": 7276,
+    "map_metrics_total": 22815,
+    "agg_desired_total": 22815,
+    "persona_total": 6726,
+    "discrepancies": [
+      "Applicants件数 (7390) != DesiredWorkユニークID数 (7276)",
+      "PersonaSummary人数合計 (6726) != Applicants総数 (7390)"
+    ],
+    "score": 60
+  },
+  "test_2_end_to_end_flow": {
+    "status": "FAIL",
+    "total_files_expected": 18,
+    "files_found": 16,
+    "missing_files": [
+      "phase7/SupplyDensity.csv",
+      "phase7/AgeGenderCross.csv"
+    ],
+    "file_sizes_summary": {
+      "phase1_total": 1744142,
+      "phase2_total": 690,
+      "phase3_total": 2325,
+      "phase6_total": 371620,
+      "phase7_total": 403182
+    },
+    "score": 90
+  },
+  "test_3_performance_measurement": {
+    "status": "PASS",
+    "actual_data_size": 7390,
+    "total_load_time_seconds": 0.408,
+    "phase_load_times": {
+      "phase1": 0.059,
+      "phase2": 0.062,
+      "phase3": 0.04,
+      "phase6": 0.121,
+      "phase7": 0.126
+    },
+    "bottleneck_phase": "phase7",
+    "estimated_100k_processing_time_seconds": 5.52,
+    "estimated_100k_processing_time_human": "0分 5秒",
+    "score": 100
+  },
+  "test_4_data_quality": {
+    "status": "PASS",
+    "total_locations_checked": 781,
+    "invalid_coordinates": 0,
+    "negative_counts": 0,
+    "null_ids": 0,
+    "quality_issues": [],
+    "score": 100
+  },
+  "test_5_phase_dependencies": {
+    "status": "ERROR",
+    "error": "'applicant_id'",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\fuji1\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\core\\indexes\\base.py\", line 3805, in get_loc\n    return self._engine.get_loc(casted_key)\n           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^\n  File \"index.pyx\", line 167, in pandas._libs.index.IndexEngine.get_loc\n  File \"index.pyx\", line 196, in pandas._libs.index.IndexEngine.get_loc\n  File \"pandas\\\\_libs\\\\hashtable_class_helper.pxi\", line 7081, in pandas._libs.hashtable.PyObjectHashTable.get_item\n  File \"pandas\\\\_libs\\\\hashtable_class_helper.pxi\", line 7089, in pandas._libs.hashtable.PyObjectHashTable.get_item\nKeyError: 'applicant_id'\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\fuji1\\OneDrive\\Pythonスクリプト保管\\job_medley_project\\python_scripts\\integration_test_suite_10x.py\", line 329, in test_5_phase_dependencies\n    proximity_ids = set(proximity_df['applicant_id'])\n                        ~~~~~~~~~~~~^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\fuji1\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\core\\frame.py\", line 4102, in __getitem__\n    indexer = self.columns.get_loc(key)\n  File \"C:\\Users\\fuji1\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\core\\indexes\\base.py\", line 3812, in get_loc\n    raise KeyError(key) from err\nKeyError: 'applicant_id'\n"
+  },
+  "test_6_statistical_analysis_validity": {
+    "status": "PASS",
+    "chi_square_tests": 2,
+    "anova_tests": 1,
+    "invalid_chi_square_p_values": 0,
+    "invalid_f_values": 0,
+    "invalid_anova_p_values": 0,
+    "statistical_issues": [],
+    "score": 100
+  },
+  "test_7_persona_classification": {
+    "status": "FAIL",
+    "persona_count_phase3": 5,
+    "persona_total_phase3": 6726,
+    "persona_count_phase7": 10,
+    "persona_total_phase7": 7389,
+    "applicants_total": 7390,
+    "percentage_total": 100.0,
+    "classification_issues": [
+      "ペルソナ人数合計 (6726) != Applicants総数 (7390)",
+      "DetailedPersonaProfile人数合計 (7389) != Applicants総数 (7390)"
+    ],
+    "score": 40
+  },
+  "test_8_flow_analysis_validity": {
+    "status": "ERROR",
+    "error": "'flow_count'",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\fuji1\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\core\\indexes\\base.py\", line 3805, in get_loc\n    return self._engine.get_loc(casted_key)\n           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^\n  File \"index.pyx\", line 167, in pandas._libs.index.IndexEngine.get_loc\n  File \"index.pyx\", line 196, in pandas._libs.index.IndexEngine.get_loc\n  File \"pandas\\\\_libs\\\\hashtable_class_helper.pxi\", line 7081, in pandas._libs.hashtable.PyObjectHashTable.get_item\n  File \"pandas\\\\_libs\\\\hashtable_class_helper.pxi\", line 7089, in pandas._libs.hashtable.PyObjectHashTable.get_item\nKeyError: 'flow_count'\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\fuji1\\OneDrive\\Pythonスクリプト保管\\job_medley_project\\python_scripts\\integration_test_suite_10x.py\", line 521, in test_8_flow_analysis_validity\n    negative_flows = edges_df[edges_df['flow_count'] <= 0]\n                              ~~~~~~~~^^^^^^^^^^^^^^\n  File \"C:\\Users\\fuji1\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\core\\frame.py\", line 4102, in __getitem__\n    indexer = self.columns.get_loc(key)\n  File \"C:\\Users\\fuji1\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pandas\\core\\indexes\\base.py\", line 3812, in get_loc\n    raise KeyError(key) from err\nKeyError: 'flow_count'\n"
+  },
+  "test_9_scalability_estimation": {
+    "status": "PASS",
+    "actual_data_size": 7390,
+    "scale_factor": 13.53,
+    "current_data_sizes": {
+      "phase1_applicants": 7390,
+      "phase1_desired_work": 22815,
+      "phase3_persona_summary": 5,
+      "phase6_flow_edges": 6861,
+      "phase7_persona_map": 792
+    },
+    "estimated_100k_sizes": {
+      "phase1_applicants": 100000,
+      "phase1_desired_work": 308728,
+      "phase3_persona_summary": 67,
+      "phase6_flow_edges": 92841,
+      "phase7_persona_map": 10717
+    },
+    "current_memory_mb": 0.01,
+    "estimated_100k_memory_mb": 0.16,
+    "estimated_100k_memory_gb": 0.0,
+    "score": 100
+  },
+  "test_10_recovery_resilience": {
+    "status": "PASS",
+    "geocache_exists": true,
+    "geocache_entries": 536,
+    "required_dirs": 5,
+    "missing_dirs": 0,
+    "total_files": 18,
+    "readable_files": 18,
+    "recovery_issues": [],
+    "score": 100
+  },
+  "summary": {
+    "total_tests": 10,
+    "passed": 5,
+    "failed": 5,
+    "overall_score": 69,
+    "critical_issues": [
+      "Applicants件数 (7390) != DesiredWorkユニークID数 (7276)",
+      "PersonaSummary人数合計 (6726) != Applicants総数 (7390)",
+      "欠損ファイル: 2件",
+      "テスト5エラー: 'applicant_id'",
+      "ペルソナ人数合計 (6726) != Applicants総数 (7390)",
+      "DetailedPersonaProfile人数合計 (7389) != Applicants総数 (7390)",
+      "テスト8エラー: 'flow_count'"
+    ],
+    "total_execution_time_seconds": 1.01
+  }
+}

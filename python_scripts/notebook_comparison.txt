@@ -1,0 +1,132 @@
+====================================================================================================
+旧Jupyter Notebook vs 現在のrun_complete_v2_perfect.py 機能比較
+====================================================================================================
+
+[旧Notebookの EnhancedJobSeekerAnalyzer クラスの主要メソッド]
+====================================================================================================
+
+【旧Notebookにのみ存在する高度な分析機能】
+----------------------------------------------------------------------------------------------------
+
+✨ _create_application_propensity_model
+   シグネチャ: def _create_application_propensity_model(self): print("\n【応募傾向モデル構築（改修版）】") features = pd.DataFrame(...
+
+✨ _latent_class_analysis
+   シグネチャ: def _latent_class_analysis(self): print("\n【潜在クラス分析（LCA）】") print("  統計的類似性に基づくグループ分けを実行中...")...
+
+✨ _analyze_segment_evidence
+   シグネチャ: def _analyze_segment_evidence(self): print("\n【セグメント根拠分析】") if 'lca_segment' not in self.df_processe...
+
+✨ _association_rule_mining
+   シグネチャ: def _association_rule_mining(self): print("\n【アソシエーションルール分析】") if MLXTEND_AVAILABLE:...
+
+✨ _association_rule_mining_advanced
+   シグネチャ: def _association_rule_mining_advanced(self): transactions = [] for _, row in self.df_processed.iterr...
+
+✨ _association_rule_mining_simple
+   シグネチャ: def _association_rule_mining_simple(self): co_occurrence = defaultdict(lambda: defaultdict(int)) for...
+
+✨ _interpret_rules
+   シグネチャ: def _interpret_rules(self, rules_df): insights = [] if len(rules_df) > 0:...
+
+✨ _generate_evidence_based_personas
+   シグネチャ: def _generate_evidence_based_personas(self): print("\n【ペルソナプロファイル生成】") personas = []...
+
+✨ _infer_segment_characteristics
+   シグネチャ: def _infer_segment_characteristics(self, seg_data, evidence): inferred = {} avg_age = evidence.get('...
+
+✨ _generate_evidence_based_name
+   シグネチャ: def _generate_evidence_based_name(self, actual, inferred): name_parts, basis = [], [] avg_age = actu...
+
+✨ _generate_evidence_based_strategies
+   シグネチャ: def _generate_evidence_based_strategies(self, actual, inferred): strategies = [] avg_age = actual['m...
+
+✨ _calculate_confidence_level
+   シグネチャ: def _calculate_confidence_level(self, evidence): confidence_factors = [] size = evidence.get('basic_...
+
+✨ _calculate_roi_projections
+   シグネチャ: def _calculate_roi_projections(self): print("\n【ROI予測分析】") print("  リサーチベースのROI予測を計算中...")...
+
+✨ generate_strategic_insights
+   シグネチャ: def generate_strategic_insights(self): print("\n【戦略的インサイト分析】（省略）") return []...
+
+✨ _gender_relative_location_intent
+   シグネチャ: def _gender_relative_location_intent(self): """希望勤務地数の性別内パーセンタイル（0-1）を計算して付与""" df = self.df_process...
+   説明: 希望勤務地数の性別内パーセンタイル（0-1）を計算して付与 df = self.df_processed for g in ['M','F']: mask = (df['gender'] == g) & df['desired_location_count'].notna() if mask.sum...
+
+✨ _qa_checks
+   シグネチャ: def _qa_checks(self): issues = list(self.qa_issues) dfp = self.df_processed if isinstance(self.df_pr...
+
+✨ _display_enhanced_summary
+   シグネチャ: def _display_enhanced_summary(self): print("\n" + "=" * 60) print("✅ 分析完了（改修版）")...
+
+
+====================================================================================================
+機能カテゴリ別分類
+====================================================================================================
+
+【ペルソナ分析】
+----------------------------------------------------------------------------------------------------
+  ✅ 実装あり _generate_evidence_based_personas
+  ✅ 実装あり _infer_segment_characteristics
+  ✅ 実装あり _generate_evidence_based_name
+  ✅ 実装あり _generate_evidence_based_strategies
+  ✅ 実装あり _calculate_confidence_level
+
+【アソシエーションルールマイニング】
+----------------------------------------------------------------------------------------------------
+  ✅ 実装あり _association_rule_mining
+  ✅ 実装あり _association_rule_mining_advanced
+  ✅ 実装あり _association_rule_mining_simple
+  ✅ 実装あり _interpret_rules
+
+【応募傾向・予測モデル】
+----------------------------------------------------------------------------------------------------
+  ✅ 実装あり _create_application_propensity_model
+  ✅ 実装あり _calculate_roi_projections
+  ✅ 実装あり _latent_class_analysis
+  ✅ 実装あり _analyze_segment_evidence
+
+【地理分析】
+----------------------------------------------------------------------------------------------------
+  ✅ 実装あり _gender_relative_location_intent
+      → 希望勤務地数の性別内パーセンタイル（0-1）を計算して付与 df = self.df_processed for g in ['M','F']: mask = (df['gender'] == g) ...
+
+【品質保証・レポート】
+----------------------------------------------------------------------------------------------------
+  ✅ 実装あり _qa_checks
+  ✅ 実装あり _display_enhanced_summary
+
+【戦略的インサイト】
+----------------------------------------------------------------------------------------------------
+  ✅ 実装あり generate_strategic_insights
+
+
+====================================================================================================
+統合可能性評価
+====================================================================================================
+
+【高優先度（即座に統合すべき）】
+----------------------------------------------------------------------------------------------------
+  🔹 _generate_evidence_based_personas
+      理由: エビデンスベースのペルソナ生成は現在のPhase 3の強化に直結
+  🔹 _association_rule_mining_advanced
+      理由: 資格×職種×年齢層の関連性発見に有用
+  🔹 _calculate_roi_projections
+      理由: 採用ROI予測は実務的価値が高い
+
+【中優先度（検討価値あり）】
+----------------------------------------------------------------------------------------------------
+  🔹 _create_application_propensity_model
+      理由: 応募傾向予測モデル、ただし統計的妥当性要確認
+  🔹 _latent_class_analysis
+      理由: 潜在クラス分析、サンプルサイズ依存
+  🔹 _qa_checks
+      理由: データ品質チェック強化、現行システムと重複可能性あり
+
+【低優先度（現状で代替可能）】
+----------------------------------------------------------------------------------------------------
+  🔹 _gender_relative_location_intent
+      理由: 性別×地域分析、Phase 3/7で代替可能
+  🔹 _display_enhanced_summary
+      理由: 表示機能、GAS側で実装済み

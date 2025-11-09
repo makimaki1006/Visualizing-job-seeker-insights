@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phase 12-14 デモ | Job Medley MAP</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #f1f5f9;
+      padding: 20px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #38bdf8;
+      border-bottom: 2px solid #1e293b;
+      padding-bottom: 10px;
+    }
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .tab {
+      padding: 12px 24px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+    .tab:hover { background: #334155; }
+    .tab.active {
+      background: #38bdf8;
+      color: #0f172a;
+      border-color: #38bdf8;
+      font-weight: 600;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+    }
+    .kpi .label {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .kpi .value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #38bdf8;
+    }
+    .section {
+      background: #1e293b;
+      padding: 24px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      border: 1px solid #334155;
+    }
+    .section h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #f1f5f9;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th {
+      background: #0f172a;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid #334155;
+      color: #38bdf8;
+    }
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #334155;
+    }
+    tr:hover { background: #334155; }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 24px;
+    }
+    .chart-card {
+      background: #0f172a;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+    }
+    .chart-card header {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .chart-body {
+      position: relative;
+      height: 400px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(56, 189, 248, 0.2);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Phase 12-14 実装デモ <span class="badge">京都府 京都市伏見区</span></h1>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="gap">需給ギャップ (Phase 12)</div>
+      <div class="tab" data-tab="rarity">希少性スコア (Phase 13)</div>
+      <div class="tab" data-tab="competition">競合分析 (Phase 14)</div>
+    </div>
+
+    <!-- Phase 12: 需給ギャップ -->
+    <div class="panel active" data-panel="gap">
+      <div class="kpis">
+        <div class="kpi">
+          <div class="label">総分析地域数</div>
+          <div class="value">1,528</div>
+        </div>
+        <div class="kpi">
+          <div class="label">総需要</div>
+          <div class="value">50,000人</div>
+        </div>
+        <div class="kpi">
+          <div class="label">総供給</div>
+          <div class="value">15,000人</div>
+        </div>
+        <div class="kpi">
+          <div class="label">平均需給比率</div>
+          <div class="value">45.2</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>需給ギャップTop 10（需要 - 供給）</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>地域</th>
+              <th>需要</th>
+              <th>供給</th>
+              <th>ギャップ</th>
+              <th>需給比率</th>
+            </tr>
+          </thead>
+          <tbody id="gapTable"></tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2>需給ギャップ可視化</h2>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <header>Top 10 需給ギャップ</header>
+            <div class="chart-body">
+              <canvas id="gapChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <header>Top 10 需給比率</header>
+            <div class="chart-body">
+              <canvas id="ratioChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase 13: 希少性スコア -->
+    <div class="panel" data-panel="rarity">
+      <div class="kpis">
+        <div class="kpi">
+          <div class="label">総組み合わせ数</div>
+          <div class="value">4,500</div>
+        </div>
+        <div class="kpi">
+          <div class="label">超希少（S）件数</div>
+          <div class="value">2,205</div>
+        </div>
+        <div class="kpi">
+          <div class="label">非常に希少（A）件数</div>
+          <div class="value">628</div>
+        </div>
+        <div class="kpi">
+          <div class="label">希少（B）件数</div>
+          <div class="value">515</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>希少性スコアTop 15</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>地域</th>
+              <th>年齢層</th>
+              <th>性別</th>
+              <th>国家資格</th>
+              <th>人数</th>
+              <th>希少性スコア</th>
+              <th>ランク</th>
+            </tr>
+          </thead>
+          <tbody id="rarityTable"></tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2>希少性分析可視化</h2>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <header>希少性ランク分布</header>
+            <div class="chart-body">
+              <canvas id="rarityDistChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <header>Top 10 希少性スコア</header>
+            <div class="chart-body">
+              <canvas id="rarityScoreChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase 14: 競合分析 -->
+    <div class="panel" data-panel="competition">
+      <div class="kpis">
+        <div class="kpi">
+          <div class="label">総分析地域数</div>
+          <div class="value">1,032</div>
+        </div>
+        <div class="kpi">
+          <div class="label">総応募者数</div>
+          <div class="value">80,000人</div>
+        </div>
+        <div class="kpi">
+          <div class="label">平均女性比率</div>
+          <div class="value">73%</div>
+        </div>
+        <div class="kpi">
+          <div class="label">平均国家資格保有率</div>
+          <div class="value">1%</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>競争が激しい地域Top 15</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>地域</th>
+              <th>総応募者数</th>
+              <th>主要年齢層</th>
+              <th>女性比率</th>
+              <th>国家資格率</th>
+              <th>就業率</th>
+            </tr>
+          </thead>
+          <tbody id="competitionTable"></tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2>競合分析可視化</h2>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <header>Top 10 総応募者数</header>
+            <div class="chart-body">
+              <canvas id="competitionApplicantsChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <header>Top 10 女性比率</header>
+            <div class="chart-body">
+              <canvas id="competitionFemaleChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ダミーデータ
+    const data = {
+      gap: {
+        top_gaps: [
+          {location: "東京都世田谷区", demand_count: 1281, supply_count: 0, gap: 1281, demand_supply_ratio: 1281.0},
+          {location: "東京都練馬区", demand_count: 1259, supply_count: 0, gap: 1259, demand_supply_ratio: 1259.0},
+          {location: "東京都足立区", demand_count: 1147, supply_count: 0, gap: 1147, demand_supply_ratio: 1147.0},
+          {location: "東京都江戸川区", demand_count: 1087, supply_count: 0, gap: 1087, demand_supply_ratio: 1087.0},
+          {location: "東京都町田市", demand_count: 1065, supply_count: 0, gap: 1065, demand_supply_ratio: 1065.0},
+          {location: "神奈川県横浜市", demand_count: 980, supply_count: 45, gap: 935, demand_supply_ratio: 21.8},
+          {location: "埼玉県さいたま市", demand_count: 850, supply_count: 32, gap: 818, demand_supply_ratio: 26.6},
+          {location: "千葉県千葉市", demand_count: 720, supply_count: 28, gap: 692, demand_supply_ratio: 25.7},
+          {location: "大阪府大阪市", demand_count: 1450, supply_count: 78, gap: 1372, demand_supply_ratio: 18.6},
+          {location: "愛知県名古屋市", demand_count: 920, supply_count: 52, gap: 868, demand_supply_ratio: 17.7}
+        ]
+      },
+      rarity: {
+        top_rarity: [
+          {location: "三重県松阪市", age_bucket: "30代", gender: "女性", has_national_license: false, count: 1, rarity_score: 1.0, rarity_rank: "S: 超希少（1人のみ）"},
+          {location: "鹿児島県鹿屋市", age_bucket: "30代", gender: "男性", has_national_license: false, count: 1, rarity_score: 1.0, rarity_rank: "S: 超希少（1人のみ）"},
+          {location: "三重県", age_bucket: "20代", gender: "女性", has_national_license: false, count: 1, rarity_score: 1.0, rarity_rank: "S: 超希少（1人のみ）"},
+          {location: "三重県いなべ市", age_bucket: "30代", gender: "女性", has_national_license: false, count: 1, rarity_score: 1.0, rarity_rank: "S: 超希少（1人のみ）"},
+          {location: "三重県いなべ市", age_bucket: "70歳以上", gender: "男性", has_national_license: false, count: 1, rarity_score: 1.0, rarity_rank: "S: 超希少（1人のみ）"},
+          {location: "福岡県北九州市", age_bucket: "40代", gender: "女性", has_national_license: true, count: 2, rarity_score: 0.5, rarity_rank: "A: 非常に希少（2人）"},
+          {location: "広島県広島市", age_bucket: "50代", gender: "男性", has_national_license: true, count: 2, rarity_score: 0.5, rarity_rank: "A: 非常に希少（2人）"},
+          {location: "京都府京都市", age_bucket: "30代", gender: "女性", has_national_license: false, count: 3, rarity_score: 0.33, rarity_rank: "B: 希少（3-5人）"},
+          {location: "神奈川県川崎市", age_bucket: "40代", gender: "男性", has_national_license: false, count: 4, rarity_score: 0.25, rarity_rank: "B: 希少（3-5人）"},
+          {location: "大阪府堺市", age_bucket: "50代", gender: "女性", has_national_license: true, count: 5, rarity_score: 0.20, rarity_rank: "B: 希少（3-5人）"},
+          {location: "埼玉県川口市", age_bucket: "30代", gender: "男性", has_national_license: false, count: 8, rarity_score: 0.125, rarity_rank: "C: やや希少（6-20人）"},
+          {location: "千葉県船橋市", age_bucket: "40代", gender: "女性", has_national_license: false, count: 12, rarity_score: 0.083, rarity_rank: "C: やや希少（6-20人）"},
+          {location: "兵庫県神戸市", age_bucket: "50代", gender: "男性", has_national_license: false, count: 15, rarity_score: 0.067, rarity_rank: "C: やや希少（6-20人）"},
+          {location: "福岡県福岡市", age_bucket: "30代", gender: "女性", has_national_license: false, count: 25, rarity_score: 0.04, rarity_rank: "D: 一般的（20人超）"},
+          {location: "愛知県名古屋市", age_bucket: "40代", gender: "女性", has_national_license: false, count: 32, rarity_score: 0.031, rarity_rank: "D: 一般的（20人超）"}
+        ],
+        rank_distribution: {
+          "S: 超希少（1人のみ）": 2205,
+          "A: 非常に希少（2人）": 628,
+          "B: 希少（3-5人）": 515,
+          "C: やや希少（6-20人）": 631,
+          "D: 一般的（20人超）": 521
+        }
+      },
+      competition: {
+        top_locations: [
+          {location: "東京都世田谷区", total_applicants: 1281, top_age_group: "50代", top_age_ratio: 0.223, female_ratio: 0.724, male_ratio: 0.276, national_license_rate: 0.007, top_employment_status: "就業中", top_employment_ratio: 0.560, avg_qualification_count: 1.06},
+          {location: "東京都練馬区", total_applicants: 1259, top_age_group: "50代", top_age_ratio: 0.251, female_ratio: 0.756, male_ratio: 0.244, national_license_rate: 0.007, top_employment_status: "就業中", top_employment_ratio: 0.579, avg_qualification_count: 1.01},
+          {location: "東京都足立区", total_applicants: 1147, top_age_group: "50代", top_age_ratio: 0.245, female_ratio: 0.750, male_ratio: 0.250, national_license_rate: 0.008, top_employment_status: "就業中", top_employment_ratio: 0.568, avg_qualification_count: 1.08},
+          {location: "東京都江戸川区", total_applicants: 1087, top_age_group: "50代", top_age_ratio: 0.234, female_ratio: 0.760, male_ratio: 0.240, national_license_rate: 0.007, top_employment_status: "就業中", top_employment_ratio: 0.552, avg_qualification_count: 1.05},
+          {location: "東京都町田市", total_applicants: 1065, top_age_group: "50代", top_age_ratio: 0.228, female_ratio: 0.763, male_ratio: 0.237, national_license_rate: 0.007, top_employment_status: "就業中", top_employment_ratio: 0.548, avg_qualification_count: 1.04},
+          {location: "大阪府大阪市", total_applicants: 1450, top_age_group: "50代", top_age_ratio: 0.267, female_ratio: 0.742, male_ratio: 0.258, national_license_rate: 0.009, top_employment_status: "就業中", top_employment_ratio: 0.585, avg_qualification_count: 1.12},
+          {location: "神奈川県横浜市", total_applicants: 980, top_age_group: "40代", top_age_ratio: 0.289, female_ratio: 0.698, male_ratio: 0.302, national_license_rate: 0.012, top_employment_status: "就業中", top_employment_ratio: 0.612, avg_qualification_count: 1.18},
+          {location: "愛知県名古屋市", total_applicants: 920, top_age_group: "50代", top_age_ratio: 0.255, female_ratio: 0.715, male_ratio: 0.285, national_license_rate: 0.010, top_employment_status: "就業中", top_employment_ratio: 0.594, avg_qualification_count: 1.15},
+          {location: "埼玉県さいたま市", total_applicants: 850, top_age_group: "50代", top_age_ratio: 0.241, female_ratio: 0.729, male_ratio: 0.271, national_license_rate: 0.008, top_employment_status: "就業中", top_employment_ratio: 0.571, avg_qualification_count: 1.09},
+          {location: "千葉県千葉市", total_applicants: 720, top_age_group: "50代", top_age_ratio: 0.238, female_ratio: 0.735, male_ratio: 0.265, national_license_rate: 0.009, top_employment_status: "就業中", top_employment_ratio: 0.563, avg_qualification_count: 1.11}
+        ]
+      }
+    };
+
+    // タブ切り替え
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelector(`[data-panel="${tab.dataset.tab}"]`).classList.add('active');
+      });
+    });
+
+    // Phase 12: 需給ギャップテーブル
+    const gapTableBody = document.getElementById('gapTable');
+    data.gap.top_gaps.forEach(item => {
+      gapTableBody.innerHTML += `
+        <tr>
+          <td>${item.location}</td>
+          <td>${item.demand_count.toLocaleString()}</td>
+          <td>${item.supply_count.toLocaleString()}</td>
+          <td>${item.gap.toLocaleString()}</td>
+          <td>${item.demand_supply_ratio.toFixed(2)}</td>
+        </tr>
+      `;
+    });
+
+    // Phase 12: 需給ギャップチャート
+    new Chart(document.getElementById('gapChart'), {
+      type: 'bar',
+      data: {
+        labels: data.gap.top_gaps.map(i => i.location),
+        datasets: [
+          {
+            label: '需要',
+            data: data.gap.top_gaps.map(i => i.demand_count),
+            backgroundColor: 'rgba(56, 189, 248, 0.8)'
+          },
+          {
+            label: '供給',
+            data: data.gap.top_gaps.map(i => i.supply_count),
+            backgroundColor: 'rgba(251, 146, 60, 0.8)'
+          }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { beginAtZero: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+          y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+        },
+        plugins: {
+          legend: { labels: { color: '#f1f5f9' } }
+        }
+      }
+    });
+
+    // Phase 12: 需給比率チャート
+    new Chart(document.getElementById('ratioChart'), {
+      type: 'bar',
+      data: {
+        labels: data.gap.top_gaps.map(i => i.location),
+        datasets: [{
+          label: '需給比率',
+          data: data.gap.top_gaps.map(i => i.demand_supply_ratio),
+          backgroundColor: 'rgba(34, 197, 94, 0.8)'
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { beginAtZero: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+          y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+        },
+        plugins: {
+          legend: { labels: { color: '#f1f5f9' } }
+        }
+      }
+    });
+
+    // Phase 13: 希少性テーブル
+    const rarityTableBody = document.getElementById('rarityTable');
+    data.rarity.top_rarity.forEach(item => {
+      rarityTableBody.innerHTML += `
+        <tr>
+          <td>${item.location}</td>
+          <td>${item.age_bucket}</td>
+          <td>${item.gender}</td>
+          <td>${item.has_national_license ? 'あり' : 'なし'}</td>
+          <td>${item.count}</td>
+          <td>${item.rarity_score.toFixed(3)}</td>
+          <td>${item.rarity_rank}</td>
+        </tr>
+      `;
+    });
+
+    // Phase 13: 希少性ランク分布チャート
+    new Chart(document.getElementById('rarityDistChart'), {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(data.rarity.rank_distribution),
+        datasets: [{
+          data: Object.values(data.rarity.rank_distribution),
+          backgroundColor: [
+            'rgba(239, 68, 68, 0.8)',
+            'rgba(251, 146, 60, 0.8)',
+            'rgba(250, 204, 21, 0.8)',
+            'rgba(34, 197, 94, 0.8)',
+            'rgba(56, 189, 248, 0.8)'
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#f1f5f9' } }
+        }
+      }
+    });
+
+    // Phase 13: 希少性スコアチャート
+    new Chart(document.getElementById('rarityScoreChart'), {
+      type: 'bar',
+      data: {
+        labels: data.rarity.top_rarity.slice(0, 10).map(i => i.location),
+        datasets: [{
+          label: '希少性スコア',
+          data: data.rarity.top_rarity.slice(0, 10).map(i => i.rarity_score),
+          backgroundColor: 'rgba(168, 85, 247, 0.8)'
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { beginAtZero: true, max: 1, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+          y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+        },
+        plugins: {
+          legend: { labels: { color: '#f1f5f9' } }
+        }
+      }
+    });
+
+    // Phase 14: 競合分析テーブル
+    const competitionTableBody = document.getElementById('competitionTable');
+    data.competition.top_locations.forEach(item => {
+      competitionTableBody.innerHTML += `
+        <tr>
+          <td>${item.location}</td>
+          <td>${item.total_applicants.toLocaleString()}</td>
+          <td>${item.top_age_group}</td>
+          <td>${(item.female_ratio * 100).toFixed(1)}%</td>
+          <td>${(item.national_license_rate * 100).toFixed(1)}%</td>
+          <td>${(item.top_employment_ratio * 100).toFixed(1)}%</td>
+        </tr>
+      `;
+    });
+
+    // Phase 14: 総応募者数チャート
+    new Chart(document.getElementById('competitionApplicantsChart'), {
+      type: 'bar',
+      data: {
+        labels: data.competition.top_locations.map(i => i.location),
+        datasets: [{
+          label: '総応募者数',
+          data: data.competition.top_locations.map(i => i.total_applicants),
+          backgroundColor: 'rgba(236, 72, 153, 0.8)'
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { beginAtZero: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+          y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+        },
+        plugins: {
+          legend: { labels: { color: '#f1f5f9' } }
+        }
+      }
+    });
+
+    // Phase 14: 女性比率チャート
+    new Chart(document.getElementById('competitionFemaleChart'), {
+      type: 'bar',
+      data: {
+        labels: data.competition.top_locations.map(i => i.location),
+        datasets: [{
+          label: '女性比率 (%)',
+          data: data.competition.top_locations.map(i => i.female_ratio * 100),
+          backgroundColor: 'rgba(244, 114, 182, 0.8)'
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { beginAtZero: true, max: 100, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+          y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+        },
+        plugins: {
+          legend: { labels: { color: '#f1f5f9' } }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

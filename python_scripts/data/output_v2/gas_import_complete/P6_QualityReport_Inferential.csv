@@ -1,0 +1,22 @@
+﻿カラム名,有効データ数,ユニーク値数,最小グループサイズ,信頼性レベル,警告
+origin,18340,305,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+destination,18340,936,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+origin_pref,18340,44,2,CRITICAL,推論用最小グループ不足（2件 < 30件）
+origin_muni,18340,305,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+destination_pref,18340,47,5,CRITICAL,推論用最小グループ不足（5件 < 30件）
+destination_muni,18340,890,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+applicant_id,25757,7417,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+age,25757,72,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+gender,25757,2,10713,HIGH,なし
+location,966,966,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+prefecture,966,47,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+municipality,966,920,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+inflow,966,95,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+outflow,966,106,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+net_flow,966,130,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+applicant_count,966,100,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+residence_pref,7417,44,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+same_prefecture_count,7417,39,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+different_prefecture_count,7417,53,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+total_desired_areas,7417,68,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+mobility_score,7417,168,1,CRITICAL,推論用最小グループ不足（1件 < 30件）

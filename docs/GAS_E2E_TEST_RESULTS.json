@@ -1,0 +1,113 @@
+{
+  "timestamp": "2025-10-26T09:26:23.007Z",
+  "tests": [
+    {
+      "name": "CSVファイル存在: SupplyDensityMap.csv",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "CSVファイル存在: AgeGenderCrossAnalysis.csv",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "CSVファイル存在: MobilityScore.csv",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "CSVファイル存在: DetailedPersonaProfile.csv",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "CSV形式: SupplyDensityMap.csv",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "CSV形式: AgeGenderCrossAnalysis.csv",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "CSV形式: MobilityScore.csv",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "CSV形式: DetailedPersonaProfile.csv",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "SupplyDensityMap: ヘッダー確認",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "SupplyDensityMap: データ行数",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "SupplyDensityMap: ランク値",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "MobilityScore: ヘッダー確認",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "MobilityScore: データ行数",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "MobilityScore: 移動許容度レベル",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "AgeGenderCross: ヘッダー確認",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "DetailedPersonaProfile: ヘッダー確認",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "loadSupplyDensityData: データ読み込み",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "loadMobilityScoreData: データ読み込み",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "Google Charts: バブルチャートデータ",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "Google Charts: 円グラフデータ",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "name": "HTML生成: SupplyDensityMap",
+      "status": "PASS",
+      "error": null
+    }
+  ],
+  "passed": 21,
+  "failed": 0,
+  "totalScore": 100
+}

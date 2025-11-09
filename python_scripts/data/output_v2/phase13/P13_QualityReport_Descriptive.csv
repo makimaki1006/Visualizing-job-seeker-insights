@@ -1,0 +1,12 @@
+﻿カラム名,有効データ数,ユニーク値数,最小グループサイズ,信頼性レベル,警告
+prefecture,4885,47,3,DESCRIPTIVE,なし（観察的記述）
+municipality,4885,898,1,DESCRIPTIVE,なし（観察的記述）
+location,4885,944,1,DESCRIPTIVE,なし（観察的記述）
+age_bucket,4885,6,450,DESCRIPTIVE,なし（観察的記述）
+gender,4885,2,2301,DESCRIPTIVE,なし（観察的記述）
+has_national_license,4885,2,988,DESCRIPTIVE,なし（観察的記述）
+count,4885,106,1,DESCRIPTIVE,なし（観察的記述）
+rarity_score,4885,106,1,DESCRIPTIVE,なし（観察的記述）
+rarity_rank,4885,5,235,DESCRIPTIVE,なし（観察的記述）
+latitude,4885,92,3,DESCRIPTIVE,なし（観察的記述）
+longitude,4885,92,3,DESCRIPTIVE,なし（観察的記述）

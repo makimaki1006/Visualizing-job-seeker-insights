@@ -1,0 +1,254 @@
+{
+  "unit_tests": [
+    {
+      "test_name": "正規表現_Case 1: 政令市+区",
+      "status": "FAIL",
+      "details": "期待=京都市西京区, 実際=京都府京都市西京区",
+      "timestamp": "2025-10-24T20:11:37.357563"
+    },
+    {
+      "test_name": "正規表現_Case 2: 政令市+区",
+      "status": "FAIL",
+      "details": "期待=横浜市中区, 実際=神奈川県横浜市中区",
+      "timestamp": "2025-10-24T20:11:37.357583"
+    },
+    {
+      "test_name": "正規表現_Case 3: 政令市+区",
+      "status": "FAIL",
+      "details": "期待=大阪市北区, 実際=大阪府大阪市北区",
+      "timestamp": "2025-10-24T20:11:37.357595"
+    },
+    {
+      "test_name": "正規表現_Case 4: 市のみ",
+      "status": "FAIL",
+      "details": "期待=宇治市, 実際=京都府宇治市",
+      "timestamp": "2025-10-24T20:11:37.357604"
+    },
+    {
+      "test_name": "正規表現_Case 5: 市のみ",
+      "status": "FAIL",
+      "details": "期待=八王子市, 実際=東京都八王子市",
+      "timestamp": "2025-10-24T20:11:37.357611"
+    },
+    {
+      "test_name": "正規表現_Case 6: 市のみ（政令市だが区指定なし）",
+      "status": "FAIL",
+      "details": "期待=名古屋市, 実際=愛知県名古屋市",
+      "timestamp": "2025-10-24T20:11:37.357618"
+    },
+    {
+      "test_name": "正規表現_Case 7: 郡+町",
+      "status": "FAIL",
+      "details": "期待=久世郡, 実際=京都府久世郡",
+      "timestamp": "2025-10-24T20:11:37.357630"
+    },
+    {
+      "test_name": "正規表現_Case 8: 郡+町",
+      "status": "FAIL",
+      "details": "期待=虻田郡, 実際=北海道虻田郡",
+      "timestamp": "2025-10-24T20:11:37.357637"
+    },
+    {
+      "test_name": "正規表現_Case 9: 区のみ（東京23区）",
+      "status": "FAIL",
+      "details": "期待=千代田区, 実際=東京都千代田区",
+      "timestamp": "2025-10-24T20:11:37.357644"
+    },
+    {
+      "test_name": "正規表現_Case 10: 市のみ（沖縄）",
+      "status": "FAIL",
+      "details": "期待=那覇市, 実際=沖縄県那覇市",
+      "timestamp": "2025-10-24T20:11:37.357651"
+    },
+    {
+      "test_name": "テスト計画策定",
+      "status": "PASS",
+      "details": "",
+      "timestamp": "2025-10-24T20:11:37.357654"
+    },
+    {
+      "test_name": "GAS_数値型検証",
+      "status": "PASS",
+      "details": "",
+      "timestamp": "2025-10-24T20:11:37.357741"
+    },
+    {
+      "test_name": "GAS_文字列型検証",
+      "status": "PASS",
+      "details": "",
+      "timestamp": "2025-10-24T20:11:37.357745"
+    },
+    {
+      "test_name": "GAS_座標範囲_正常範囲",
+      "status": "PASS",
+      "details": "",
+      "timestamp": "2025-10-24T20:11:37.357754"
+    },
+    {
+      "test_name": "GAS_座標範囲_範囲外（緯度高すぎ）",
+      "status": "PASS",
+      "details": "",
+      "timestamp": "2025-10-24T20:11:37.357760"
+    },
+    {
+      "test_name": "GAS_カラム数検証",
+      "status": "PASS",
+      "details": "",
+      "timestamp": "2025-10-24T20:11:37.357763"
+    },
+    {
+      "test_name": "GAS_重複キー検出",
+      "status": "PASS",
+      "details": "1件検出",
+      "timestamp": "2025-10-24T20:11:37.357774"
+    },
+    {
+      "test_name": "GAS_集計値整合性",
+      "status": "PASS",
+      "details": "差=300, 許容=500.0",
+      "timestamp": "2025-10-24T20:11:37.357787"
+    },
+    {
+      "test_name": "GAS_外部キー整合性",
+      "status": "PASS",
+      "details": "",
+      "timestamp": "2025-10-24T20:11:37.357791"
+    },
+    {
+      "test_name": "GAS_区レベル粒度",
+      "status": "WARN",
+      "details": "1件が市のみ",
+      "timestamp": "2025-10-24T20:11:37.357858"
+    },
+    {
+      "test_name": "GAS_ペルソナ難易度スコア",
+      "status": "PASS",
+      "details": "70.0点",
+      "timestamp": "2025-10-24T20:11:37.357868"
+    }
+  ],
+  "integration_tests": [
+    {
+      "test_name": "MapMetrics.csv存在確認",
+      "status": "FAIL",
+      "details": "パス: C:\\Users\\fuji1\\OneDrive\\Pythonスクリプト保管\\gas_output_phase2\\MapMetrics.csv",
+      "timestamp": "2025-10-24T20:11:37.357732"
+    },
+    {
+      "test_name": "MapMetrics.csv存在確認",
+      "status": "FAIL",
+      "details": "パス: C:\\Users\\fuji1\\OneDrive\\Pythonスクリプト保管\\gas_output_phase2\\MapMetrics.csv",
+      "timestamp": "2025-10-24T20:11:37.357915"
+    },
+    {
+      "test_name": "Applicants.csv存在確認",
+      "status": "FAIL",
+      "details": "パス: C:\\Users\\fuji1\\OneDrive\\Pythonスクリプト保管\\gas_output_phase2\\Applicants.csv",
+      "timestamp": "2025-10-24T20:11:37.357944"
+    },
+    {
+      "test_name": "DesiredWork.csv存在確認",
+      "status": "FAIL",
+      "details": "パス: C:\\Users\\fuji1\\OneDrive\\Pythonスクリプト保管\\gas_output_phase2\\DesiredWork.csv",
+      "timestamp": "2025-10-24T20:11:37.357966"
+    },
+    {
+      "test_name": "AggDesired.csv存在確認",
+      "status": "FAIL",
+      "details": "パス: C:\\Users\\fuji1\\OneDrive\\Pythonスクリプト保管\\gas_output_phase2\\AggDesired.csv",
+      "timestamp": "2025-10-24T20:11:37.357987"
+    },
+    {
+      "test_name": "ChiSquareTests.csv存在確認",
+      "status": "PASS",
+      "details": "417バイト",
+      "timestamp": "2025-10-24T20:11:37.358310"
+    },
+    {
+      "test_name": "ANOVATests.csv存在確認",
+      "status": "PASS",
+      "details": "275バイト",
+      "timestamp": "2025-10-24T20:11:37.358549"
+    },
+    {
+      "test_name": "PersonaSummary.csv存在確認",
+      "status": "FAIL",
+      "details": "パス: C:\\Users\\fuji1\\OneDrive\\Pythonスクリプト保管\\gas_output_phase2\\PersonaSummary.csv",
+      "timestamp": "2025-10-24T20:11:37.358593"
+    },
+    {
+      "test_name": "PersonaDetails.csv存在確認",
+      "status": "FAIL",
+      "details": "パス: C:\\Users\\fuji1\\OneDrive\\Pythonスクリプト保管\\gas_output_phase2\\PersonaDetails.csv",
+      "timestamp": "2025-10-24T20:11:37.358618"
+    },
+    {
+      "test_name": "MunicipalityFlowEdges.csv存在確認",
+      "status": "FAIL",
+      "details": "パス: C:\\Users\\fuji1\\OneDrive\\Pythonスクリプト保管\\gas_output_phase2\\MunicipalityFlowEdges.csv",
+      "timestamp": "2025-10-24T20:11:37.358641"
+    },
+    {
+      "test_name": "MunicipalityFlowNodes.csv存在確認",
+      "status": "FAIL",
+      "details": "パス: C:\\Users\\fuji1\\OneDrive\\Pythonスクリプト保管\\gas_output_phase2\\MunicipalityFlowNodes.csv",
+      "timestamp": "2025-10-24T20:11:37.358667"
+    }
+  ],
+  "e2e_tests": [
+    {
+      "test_name": "生データ→CSV変換フロー",
+      "status": "FAIL",
+      "details": "入力または出力ファイル不在",
+      "timestamp": "2025-10-24T20:11:37.358856"
+    },
+    {
+      "test_name": "GASファイル準備_DataValidationEnhanced.gs",
+      "status": "PASS",
+      "details": "18681バイト",
+      "timestamp": "2025-10-24T20:11:37.358966"
+    },
+    {
+      "test_name": "GASファイル準備_PersonaDifficultyChecker.gs",
+      "status": "PASS",
+      "details": "10485バイト",
+      "timestamp": "2025-10-24T20:11:37.359045"
+    },
+    {
+      "test_name": "GASファイル準備_PersonaDifficultyChecker.html",
+      "status": "PASS",
+      "details": "16639バイト",
+      "timestamp": "2025-10-24T20:11:37.359113"
+    },
+    {
+      "test_name": "MenuIntegration統合確認",
+      "status": "PASS",
+      "details": "",
+      "timestamp": "2025-10-24T20:11:37.409591"
+    },
+    {
+      "test_name": "PythonCSVImporter更新確認",
+      "status": "PASS",
+      "details": "",
+      "timestamp": "2025-10-24T20:11:37.410143"
+    },
+    {
+      "test_name": "ジオコードキャッシュ",
+      "status": "PASS",
+      "details": "1901件",
+      "timestamp": "2025-10-24T20:11:37.418789"
+    },
+    {
+      "test_name": "E2Eフロー準備状況",
+      "status": "WARN",
+      "details": "未完了: Python処理完了",
+      "timestamp": "2025-10-24T20:11:37.419185"
+    }
+  ],
+  "summary": {
+    "total_tests": 40,
+    "passed": 18,
+    "failed": 20,
+    "warnings": 2
+  }
+}

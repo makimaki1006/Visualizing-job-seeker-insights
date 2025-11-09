@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# データ出力ファイル（大容量のため除外）
+data/output_v2/
+data/output/
+data/archive/
+persona_level_sheets/
+mapcomplete_sheets/
+
+# 一時ファイル
+temp/
+tmp/
+*.tmp
+
+# ジオコーディングキャッシュ（大容量のため除外）
+geocache.json
+
+# テスト結果
+tests/results/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node
+node_modules/
+
+# Google Apps Script
+.clasp.json
+
+# 個人情報・機密情報
+*.env
+.env.local
+credentials.json
+secrets.json
+
+# バックアップファイル
+*.bak
+*.backup
+
+# エクセル一時ファイル
+~$*.xlsx
+~$*.csv

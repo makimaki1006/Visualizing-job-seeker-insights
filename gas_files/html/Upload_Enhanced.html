@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    body{font-family:Arial,sans-serif;padding:20px;max-width:1200px;margin:0 auto}
+    .upload-area{border:2px dashed #ccc;border-radius:8px;padding:40px;text-align:center;margin:20px 0;cursor:pointer;transition:0.3s}
+    .upload-area:hover{border-color:#4285f4;background:#f8f9ff}
+    .upload-area.dragover{background:#e3f2fd;border-color:#2196f3}
+    #fileInput{display:none}
+    .button{background:#4285f4;color:#fff;padding:10px 20px;border:none;border-radius:4px;cursor:pointer;font-size:14px;margin:5px;transition:0.3s}
+    .button:hover{background:#357ae8}
+    .button:disabled{background:#ccc;cursor:not-allowed}
+    .button.secondary{background:#6c757d}
+    .button.secondary:hover{background:#5a6268}
+    .button.danger{background:#dc3545}
+    .button.danger:hover{background:#c82333}
+    .button.success{background:#28a745}
+    .button.success:hover{background:#218838}
+    .status{margin:10px 0;padding:12px;border-radius:4px;display:none}
+    .status.success{background:#d4edda;color:#155724;border-left:4px solid #28a745}
+    .status.error{background:#f8d7da;color:#721c24;border-left:4px solid #dc3545}
+    .status.info{background:#d1ecf1;color:#0c5460;border-left:4px solid #17a2b8}
+    .status.warning{background:#fff3cd;color:#856404;border-left:4px solid #ffc107}
+    .file-list{margin:20px 0;max-height:400px;overflow-y:auto}
+    .phase-group{margin:15px 0;border:1px solid #dee2e6;border-radius:8px;overflow:hidden}
+    .phase-header{background:#f8f9fa;padding:12px 15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #dee2e6}
+    .phase-header h4{margin:0;color:#333;font-size:16px}
+    .phase-badge{background:#4285f4;color:white;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:bold}
+    .file-item{padding:10px 15px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center}
+    .file-item:last-child{border-bottom:none}
+    .file-item:hover{background:#f8f9fa}
+    .file-name{font-size:14px;color:#333;flex:1}
+    .file-size{font-size:12px;color:#666;margin-left:10px}
+    .file-remove{color:#dc3545;cursor:pointer;padding:4px 8px;border-radius:4px;transition:0.3s}
+    .file-remove:hover{background:#f8d7da}
+    .progress-container{width:100%;height:30px;background:#f0f0f0;border-radius:15px;margin:20px 0;overflow:hidden;display:none}
+    .progress-bar{height:100%;background:linear-gradient(90deg,#4285f4,#66a6ff);transition:width 0.3s;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;font-weight:bold}
+    .tabs{display:flex;gap:10px;margin:20px 0;border-bottom:2px solid #dee2e6}
+    .tab{padding:12px 20px;background:transparent;border:none;cursor:pointer;transition:0.3s;border-bottom:3px solid transparent;color:#666;font-size:14px;font-weight:500}
+    .tab.active{color:#4285f4;border-bottom-color:#4285f4}
+    .tab:hover{color:#4285f4}
+    .tab-content{display:none;margin:20px 0}
+    .tab-content.active{display:block}
+    .phase-selector{margin:20px 0}
+    .phase-checkbox{display:flex;align-items:center;padding:10px;margin:5px 0;background:#f8f9fa;border-radius:4px;cursor:pointer}
+    .phase-checkbox:hover{background:#e9ecef}
+    .phase-checkbox input{margin-right:10px}
+    .empty-state{text-align:center;padding:40px;color:#999}
+    .empty-state-icon{font-size:48px;margin-bottom:10px}
+    .stats-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin:20px 0}
+    .stat-card{padding:15px;background:white;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);text-align:center}
+    .stat-value{font-size:24px;font-weight:bold;color:#4285f4}
+    .stat-label{font-size:12px;color:#666;margin-top:5px}
+  </style>
+</head>
+<body>
+  <h3>📥 Phase別CSVインポート（複数ファイル一括対応）</h3>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('upload')">📁 ファイル選択</div>
+    <div class="tab" onclick="switchTab('files')">📋 ファイルリスト</div>
+    <div class="tab" onclick="switchTab('options')">⚙️ オプション</div>
+  </div>
+
+  <!-- タブ1: ファイルアップロード -->
+  <div class="tab-content active" id="upload-tab">
+    <div class="upload-area" id="uploadArea">
+      <div class="empty-state-icon">📂</div>
+      <p><strong>複数のCSVファイルをドラッグ＆ドロップ</strong><br>またはクリックして選択してください</p>
+      <p style="font-size:12px;color:#666;">Phase 1, 2, 3, 6, 7, 8, 10のCSVファイルに対応</p>
+    </div>
+    <input type="file" id="fileInput" accept=".csv" multiple/>
+
+    <div class="status" id="status"></div>
+
+    <div style="text-align:center;margin-top:20px;">
+      <button class="button success" id="uploadAllButton" disabled onclick="uploadAll()">📤 全ファイルをアップロード</button>
+      <button class="button" id="uploadByPhaseButton" disabled onclick="uploadByPhase()">📊 Phase別にアップロード</button>
+      <button class="button secondary" onclick="clearAll()">🔄 クリア</button>
+      <button class="button secondary" onclick="google.script.host.close()">閉じる</button>
+    </div>
+  </div>
+
+  <!-- タブ2: ファイルリスト -->
+  <div class="tab-content" id="files-tab">
+    <div class="stats-summary" id="statsSummary">
+      <div class="stat-card">
+        <div class="stat-value" id="totalFilesCount">0</div>
+        <div class="stat-label">総ファイル数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="totalSizeCount">0 MB</div>
+        <div class="stat-label">合計サイズ</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="phaseCount">0</div>
+        <div class="stat-label">検出Phase数</div>
+      </div>
+    </div>
+
+    <div class="file-list" id="fileList">
+      <div class="empty-state">
+        <div class="empty-state-icon">📭</div>
+        <p>ファイルが選択されていません</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- タブ3: オプション -->
+  <div class="tab-content" id="options-tab">
+    <h4>📊 アップロード対象Phase選択</h4>
+    <div class="phase-selector" id="phaseSelector">
+      <label class="phase-checkbox">
+        <input type="checkbox" value="Phase1" checked> Phase 1（基礎集計）
+      </label>
+      <label class="phase-checkbox">
+        <input type="checkbox" value="Phase2" checked> Phase 2（統計分析）
+      </label>
+      <label class="phase-checkbox">
+        <input type="checkbox" value="Phase3" checked> Phase 3（ペルソナ分析）
+      </label>
+      <label class="phase-checkbox">
+        <input type="checkbox" value="Phase6" checked> Phase 6（フロー分析）
+      </label>
+      <label class="phase-checkbox">
+        <input type="checkbox" value="Phase7" checked> Phase 7（高度分析）
+      </label>
+      <label class="phase-checkbox">
+        <input type="checkbox" value="Phase8" checked> Phase 8（キャリア・学歴分析）
+      </label>
+      <label class="phase-checkbox">
+        <input type="checkbox" value="Phase10" checked> Phase 10（転職意欲・緊急度分析）
+      </label>
+    </div>
+
+    <div style="text-align:center;margin-top:20px;">
+      <button class="button" onclick="selectAllPhases()">✅ 全て選択</button>
+      <button class="button secondary" onclick="deselectAllPhases()">❌ 全て解除</button>
+    </div>
+  </div>
+
+  <div class="progress-container" id="progressContainer">
+    <div class="progress-bar" id="progressBar">0%</div>
+  </div>
+
+<script>
+// グローバル変数
+var selectedFiles = [];
+var phaseFileMap = {};
+
+// Phase別ファイル名マッピング
+const PHASE_FILE_MAP = {
+  'Phase1': [
+    'Phase1_MapMetrics.csv', 'MapMetrics.csv',
+    'Phase1_Applicants.csv', 'Applicants.csv',
+    'Phase1_DesiredWork.csv', 'DesiredWork.csv',
+    'Phase1_AggDesired.csv', 'AggDesired.csv',
+    'P1_QualityReport.csv', 'QualityReport.csv',
+    'P1_QualityReport_Descriptive.csv', 'QualityReport_Descriptive.csv', 'P1_QualityDesc.csv'
+  ],
+  'Phase2': [
+    'Phase2_ChiSquare.csv', 'ChiSquareTests.csv',
+    'Phase2_ANOVA.csv', 'ANOVATests.csv',
+    'P2_QualityReport_Inferential.csv', 'QualityReport_Inferential.csv'
+  ],
+  'Phase3': [
+    'Phase3_PersonaSummary.csv', 'PersonaSummary.csv',
+    'Phase3_PersonaDetails.csv', 'PersonaDetails.csv',
+    'Phase3_PersonaByMunicipality.csv', 'PersonaSummaryByMunicipality.csv',
+    'P3_QualityReport_Inferential.csv', 'QualityReport_Inferential.csv'
+  ],
+  'Phase6': [
+    'Phase6_FlowEdges.csv', 'MunicipalityFlowEdges.csv',
+    'Phase6_FlowNodes.csv', 'MunicipalityFlowNodes.csv',
+    'Phase6_Proximity.csv', 'ProximityAnalysis.csv',
+    'P6_QualityReport_Inferential.csv', 'QualityReport_Inferential.csv'
+  ],
+  'Phase7': [
+    'Phase7_SupplyDensity.csv', 'SupplyDensityMap.csv',
+    'Phase7_QualificationDist.csv', 'QualificationDistribution.csv',
+    'Phase7_AgeGenderCross.csv', 'AgeGenderCrossAnalysis.csv',
+    'Phase7_MobilityScore.csv', 'MobilityScore.csv',
+    'Phase7_PersonaProfile.csv', 'DetailedPersonaProfile.csv',
+    'Phase7_PersonaMapData.csv', 'PersonaMapData.csv',
+    'Phase7_PersonaMobilityCross.csv', 'PersonaMobilityCross.csv',
+    'P7_QualityReport_Inferential.csv', 'QualityReport_Inferential.csv'
+  ],
+  'Phase8': [
+    'Phase8_EducationDist.csv', 'EducationDistribution.csv',
+    'Phase8_EduAgeCross.csv', 'EducationAgeCross.csv',
+    'Phase8_EduAgeMatrix.csv', 'EducationAgeCross_Matrix.csv',
+    'Phase8_GradYearDist.csv', 'GraduationYearDistribution.csv',
+    'Phase8_CareerDistribution.csv', 'CareerDistribution.csv',
+    'Phase8_CareerAgeCross.csv', 'CareerAgeCross.csv',
+    'Phase8_CareerAgeMatrix.csv', 'CareerAgeCross_Matrix.csv',
+    'P8_QualityReport.csv', 'QualityReport.csv',
+    'P8_QualityReport_Inferential.csv', 'QualityReport_Inferential.csv'
+  ],
+  'Phase10': [
+    'Phase10_UrgencyDist.csv', 'UrgencyDistribution.csv',
+    'Phase10_UrgencyAge.csv', 'UrgencyAgeCross.csv',
+    'Phase10_UrgencyAge_Matrix.csv', 'UrgencyAgeCross_Matrix.csv',
+    'Phase10_UrgencyEmployment.csv', 'UrgencyEmploymentCross.csv',
+    'Phase10_UrgencyEmployment_Matrix.csv', 'UrgencyEmploymentCross_Matrix.csv',
+    'Phase10_UrgencyByMunicipality.csv', 'UrgencyByMunicipality.csv',
+    'Phase10_UrgencyAge_ByMunicipality.csv', 'UrgencyAgeCross_ByMunicipality.csv',
+    'Phase10_UrgencyEmployment_ByMunicipality.csv', 'UrgencyEmploymentCross_ByMunicipality.csv',
+    'P10_QualityReport.csv', 'QualityReport.csv',
+    'P10_QualityReport_Inferential.csv', 'QualityReport_Inferential.csv'
+  ]
+};
+
+
+// イベントリスナー
+document.getElementById('uploadArea').addEventListener('click', function() {
+  document.getElementById('fileInput').click();
+});
+
+document.getElementById('uploadArea').addEventListener('dragover', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  this.classList.add('dragover');
+});
+
+document.getElementById('uploadArea').addEventListener('dragleave', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  this.classList.remove('dragover');
+});
+
+document.getElementById('uploadArea').addEventListener('drop', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  this.classList.remove('dragover');
+
+  if (e.dataTransfer.files.length > 0) {
+    handleFiles(e.dataTransfer.files);
+  }
+});
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  if (e.target.files.length > 0) {
+    handleFiles(e.target.files);
+  }
+});
+
+// 複数ファイル処理
+function handleFiles(files) {
+  const newFiles = Array.from(files).filter(file => file.name.endsWith('.csv'));
+
+  if (newFiles.length === 0) {
+    showStatus('CSVファイルを選択してください', 'error');
+    return;
+  }
+
+  // 既存ファイルとマージ（重複排除）
+  newFiles.forEach(file => {
+    const exists = selectedFiles.some(f => f.name === file.name);
+    if (!exists) {
+      selectedFiles.push(file);
+    }
+  });
+
+  // Phase別に分類
+  categorizeFiles();
+
+  // UIを更新
+  updateFileList();
+  updateStats();
+
+  // ボタンを有効化
+  document.getElementById('uploadAllButton').disabled = false;
+  document.getElementById('uploadByPhaseButton').disabled = false;
+
+  showStatus(`${selectedFiles.length}個のCSVファイルを読み込みました`, 'success');
+
+  // ファイルリストタブに切り替え
+  switchTab('files');
+}
+
+// Phase判別
+function detectPhase(filename) {
+  for (const [phase, files] of Object.entries(PHASE_FILE_MAP)) {
+    if (files.includes(filename)) {
+      return phase;
+    }
+  }
+  return 'Unknown';
+}
+
+// Phase別にファイルを分類
+function categorizeFiles() {
+  phaseFileMap = {};
+
+  selectedFiles.forEach(file => {
+    const phase = detectPhase(file.name);
+    if (!phaseFileMap[phase]) {
+      phaseFileMap[phase] = [];
+    }
+    phaseFileMap[phase].push(file);
+  });
+}
+
+// ファイルリスト表示
+function updateFileList() {
+  const fileListDiv = document.getElementById('fileList');
+
+  if (selectedFiles.length === 0) {
+    fileListDiv.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📭</div>
+        <p>ファイルが選択されていません</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+
+  // Phase順でソート
+  const sortedPhases = Object.keys(phaseFileMap).sort();
+
+  sortedPhases.forEach(phase => {
+    const files = phaseFileMap[phase];
+    const phaseLabel = phase === 'Unknown' ? '不明なPhase' : phase;
+    const phaseBadgeColor = phase === 'Unknown' ? '#dc3545' : '#4285f4';
+
+    html += `
+      <div class="phase-group">
+        <div class="phase-header">
+          <h4>${phaseLabel}</h4>
+          <span class="phase-badge" style="background:${phaseBadgeColor}">${files.length}ファイル</span>
+        </div>
+    `;
+
+    files.forEach((file, index) => {
+      const sizeKB = (file.size / 1024).toFixed(2);
+      html += `
+        <div class="file-item">
+          <span class="file-name">📄 ${file.name}</span>
+          <span class="file-size">${sizeKB} KB</span>
+          <span class="file-remove" onclick="removeFile('${phase}', ${index})">🗑️</span>
+        </div>
+      `;
+    });
+
+    html += '</div>';
+  });
+
+  fileListDiv.innerHTML = html;
+}
+
+// 統計情報更新
+function updateStats() {
+  document.getElementById('totalFilesCount').textContent = selectedFiles.length;
+
+  const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+  document.getElementById('totalSizeCount').textContent = (totalSize / 1024 / 1024).toFixed(2) + ' MB';
+
+  const phaseKeys = Object.keys(phaseFileMap).filter(p => p !== 'Unknown');
+  document.getElementById('phaseCount').textContent = phaseKeys.length;
+}
+
+// ファイル削除
+function removeFile(phase, index) {
+  const file = phaseFileMap[phase][index];
+  selectedFiles = selectedFiles.filter(f => f.name !== file.name);
+
+  categorizeFiles();
+  updateFileList();
+  updateStats();
+
+  if (selectedFiles.length === 0) {
+    document.getElementById('uploadAllButton').disabled = true;
+    document.getElementById('uploadByPhaseButton').disabled = true;
+  }
+
+  showStatus(`${file.name}を削除しました`, 'info');
+}
+
+// 全ファイルアップロード
+function uploadAll() {
+  if (selectedFiles.length === 0) {
+    showStatus('ファイルが選択されていません', 'warning');
+    return;
+  }
+
+  showStatus('アップロード準備中...', 'info');
+  showProgress(0);
+
+  // FileReaderで全ファイルを読み込み
+  const promises = selectedFiles.map(file => readFileAsText(file));
+
+  Promise.all(promises)
+    .then(results => {
+      const fileDataMap = {};
+
+      results.forEach((content, index) => {
+        const file = selectedFiles[index];
+        const phase = detectPhase(file.name);
+
+        if (!fileDataMap[phase]) {
+          fileDataMap[phase] = {};
+        }
+
+        fileDataMap[phase][file.name] = {
+          content: content,
+          size: file.size
+        };
+      });
+
+      showProgress(50);
+
+      // GASにデータを送信
+      google.script.run
+        .withSuccessHandler(onUploadSuccess)
+        .withFailureHandler(onUploadFailure)
+        .importMultiplePhaseCSVs(fileDataMap);
+
+      showProgress(100);
+    })
+    .catch(error => {
+      showStatus('ファイル読み込みエラー: ' + error.message, 'error');
+    });
+}
+
+// Phase別アップロード
+function uploadByPhase() {
+  if (selectedFiles.length === 0) {
+    showStatus('ファイルが選択されていません', 'warning');
+    return;
+  }
+
+  // 選択されたPhaseのみアップロード
+  const selectedPhases = getSelectedPhases();
+
+  if (selectedPhases.length === 0) {
+    showStatus('アップロード対象のPhaseを選択してください', 'warning');
+    switchTab('options');
+    return;
+  }
+
+  showStatus(`${selectedPhases.length}個のPhaseをアップロード中...`, 'info');
+  showProgress(0);
+
+  // 選択されたPhaseのファイルのみ読み込み
+  const filesToUpload = selectedFiles.filter(file => {
+    const phase = detectPhase(file.name);
+    return selectedPhases.includes(phase);
+  });
+
+  if (filesToUpload.length === 0) {
+    showStatus('選択されたPhaseに該当するファイルがありません', 'warning');
+    return;
+  }
+
+  const promises = filesToUpload.map(file => readFileAsText(file));
+
+  Promise.all(promises)
+    .then(results => {
+      const fileDataMap = {};
+
+      results.forEach((content, index) => {
+        const file = filesToUpload[index];
+        const phase = detectPhase(file.name);
+
+        if (!fileDataMap[phase]) {
+          fileDataMap[phase] = {};
+        }
+
+        fileDataMap[phase][file.name] = {
+          content: content,
+          size: file.size
+        };
+      });
+
+      showProgress(50);
+
+      // GASにデータを送信
+      google.script.run
+        .withSuccessHandler(onUploadSuccess)
+        .withFailureHandler(onUploadFailure)
+        .importMultiplePhaseCSVs(fileDataMap);
+
+      showProgress(100);
+    })
+    .catch(error => {
+      showStatus('ファイル読み込みエラー: ' + error.message, 'error');
+    });
+}
+
+// ファイルをテキストとして読み込み
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      resolve(e.target.result);
+    };
+    reader.onerror = function(e) {
+      reject(new Error('ファイル読み込み失敗: ' + file.name));
+    };
+    reader.readAsText(file, 'UTF-8');
+  });
+}
+
+// アップロード成功
+function onUploadSuccess(result) {
+  showProgress(0);
+  showStatus(`✅ アップロード完了！${result.totalFiles}ファイルをインポートしました`, 'success');
+
+  setTimeout(function() {
+    google.script.host.close();
+  }, 2000);
+}
+
+// アップロード失敗
+function onUploadFailure(error) {
+  showProgress(0);
+  showStatus('❌ アップロードエラー: ' + error.message, 'error');
+}
+
+// 選択されたPhaseを取得
+function getSelectedPhases() {
+  const checkboxes = document.querySelectorAll('#phaseSelector input[type="checkbox"]:checked');
+  return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// Phase全選択
+function selectAllPhases() {
+  document.querySelectorAll('#phaseSelector input[type="checkbox"]').forEach(cb => {
+    cb.checked = true;
+  });
+  showStatus('全Phaseを選択しました', 'info');
+}
+
+// Phase全解除
+function deselectAllPhases() {
+  document.querySelectorAll('#phaseSelector input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+  });
+  showStatus('全Phaseの選択を解除しました', 'info');
+}
+
+// タブ切り替え
+function switchTab(tabName) {
+  // すべてのタブから active を削除
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.classList.remove('active');
+  });
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.remove('active');
+  });
+
+  // tabNameに対応するタブを active にする
+  const tabs = document.querySelectorAll('.tab');
+  const tabNames = ['upload', 'files', 'options'];
+  const index = tabNames.indexOf(tabName);
+  if (index >= 0 && index < tabs.length) {
+    tabs[index].classList.add('active');
+  }
+
+  document.getElementById(tabName + '-tab').classList.add('active');
+}
+
+// ステータス表示
+function showStatus(message, type) {
+  const status = document.getElementById('status');
+  status.textContent = message;
+  status.className = 'status ' + type;
+  status.style.display = 'block';
+
+  setTimeout(function() {
+    status.style.display = 'none';
+  }, 5000);
+}
+
+// プログレスバー表示
+function showProgress(percent) {
+  const container = document.getElementById('progressContainer');
+  const bar = document.getElementById('progressBar');
+
+  if (percent > 0) {
+    container.style.display = 'block';
+    bar.style.width = percent + '%';
+    bar.textContent = Math.round(percent) + '%';
+  } else {
+    container.style.display = 'none';
+  }
+}
+
+// クリア
+function clearAll() {
+  selectedFiles = [];
+  phaseFileMap = {};
+
+  updateFileList();
+  updateStats();
+
+  document.getElementById('uploadAllButton').disabled = true;
+  document.getElementById('uploadByPhaseButton').disabled = true;
+  document.getElementById('status').style.display = 'none';
+  document.getElementById('progressContainer').style.display = 'none';
+
+  switchTab('upload');
+  showStatus('クリアしました', 'info');
+}
+</script>
+</body>
+</html>

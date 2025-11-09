@@ -1,0 +1,46 @@
+﻿メソッド名,優先度,カテゴリ,説明
+_association_rule_mining,高,アソシエーションルール,N/A
+_association_rule_mining_simple,高,アソシエーションルール,N/A
+_association_rule_mining_advanced,高,アソシエーションルール,N/A
+_analyze_segment_evidence,高,ペルソナ分析,N/A
+_generate_evidence_based_personas,高,ペルソナ分析,N/A
+_infer_segment_characteristics,高,ペルソナ分析,N/A
+_generate_evidence_based_name,高,出力・エクスポート,N/A
+_generate_evidence_based_strategies,高,出力・エクスポート,N/A
+_calculate_roi_projections,高,応募傾向・予測,N/A
+add_issue,低,その他,N/A
+loc_score,低,その他,N/A
+select_csv_file,低,その他,N/A
+_age_bucket_jp,低,その他,N/A
+_dist_km,低,その他,N/A
+_get_region,低,その他,N/A
+run_complete_analysis,低,その他,N/A
+_analyze_desired_work_columns,低,その他,N/A
+get_region,低,その他,N/A
+_analyze_columns,低,その他,N/A
+_calculate_confidence_level,低,その他,N/A
+_interpret_rules,低,アソシエーションルール,N/A
+_cluster_analysis,低,クラスタリング,N/A
+_assess_data_quality,低,データ品質,N/A
+load_geocache,低,データ読み込み・前処理,N/A
+_extract_basic_info,低,データ読み込み・前処理,N/A
+_extract_qualifications,低,データ読み込み・前処理,N/A
+_extract_employment_status,低,データ読み込み・前処理,c-table__body-item 系から『就業中/離職中』を抽出し employment_sta
+_load_prefecture_coords,低,データ読み込み・前処理,N/A
+_extract_desired_locations,低,データ読み込み・前処理,N/A
+_load_external_muni_coords,低,データ読み込み・前処理,N/A
+_split_prefecture_municipality,低,データ読み込み・前処理,N/A
+export_enhanced_results,低,出力・エクスポート,N/A
+generate_strategic_insights,低,出力・エクスポート,N/A
+_export_dir,低,出力・エクスポート,N/A
+save_geocache,低,出力・エクスポート,N/A
+advanced_visualizations,低,可視化,N/A
+_display_enhanced_summary,低,可視化,N/A
+_calculate_distance,低,地理分析,N/A
+_analyze_geographic_patterns,低,地理分析,N/A
+_analyze_mobility_patterns,低,地理分析,N/A
+_assign_coords_primary,低,地理分析,"居住地と主希望地に座標を付与（可能な範囲のみ）。未解決は None のまま。 res_lat, re"
+_gender_relative_location_intent,低,地理分析,希望勤務地数の性別内パーセンタイル（0-1）を計算して付与 df = self.df_process
+_latent_class_analysis,中,クラスタリング,N/A
+_qa_checks,中,データ品質,N/A
+_create_application_propensity_model,中,応募傾向・予測,N/A

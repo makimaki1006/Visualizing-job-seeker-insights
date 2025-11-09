@@ -1,0 +1,43 @@
+{
+  "total_tests": 7,
+  "passed": 7,
+  "failed": 0,
+  "success_rate": 100.0,
+  "test_results": [
+    {
+      "test": "Phase 10: UrgencyAgeCross整合性検証",
+      "status": "PASS",
+      "message": "24件すべての値が一致（4緊急度ランク × 6年齢層）"
+    },
+    {
+      "test": "Phase 10: UrgencyEmploymentCross整合性検証",
+      "status": "PASS",
+      "message": "12件すべての値が一致（4緊急度ランク × 3就業状況）"
+    },
+    {
+      "test": "Phase 10: UrgencyAgeCross行列合計検証",
+      "status": "PASS",
+      "message": "行合計=7487人、列合計=7487人、全体合計=7487人（すべて一致）"
+    },
+    {
+      "test": "Phase 10: UrgencyEmploymentCross行列合計検証",
+      "status": "PASS",
+      "message": "行合計=7486人、列合計=7486人、全体合計=7486人（すべて一致）"
+    },
+    {
+      "test": "Phase 10: 全体合計一致検証",
+      "status": "PASS",
+      "message": "Distribution=7487人, AgeCross=7487人 [OK]一致\n   EmploymentCross=7486人 （差=1人、就業状況欠損による差異 [OK]許容範囲内）"
+    },
+    {
+      "test": "Phase 8: CareerAgeCross整合性検証",
+      "status": "PASS",
+      "message": "サンプル10件の値が一致（キャリア × 年齢層）"
+    },
+    {
+      "test": "Phase 8: CareerAgeCross行列合計検証",
+      "status": "PASS",
+      "message": "全体合計=2263人、年齢層別: 20代=288人, 30代=406人, 40代=527人, 50代=585人, 60代=362人, 70歳以上=95人"
+    }
+  ]
+}

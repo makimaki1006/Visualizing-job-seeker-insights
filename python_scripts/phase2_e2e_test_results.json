@@ -1,0 +1,47 @@
+{
+  "test_name": "Phase 2 E2Eテスト",
+  "timestamp": "2025-10-27T09:59:23.365358",
+  "tests": [
+    {
+      "name": "network_analyzer.py実行",
+      "status": "PASS",
+      "details": "TOP 20ハブ自治体特定"
+    },
+    {
+      "name": "NetworkMetrics.json検証",
+      "status": "PASS",
+      "details": {
+        "nodes": 804,
+        "edges": 6861,
+        "hub_municipalities": 20
+      }
+    },
+    {
+      "name": "CentralityRanking.csv品質確認",
+      "status": "PASS",
+      "details": {
+        "hub_count": 20,
+        "columns": 13,
+        "is_sorted": true
+      }
+    },
+    {
+      "name": "GASファイル存在確認",
+      "status": "PASS",
+      "details": "3ファイル存在確認"
+    },
+    {
+      "name": "中心性メトリクス整合性確認",
+      "status": "PASS",
+      "details": {
+        "score_errors": 0,
+        "validated_hubs": 10
+      }
+    },
+    {
+      "name": "Phase 2統合完了確認",
+      "status": "PASS",
+      "details": "Phase 2-1, 2-2, 2-3すべて完成"
+    }
+  ]
+}

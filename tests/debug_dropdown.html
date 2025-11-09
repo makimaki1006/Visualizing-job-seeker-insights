@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>デバッグ: プルダウン絞り込み</title>
+<style>
+body {
+  font-family: 'Segoe UI', sans-serif;
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 20px;
+}
+.debug-section {
+  background: #f5f5f5;
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 8px;
+}
+select {
+  width: 100%;
+  padding: 8px;
+  margin: 10px 0;
+  font-size: 14px;
+}
+.log {
+  background: #1f2937;
+  color: #f3f4f6;
+  padding: 15px;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  max-height: 400px;
+  overflow-y: auto;
+  margin-top: 20px;
+}
+.log-entry {
+  margin: 5px 0;
+  padding: 5px;
+  border-left: 3px solid #3b82f6;
+  padding-left: 10px;
+}
+.log-entry.error {
+  border-left-color: #ef4444;
+  color: #fecaca;
+}
+.log-entry.success {
+  border-left-color: #10b981;
+  color: #a7f3d0;
+}
+button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin: 10px 5px 10px 0;
+}
+button:hover {
+  background: #2563eb;
+}
+</style>
+</head>
+<body>
+
+<h1>🔍 プルダウン絞り込みデバッグ</h1>
+
+<div class="debug-section">
+  <h2>プルダウン</h2>
+  <label>都道府県</label>
+  <select id="prefectureSelect">
+    <option value="">-- 都道府県を選択 --</option>
+  </select>
+
+  <label>市区町村</label>
+  <select id="municipalitySelect">
+    <option value="">-- 市区町村を選択 --</option>
+  </select>
+</div>
+
+<div class="debug-section">
+  <h2>テストボタン</h2>
+  <button onclick="loadDummyData()">ダミーデータ読み込み</button>
+  <button onclick="testFiltering()">フィルタリングテスト</button>
+  <button onclick="clearLog()">ログクリア</button>
+</div>
+
+<div class="debug-section">
+  <h2>データ状態</h2>
+  <div id="dataState"></div>
+</div>
+
+<div class="log" id="logOutput"></div>
+
+<script>
+// ダミーデータ
+let regionOptions = null;
+let availableRegions = [];
+let selectedPrefecture = '';
+
+const dummyData = {
+  "regionOptions": {
+    "prefectures": ["京都府", "大阪府", "東京都"],
+    "state": {"prefecture": "京都府", "municipality": "京都市伏見区"}
+  },
+  "availableRegions": [
+    {"key": "kyoto-fushimi", "prefecture": "京都府", "municipality": "京都市伏見区", "label": "京都府 京都市伏見区"},
+    {"key": "kyoto-nakagyo", "prefecture": "京都府", "municipality": "京都市中京区", "label": "京都府 京都市中京区"},
+    {"key": "osaka-kita", "prefecture": "大阪府", "municipality": "大阪市北区", "label": "大阪府 大阪市北区"},
+    {"key": "osaka-chuo", "prefecture": "大阪府", "municipality": "大阪市中央区", "label": "大阪府 大阪市中央区"},
+    {"key": "tokyo-shibuya", "prefecture": "東京都", "municipality": "渋谷区", "label": "東京都 渋谷区"}
+  ]
+};
+
+function log(message, type = 'info') {
+  const logOutput = document.getElementById('logOutput');
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${type}`;
+  const timestamp = new Date().toLocaleTimeString('ja-JP');
+  entry.textContent = `[${timestamp}] ${message}`;
+  logOutput.appendChild(entry);
+  logOutput.scrollTop = logOutput.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('logOutput').innerHTML = '';
+  log('ログをクリアしました', 'success');
+}
+
+function updateDataState() {
+  const stateDiv = document.getElementById('dataState');
+  stateDiv.innerHTML = `
+    <div style="font-family: monospace; font-size: 13px;">
+      <div><strong>regionOptions.prefectures:</strong> ${regionOptions?.prefectures?.join(', ') || 'null'}</div>
+      <div><strong>availableRegions総数:</strong> ${availableRegions.length}</div>
+      <div><strong>selectedPrefecture:</strong> ${selectedPrefecture || '未選択'}</div>
+    </div>
+  `;
+}
+
+function loadDummyData() {
+  log('ダミーデータを読み込み開始...');
+
+  regionOptions = dummyData.regionOptions;
+  availableRegions = dummyData.availableRegions.slice();
+
+  log(`regionOptions.prefectures: ${regionOptions.prefectures.length}件`, 'success');
+  log(`availableRegions: ${availableRegions.length}件`, 'success');
+
+  // 都道府県プルダウンを設定
+  populatePrefectureSelector();
+
+  updateDataState();
+}
+
+function populatePrefectureSelector() {
+  const prefSel = document.getElementById('prefectureSelect');
+
+  log('都道府県プルダウンを初期化...');
+
+  let prefectures = [];
+  if (regionOptions && Array.isArray(regionOptions.prefectures)) {
+    prefectures = regionOptions.prefectures.slice().sort();
+    log(`都道府県リスト（regionOptionsから）: ${prefectures.length}件`, 'success');
+    log(`都道府県: ${prefectures.join(', ')}`);
+  } else if (availableRegions.length) {
+    prefectures = [...new Set(availableRegions.map(r => r.prefecture).filter(Boolean))].sort();
+    log(`都道府県リスト（availableRegionsから）: ${prefectures.length}件`, 'success');
+  }
+
+  if (prefectures.length) {
+    prefSel.innerHTML = '<option value="">-- 都道府県を選択 --</option>' +
+      prefectures.map(pref => `<option value="${pref}">${pref}</option>`).join('');
+    log('都道府県プルダウン設定完了', 'success');
+  } else {
+    log('都道府県リストが空です', 'error');
+  }
+
+  // 都道府県変更イベント
+  prefSel.onchange = (e) => {
+    const pref = e.target.value;
+    selectedPrefecture = pref;
+    log(`都道府県を変更: ${pref}`);
+
+    if (pref) {
+      populateMunicipalitySelector(pref);
+    } else {
+      document.getElementById('municipalitySelect').innerHTML = '<option value="">-- 市区町村を選択 --</option>';
+    }
+
+    updateDataState();
+  };
+}
+
+function populateMunicipalitySelector(prefecture) {
+  const muniSel = document.getElementById('municipalitySelect');
+
+  log(`市区町村フィルタリング開始: 都道府県=${prefecture}`);
+  log(`フィルタリング前のavailableRegions: ${availableRegions.length}件`);
+
+  // フィルタリング
+  const municipalities = availableRegions
+    .filter(r => {
+      const match = r.prefecture === prefecture;
+      if (!match) {
+        log(`  除外: ${r.prefecture} ${r.municipality}`, 'info');
+      }
+      return match;
+    })
+    .map(r => ({
+      key: r.key,
+      municipality: r.municipality || '全域',
+      label: r.municipality || '全域'
+    }))
+    .sort((a, b) => a.municipality.localeCompare(b.municipality, 'ja'));
+
+  log(`フィルタリング後の市区町村: ${municipalities.length}件`, municipalities.length > 0 ? 'success' : 'error');
+
+  if (municipalities.length === 0) {
+    muniSel.innerHTML = '<option value="">市区町村なし</option>';
+    log(`${prefecture}の市区町村が見つかりませんでした`, 'error');
+    return;
+  }
+
+  // 市区町村プルダウンを設定
+  muniSel.innerHTML = municipalities.map(m =>
+    `<option value="${m.key}">${m.label}</option>`
+  ).join('');
+
+  log(`市区町村プルダウン設定完了: ${municipalities.length}件`, 'success');
+  municipalities.forEach(m => {
+    log(`  - ${m.label}`);
+  });
+}
+
+function testFiltering() {
+  log('='.repeat(50));
+  log('フィルタリングテスト開始', 'success');
+
+  if (availableRegions.length === 0) {
+    log('先にダミーデータを読み込んでください', 'error');
+    return;
+  }
+
+  // 各都道府県でテスト
+  const prefectures = ['京都府', '大阪府', '東京都'];
+
+  prefectures.forEach(pref => {
+    log(`--- ${pref} のフィルタリング ---`);
+    const filtered = availableRegions.filter(r => r.prefecture === pref);
+    log(`結果: ${filtered.length}件`, filtered.length > 0 ? 'success' : 'error');
+    filtered.forEach(r => {
+      log(`  - ${r.municipality}`);
+    });
+  });
+
+  log('フィルタリングテスト完了', 'success');
+  log('='.repeat(50));
+}
+
+// 初期化
+log('デバッグツール起動', 'success');
+log('「ダミーデータ読み込み」ボタンをクリックしてください');
+</script>
+
+</body>
+</html>

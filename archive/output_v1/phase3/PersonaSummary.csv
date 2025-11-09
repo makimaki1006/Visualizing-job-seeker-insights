@@ -1,0 +1,6 @@
+﻿segment_id,segment_name,count,percentage,avg_age,female_ratio,avg_qualifications,top_prefecture,avg_desired_locations,top_prefectures_all
+0,若年層地元密着型,205,21.9,27.3,0.72,0,,0.0,
+1,中年層地元密着型,231,24.7,45.4,0.69,0,,0.0,
+2,中高年層地元密着型,120,12.8,65.1,0.6,0,,0.0,
+3,中高年層地元密着型,198,21.1,53.9,0.74,0,,0.0,
+4,中年層地元密着型,183,19.5,37.2,0.64,0,,0.0,

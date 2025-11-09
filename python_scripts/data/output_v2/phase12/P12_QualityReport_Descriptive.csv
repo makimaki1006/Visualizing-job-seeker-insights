@@ -1,0 +1,10 @@
+﻿カラム名,有効データ数,ユニーク値数,最小グループサイズ,信頼性レベル,警告
+prefecture,966,50,1,DESCRIPTIVE,なし（観察的記述）
+municipality,966,920,1,DESCRIPTIVE,なし（観察的記述）
+location,966,966,1,DESCRIPTIVE,なし（観察的記述）
+demand_count,966,100,1,DESCRIPTIVE,なし（観察的記述）
+supply_count,966,48,1,DESCRIPTIVE,なし（観察的記述）
+demand_supply_ratio,966,142,1,DESCRIPTIVE,なし（観察的記述）
+gap,966,94,1,DESCRIPTIVE,なし（観察的記述）
+latitude,951,92,1,DESCRIPTIVE,なし（観察的記述）
+longitude,951,92,1,DESCRIPTIVE,なし（観察的記述）

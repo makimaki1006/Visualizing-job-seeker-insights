@@ -1,0 +1,3 @@
+﻿pattern,group,variable,f_statistic,p_value,effect_size,significant,sample_size,interpretation
+年齢層別の資格数,年齢層,資格数,71.2022,0.0,0.0367,True,7487,効果量が小さい
+性別別の年齢,性別,年齢,7.525,0.006099,0.001,True,7487,効果量が非常に小さい（性別による年齢差はほとんどない）

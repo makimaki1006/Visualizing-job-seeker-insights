@@ -1,0 +1,133 @@
+{
+  "test_1_data_integrity": {
+    "status": "PASS",
+    "applicants_count": 7390,
+    "desired_work_unique_ids": 7276,
+    "id_diff_ratio": 0.0154,
+    "map_metrics_total": 22815,
+    "agg_desired_total": 22815,
+    "persona_total": 6726,
+    "persona_diff_ratio": 0.0899,
+    "discrepancies": [],
+    "score": 100
+  },
+  "test_2_end_to_end_flow": {
+    "status": "PASS",
+    "total_files_expected": 18,
+    "files_found": 18,
+    "missing_files": [],
+    "file_sizes_summary": {
+      "phase1_total": 1744142,
+      "phase2_total": 690,
+      "phase3_total": 2325,
+      "phase6_total": 371620,
+      "phase7_total": 406524
+    },
+    "score": 100
+  },
+  "test_3_performance_measurement": {
+    "status": "PASS",
+    "actual_data_size": 7390,
+    "total_load_time_seconds": 0.091,
+    "phase_load_times": {
+      "phase1": 0.048,
+      "phase2": 0.004,
+      "phase3": 0.003,
+      "phase6": 0.014,
+      "phase7": 0.022
+    },
+    "bottleneck_phase": "phase1",
+    "estimated_100k_processing_time_seconds": 1.23,
+    "estimated_100k_processing_time_human": "0分 1秒",
+    "score": 100
+  },
+  "test_4_data_quality": {
+    "status": "PASS",
+    "total_locations_checked": 781,
+    "invalid_coordinates": 0,
+    "negative_counts": 0,
+    "null_ids": 0,
+    "quality_issues": [],
+    "score": 100
+  },
+  "test_5_phase_dependencies": {
+    "status": "FAIL",
+    "applicant_ids_phase1": 7390,
+    "map_keys_phase1": 781,
+    "persona_locations_phase7": 792,
+    "dependency_issues": [
+      "Phase 7に存在するがPhase 1に存在しない場所: 10件 (100.0%)"
+    ],
+    "score": 70
+  },
+  "test_6_statistical_analysis_validity": {
+    "status": "PASS",
+    "chi_square_tests": 2,
+    "anova_tests": 1,
+    "statistical_issues": [],
+    "score": 100
+  },
+  "test_7_persona_classification": {
+    "status": "PASS",
+    "persona_count_phase3": 5,
+    "persona_total_phase3": 6726,
+    "persona_count_phase7": 10,
+    "persona_total_phase7": 7389,
+    "applicants_total": 7390,
+    "percentage_total": 100.0,
+    "classification_issues": [],
+    "score": 100
+  },
+  "test_8_flow_analysis_validity": {
+    "status": "PASS",
+    "total_flow_edges": 6861,
+    "total_flow_nodes": 804,
+    "total_proximity_records": 5,
+    "flow_issues": [],
+    "score": 100
+  },
+  "test_9_scalability_estimation": {
+    "status": "PASS",
+    "actual_data_size": 7390,
+    "scale_factor": 13.53,
+    "current_data_sizes": {
+      "phase1_applicants": 7390,
+      "phase1_desired_work": 22815,
+      "phase3_persona_summary": 5,
+      "phase6_flow_edges": 6861,
+      "phase7_persona_map": 792
+    },
+    "estimated_100k_sizes": {
+      "phase1_applicants": 100000,
+      "phase1_desired_work": 308728,
+      "phase3_persona_summary": 67,
+      "phase6_flow_edges": 92841,
+      "phase7_persona_map": 10717
+    },
+    "current_memory_mb": 0.01,
+    "estimated_100k_memory_mb": 0.16,
+    "estimated_100k_memory_gb": 0.0,
+    "score": 100
+  },
+  "test_10_recovery_resilience": {
+    "status": "PASS",
+    "geocache_exists": true,
+    "geocache_entries": 536,
+    "required_dirs": 5,
+    "missing_dirs": 0,
+    "total_files": 18,
+    "readable_files": 18,
+    "recovery_issues": [],
+    "score": 100
+  },
+  "summary": {
+    "total_tests": 10,
+    "passed": 9,
+    "failed": 1,
+    "overall_score": 97,
+    "critical_issues": [
+      "Phase 7に存在するがPhase 1に存在しない場所: 10件 (100.0%)"
+    ],
+    "total_execution_time_seconds": 0.37
+  }
+}

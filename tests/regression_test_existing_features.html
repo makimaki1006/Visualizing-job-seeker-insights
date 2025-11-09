@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>回帰テスト: 既存機能動作確認</title>
+<style>
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #f5f5f5;
+}
+.test-header {
+  background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%);
+  color: white;
+  padding: 30px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.test-header h1 {
+  margin: 0 0 10px 0;
+  font-size: 28px;
+}
+.test-header p {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 14px;
+}
+.test-section {
+  background: white;
+  padding: 25px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+.test-section h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 20px;
+  border-bottom: 2px solid #f59e0b;
+  padding-bottom: 10px;
+}
+.test-case {
+  padding: 15px;
+  margin-bottom: 15px;
+  border-left: 4px solid #f59e0b;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+.test-case.passed {
+  border-left-color: #10b981;
+  background: #f0fdf4;
+}
+.test-case.failed {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+}
+.test-case h3 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  color: #1f2937;
+}
+.test-case .status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 10px;
+}
+.status.passed {
+  background: #10b981;
+  color: white;
+}
+.status.failed {
+  background: #ef4444;
+  color: white;
+}
+.test-details {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #4b5563;
+}
+.test-details ul {
+  margin: 10px 0;
+  padding-left: 20px;
+}
+.test-details li {
+  margin: 5px 0;
+}
+.test-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-top: 20px;
+}
+.summary-card {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+.summary-card .label {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+.summary-card .value {
+  font-size: 32px;
+  font-weight: 700;
+}
+.summary-card.total .value {
+  color: #f59e0b;
+}
+.summary-card.passed .value {
+  color: #10b981;
+}
+.summary-card.failed .value {
+  color: #ef4444;
+}
+.run-button {
+  background: #f59e0b;
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 20px;
+  transition: background 0.3s;
+}
+.run-button:hover {
+  background: #d97706;
+}
+.run-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+#testOutput {
+  margin-top: 20px;
+}
+.warning-box {
+  background: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  padding: 15px;
+  margin: 15px 0;
+  border-radius: 4px;
+}
+.warning-box strong {
+  color: #92400e;
+}
+</style>
+</head>
+<body>
+
+<div class="test-header">
+  <h1>回帰テスト: 既存機能動作確認</h1>
+  <p>テスト種別: Regression Test | 実施日: <span id="testDate"></span></p>
+</div>
+
+<div class="test-section">
+  <h2>テスト概要</h2>
+  <div class="test-details">
+    <p><strong>目的</strong>: 新機能追加（二段階プルダウン、近隣地域ピン表示）によって、既存機能が壊れていないことを確認する</p>
+
+    <div class="warning-box">
+      <strong>変更内容:</strong>
+      <ul>
+        <li>単一プルダウン → 二段階プルダウン（都道府県・市町村）</li>
+        <li>選択地域のみ表示 → 近隣地域も表示（流入・流出TOP 5）</li>
+        <li>マーカークリックで地域切り替え機能追加</li>
+      </ul>
+    </div>
+
+    <p><strong>検証範囲</strong>:</p>
+    <ul>
+      <li>既存タブ（Overview, Supply, Career, Urgency, Persona, Cross）の表示</li>
+      <li>フロー表示機能（矢印・テーブル）</li>
+      <li>地図の基本機能（ズーム、パン、マーカー表示）</li>
+      <li>データ読み込み・レンダリング</li>
+    </ul>
+  </div>
+</div>
+
+<div class="test-section">
+  <h2>テスト実行</h2>
+  <button class="run-button" id="runTestBtn">回帰テストを実行</button>
+  <div id="testOutput"></div>
+</div>
+
+<script>
+// テスト日付設定
+document.getElementById('testDate').textContent = new Date().toLocaleDateString('ja-JP');
+
+// テスト結果格納
+let testResults = [];
+
+// テスト実行ボタン
+document.getElementById('runTestBtn').addEventListener('click', async function() {
+  this.disabled = true;
+  testResults = [];
+
+  const output = document.getElementById('testOutput');
+  output.innerHTML = '<p style="color: #f59e0b; font-weight: 600;">回帰テストを実行中...</p>';
+
+  // テスト実行
+  await runRegressionTests();
+
+  // 結果表示
+  displayResults();
+
+  this.disabled = false;
+});
+
+// 回帰テスト実行
+async function runRegressionTests() {
+  // RT-001: 既存タブの表示確認
+  await testExistingTabs();
+
+  // RT-002: フロー矢印表示機能
+  await testFlowArrows();
+
+  // RT-003: フローテーブル表示機能
+  await testFlowTables();
+
+  // RT-004: 地図の基本機能
+  await testMapBasicFunctions();
+
+  // RT-005: データ構造の互換性
+  await testDataStructureCompatibility();
+
+  // RT-006: タブ切り替え機能
+  await testTabSwitching();
+}
+
+// RT-001: 既存タブの表示確認
+async function testExistingTabs() {
+  const testCase = {
+    id: 'RT-001',
+    name: '既存タブの表示確認（Overview, Supply, Career, Urgency, Persona, Cross）',
+    status: 'pending',
+    details: []
+  };
+
+  try {
+    // HTMLファイル読み込み
+    const iframe = document.createElement('iframe');
+    iframe.id = 'testIframe';
+    iframe.src = '../gas_files/html/map_complete_prototype_Ver2.html';
+    iframe.style.width = '1px';
+    iframe.style.height = '1px';
+    iframe.style.position = 'absolute';
+    iframe.style.left = '-9999px';
+    document.body.appendChild(iframe);
+
+    await new Promise((resolve) => {
+      iframe.onload = resolve;
+      setTimeout(resolve, 5000);
+    });
+
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+    // 1秒待機
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // 検証: 各タブボタンが存在するか
+    const expectedTabs = ['overview', 'supply', 'career', 'urgency', 'persona', 'cross', 'flow'];
+    const missingTabs = [];
+
+    for (const tabId of expectedTabs) {
+      const tabButton = iframeDoc.querySelector(`button[data-tab="${tabId}"]`);
+      if (!tabButton) {
+        missingTabs.push(tabId);
+      }
+    }
+
+    if (missingTabs.length > 0) {
+      throw new Error(`存在しないタブ: ${missingTabs.join(', ')}`);
+    }
+
+    testCase.details.push(`✅ 全タブボタンが存在します: ${expectedTabs.length}個`);
+
+    // 検証: 各タブパネルが存在するか
+    const missingPanels = [];
+    for (const tabId of expectedTabs) {
+      const panel = iframeDoc.querySelector(`.panel[data-panel="${tabId}"]`);
+      if (!panel) {
+        missingPanels.push(tabId);
+      }
+    }
+
+    if (missingPanels.length > 0) {
+      throw new Error(`存在しないパネル: ${missingPanels.join(', ')}`);
+    }
+
+    testCase.details.push(`✅ 全タブパネルが存在します: ${expectedTabs.length}個`);
+
+    testCase.status = 'passed';
+  } catch (error) {
+    testCase.status = 'failed';
+    testCase.details.push(`❌ エラー: ${error.message}`);
+  }
+
+  testResults.push(testCase);
+}
+
+// RT-002: フロー矢印表示機能
+async function testFlowArrows() {
+  const testCase = {
+    id: 'RT-002',
+    name: 'フロー矢印表示機能（既存機能）',
+    status: 'pending',
+    details: []
+  };
+
+  try {
+    const iframe = document.getElementById('testIframe');
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    const iframeWindow = iframe.contentWindow;
+
+    // フロータブをクリック
+    const flowTabButton = iframeDoc.querySelector('button[data-tab="flow"]');
+    if (!flowTabButton) {
+      throw new Error('フロータブボタンが見つかりません');
+    }
+    flowTabButton.click();
+
+    // レンダリング待機
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // 検証1: flowLayerが存在するか
+    if (!iframeWindow.flowLayer) {
+      throw new Error('flowLayerが存在しません');
+    }
+    testCase.details.push('✅ flowLayerが存在します');
+
+    // 検証2: フロー矢印が表示されているか
+    const flowArrows = iframeWindow.flowLayer.getLayers();
+    if (flowArrows.length === 0) {
+      throw new Error('フロー矢印が1つも表示されていません');
+    }
+    testCase.details.push(`✅ フロー矢印が表示されています: ${flowArrows.length}本`);
+
+    // 検証3: 矢印に装飾が施されているか（L.polylineDecorator）
+    const hasDecorator = flowArrows.some(arrow => {
+      return arrow._icon || arrow._shadow || (arrow.options && arrow.options.patterns);
+    });
+
+    if (!hasDecorator) {
+      testCase.details.push('⚠️ 警告: 矢印装飾が見つかりません（視覚的確認が必要）');
+    } else {
+      testCase.details.push('✅ 矢印装飾が施されています');
+    }
+
+    testCase.status = 'passed';
+  } catch (error) {
+    testCase.status = 'failed';
+    testCase.details.push(`❌ エラー: ${error.message}`);
+  }
+
+  testResults.push(testCase);
+}
+
+// RT-003: フローテーブル表示機能
+async function testFlowTables() {
+  const testCase = {
+    id: 'RT-003',
+    name: 'フローテーブル表示機能（TOP流入・流出）',
+    status: 'pending',
+    details: []
+  };
+
+  try {
+    const iframe = document.getElementById('testIframe');
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+    // フロータブパネルを取得
+    const flowPanel = iframeDoc.querySelector('.panel[data-panel="flow"]');
+    if (!flowPanel) {
+      throw new Error('フローパネルが見つかりません');
+    }
+
+    // 検証1: テーブルが存在するか
+    const tables = flowPanel.querySelectorAll('table');
+    if (tables.length === 0) {
+      throw new Error('フローテーブルが見つかりません');
+    }
+    testCase.details.push(`✅ フローテーブルが存在します: ${tables.length}個`);
+
+    // 検証2: テーブルに行データがあるか
+    let totalRows = 0;
+    tables.forEach(table => {
+      const rows = table.querySelectorAll('tbody tr');
+      totalRows += rows.length;
+    });
+
+    if (totalRows === 0) {
+      throw new Error('テーブルにデータ行がありません');
+    }
+    testCase.details.push(`✅ テーブルにデータが存在します: ${totalRows}行`);
+
+    // 検証3: テーブルヘッダーが存在するか
+    const headers = flowPanel.querySelectorAll('table thead th');
+    if (headers.length === 0) {
+      throw new Error('テーブルヘッダーが見つかりません');
+    }
+    testCase.details.push(`✅ テーブルヘッダーが存在します: ${headers.length}カラム`);
+
+    testCase.status = 'passed';
+  } catch (error) {
+    testCase.status = 'failed';
+    testCase.details.push(`❌ エラー: ${error.message}`);
+  }
+
+  testResults.push(testCase);
+}
+
+// RT-004: 地図の基本機能
+async function testMapBasicFunctions() {
+  const testCase = {
+    id: 'RT-004',
+    name: '地図の基本機能（ズーム、パン、マーカー表示）',
+    status: 'pending',
+    details: []
+  };
+
+  try {
+    const iframe = document.getElementById('testIframe');
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    const iframeWindow = iframe.contentWindow;
+
+    // 検証1: 地図インスタンスが存在するか
+    if (!iframeWindow.map) {
+      throw new Error('地図インスタンスが存在しません');
+    }
+    testCase.details.push('✅ 地図インスタンスが存在します');
+
+    // 検証2: 地図の現在ズームレベルを取得
+    const currentZoom = iframeWindow.map.getZoom();
+    if (typeof currentZoom !== 'number' || currentZoom <= 0) {
+      throw new Error('地図のズームレベルが不正です');
+    }
+    testCase.details.push(`✅ 地図のズームレベル: ${currentZoom}`);
+
+    // 検証3: 地図の中心座標を取得
+    const center = iframeWindow.map.getCenter();
+    if (!center || typeof center.lat !== 'number' || typeof center.lng !== 'number') {
+      throw new Error('地図の中心座標が不正です');
+    }
+    testCase.details.push(`✅ 地図の中心座標: [${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}]`);
+
+    // 検証4: ズーム変更機能
+    const initialZoom = iframeWindow.map.getZoom();
+    iframeWindow.map.setZoom(initialZoom + 1);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const newZoom = iframeWindow.map.getZoom();
+
+    if (newZoom !== initialZoom + 1) {
+      throw new Error('ズーム変更が反映されませんでした');
+    }
+    testCase.details.push('✅ ズーム変更機能が正常に動作します');
+
+    // 元のズームに戻す
+    iframeWindow.map.setZoom(initialZoom);
+
+    // 検証5: マーカーレイヤーが存在するか
+    if (!iframeWindow.markersLayer) {
+      throw new Error('マーカーレイヤーが存在しません');
+    }
+
+    const markers = iframeWindow.markersLayer.getLayers();
+    if (markers.length === 0) {
+      throw new Error('マーカーが表示されていません');
+    }
+    testCase.details.push(`✅ マーカーが表示されています: ${markers.length}個`);
+
+    testCase.status = 'passed';
+  } catch (error) {
+    testCase.status = 'failed';
+    testCase.details.push(`❌ エラー: ${error.message}`);
+  }
+
+  testResults.push(testCase);
+}
+
+// RT-005: データ構造の互換性
+async function testDataStructureCompatibility() {
+  const testCase = {
+    id: 'RT-005',
+    name: 'データ構造の互換性確認',
+    status: 'pending',
+    details: []
+  };
+
+  try {
+    const iframe = document.getElementById('testIframe');
+    const iframeWindow = iframe.contentWindow;
+
+    // 検証1: DATAオブジェクトが存在するか
+    if (!iframeWindow.DATA || typeof iframeWindow.DATA !== 'object') {
+      throw new Error('DATAオブジェクトが存在しません');
+    }
+    testCase.details.push('✅ DATAオブジェクトが存在します');
+
+    // 検証2: activeCityが設定されているか
+    if (!iframeWindow.activeCity) {
+      throw new Error('activeCityが設定されていません');
+    }
+    testCase.details.push(`✅ activeCity: ${iframeWindow.activeCity}`);
+
+    // 検証3: 選択中の地域データが存在するか
+    const currentCity = iframeWindow.DATA[iframeWindow.activeCity];
+    if (!currentCity) {
+      throw new Error('選択中の地域データが見つかりません');
+    }
+    testCase.details.push(`✅ 選択中の地域データ: ${currentCity.name || currentCity.id}`);
+
+    // 検証4: 必須プロパティが存在するか
+    const requiredProps = ['id', 'name', 'center'];
+    const missingProps = [];
+
+    for (const prop of requiredProps) {
+      if (!(prop in currentCity)) {
+        missingProps.push(prop);
+      }
+    }
+
+    if (missingProps.length > 0) {
+      throw new Error(`必須プロパティが不足: ${missingProps.join(', ')}`);
+    }
+    testCase.details.push('✅ 必須プロパティが存在します: id, name, center');
+
+    // 検証5: flowデータが存在するか
+    if (!currentCity.flow) {
+      throw new Error('flowデータが存在しません');
+    }
+    testCase.details.push('✅ flowデータが存在します');
+
+    // 検証6: flow.nearby_regionsが存在するか（新機能）
+    if (!currentCity.flow.nearby_regions || !Array.isArray(currentCity.flow.nearby_regions)) {
+      throw new Error('flow.nearby_regionsが存在しません');
+    }
+    testCase.details.push(`✅ flow.nearby_regionsが存在します: ${currentCity.flow.nearby_regions.length}件`);
+
+    testCase.status = 'passed';
+  } catch (error) {
+    testCase.status = 'failed';
+    testCase.details.push(`❌ エラー: ${error.message}`);
+  }
+
+  testResults.push(testCase);
+}
+
+// RT-006: タブ切り替え機能
+async function testTabSwitching() {
+  const testCase = {
+    id: 'RT-006',
+    name: 'タブ切り替え機能の動作確認',
+    status: 'pending',
+    details: []
+  };
+
+  try {
+    const iframe = document.getElementById('testIframe');
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+    // タブリスト
+    const tabs = ['overview', 'supply', 'career', 'urgency', 'persona', 'cross', 'flow'];
+
+    // 各タブをクリックしてパネルが切り替わるか確認
+    for (const tabId of tabs) {
+      const tabButton = iframeDoc.querySelector(`button[data-tab="${tabId}"]`);
+      if (!tabButton) {
+        throw new Error(`タブボタンが見つかりません: ${tabId}`);
+      }
+
+      // タブクリック
+      tabButton.click();
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // パネルが表示されているか確認
+      const panel = iframeDoc.querySelector(`.panel[data-panel="${tabId}"]`);
+      if (!panel) {
+        throw new Error(`パネルが見つかりません: ${tabId}`);
+      }
+
+      const isVisible = panel.style.display !== 'none' && panel.offsetHeight > 0;
+      if (!isVisible) {
+        throw new Error(`パネルが表示されていません: ${tabId}`);
+      }
+    }
+
+    testCase.details.push(`✅ 全タブの切り替えが正常に動作します: ${tabs.length}タブ`);
+
+    testCase.status = 'passed';
+  } catch (error) {
+    testCase.status = 'failed';
+    testCase.details.push(`❌ エラー: ${error.message}`);
+  }
+
+  testResults.push(testCase);
+}
+
+// 結果表示
+function displayResults() {
+  const output = document.getElementById('testOutput');
+
+  const passedCount = testResults.filter(t => t.status === 'passed').length;
+  const failedCount = testResults.filter(t => t.status === 'failed').length;
+  const totalCount = testResults.length;
+  const successRate = totalCount > 0 ? ((passedCount / totalCount) * 100).toFixed(1) : 0;
+
+  let html = `
+    <div class="test-summary">
+      <div class="summary-card total">
+        <div class="label">総テスト数</div>
+        <div class="value">${totalCount}</div>
+      </div>
+      <div class="summary-card passed">
+        <div class="label">成功</div>
+        <div class="value">${passedCount}</div>
+      </div>
+      <div class="summary-card failed">
+        <div class="label">失敗</div>
+        <div class="value">${failedCount}</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 20px; padding: 15px; background: ${successRate >= 95 ? '#f0fdf4' : '#fef2f2'}; border-radius: 8px; text-align: center;">
+      <div style="font-size: 14px; color: #6b7280; margin-bottom: 5px;">成功率</div>
+      <div style="font-size: 36px; font-weight: 700; color: ${successRate >= 95 ? '#10b981' : '#ef4444'};">${successRate}%</div>
+      <div style="font-size: 14px; color: #6b7280; margin-top: 5px;">
+        ${successRate >= 95 ? '✅ 品質要件を満たしています（95%以上）' : '⚠️ 品質要件未達（95%未満）'}
+      </div>
+      <div style="font-size: 13px; color: #6b7280; margin-top: 10px;">
+        ${failedCount === 0 ? '既存機能に破壊的変更はありません' : '⚠️ 一部の既存機能に影響があります'}
+      </div>
+    </div>
+  `;
+
+  testResults.forEach(test => {
+    html += `
+      <div class="test-case ${test.status}">
+        <h3>
+          ${test.id}: ${test.name}
+          <span class="status ${test.status}">${test.status === 'passed' ? 'PASS' : 'FAIL'}</span>
+        </h3>
+        <div class="test-details">
+          ${test.details.map(detail => `<div>${detail}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  });
+
+  output.innerHTML = html;
+
+  // テスト完了後、iframeを削除
+  const iframe = document.getElementById('testIframe');
+  if (iframe) {
+    iframe.remove();
+  }
+}
+</script>
+
+</body>
+</html>

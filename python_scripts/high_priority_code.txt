@@ -1,0 +1,266 @@
+====================================================================================================
+高優先度メソッドの実装コード抽出
+====================================================================================================
+
+
+====================================================================================================
+【_generate_evidence_based_personas】
+====================================================================================================
+
+実装行数: 40行（コメント除く）
+
+    def _generate_evidence_based_personas(self):
+        print("\n【ペルソナプロファイル生成】")
+        personas = []
+        if 'lca_segment' not in self.df_processed.columns:
+            print("    → セグメントデータが存在しません"); return
+        for seg_id in self.df_processed['lca_segment'].unique():
+            if seg_id == -1: continue
+            seg_data = self.df_processed[self.df_processed['lca_segment'] == seg_id]
+            evidence = self.segment_evidence.get(seg_id, {})
+            actual_characteristics = {
+                'segment_id': int(seg_id),
+                'size': len(seg_data),
+                'percentage': len(seg_data)/len(self.df_processed)*100,
+                'measured_traits': {
+                    'avg_age': float(seg_data['age'].mean()) if 'age' in seg_data and not seg_data['age'].empty else None,
+                    'age_range': evidence.get('basic_stats', {}).get('age_range'),
+                    'gender_m_ratio': evidence.get('basic_stats', {}).get('gender_ratio_m'),
+                    'avg_qualifications': evidence.get('qualification_profile', {}).get('avg_count'),
+                    'national_license_rate': evidence.get('qualification_profile', {}).get('national_license_rate'),
+                    'avg_desired_locations': evidence.get('mobility_profile', {}).get('avg_desired_locations'),
+                    'avg_app_score': evidence.get('application_potential', {}).get('avg_app_score')
+                }
+            }
+            inferred_characteristics = self._infer_segment_characteristics(seg_data, evidence)
+            persona_name, naming_basis = self._generate_evidence_based_name(actual_characteristics, inferred_characteristics)
+            strategies = self._generate_evidence_based_strategies(actual_characteristics, inferred_characteristics)
+            personas.append({
+                'id': f'Segment_{seg_id}',
+                'name': persona_name,
+                'naming_basis': naming_basis,
+                'size': actual_characteristics['size'],
+                'percentage': actual_characteristics['percentage'],
+                'actual_data': actual_characteristics['measured_traits'],
+                'inferred_traits': inferred_characteristics,
+                'marketing_strategies': strategies,
+                'confidence_level': self._calculate_confidence_level(evidence),
+                'data_limitations': ['価値観や動機は統計的推定','応募行動データなし','希望条件の詳細不明']
+            })
+        self.analysis_results['personas'] = personas
+        print(f"    → {len(personas)}個の根拠ベースペルソナを生成")
+
+
+
+====================================================================================================
+【_association_rule_mining_advanced】
+====================================================================================================
+
+実装行数: 28行（コメント除く）
+
+    def _association_rule_mining_advanced(self):
+        transactions = []
+        for _, row in self.df_processed.iterrows():
+            transaction = []
+            if row.get('generation'): transaction.append(f"gen_{row['generation']}")
+            if row.get('gender'): transaction.append(f"gender_{row['gender']}")
+            if row.get('has_national_license'): transaction.append("national_license")
+            if row.get('desired_location_count', 0) > 3: transaction.append("high_mobility")
+            if row.get('qualification_count', 0) > 2: transaction.append("multi_qualified")
+            if row.get('app_likelihood'): transaction.append(f"app_{row['app_likelihood']}")
+            if transaction: transactions.append(transaction)
+        if not transactions:
+            print("    → トランザクションデータが不足"); return
+        te = TransactionEncoder()
+        te_ary = te.fit(transactions).transform(transactions)
+        df_encoded = pd.DataFrame(te_ary, columns=te.columns_)
+        frequent_itemsets = apriori(df_encoded, min_support=0.01, use_colnames=True)
+        if len(frequent_itemsets) > 0:
+            rules = association_rules(frequent_itemsets, metric="lift", min_threshold=1.2)
+            if len(rules) > 0:
+                significant_rules = rules[(rules['confidence'] > 0.3) & (rules['lift'] > 1.2)].sort_values('lift', ascending=False)
+                top_rules = significant_rules.head(10)
+                self.analysis_results['association_rules'] = {
+                    'top_rules': top_rules.to_dict('records'),
+                    'total_rules': len(significant_rules),
+                    'insights': self._interpret_rules(top_rules)
+                }
+                print(f"    → {len(significant_rules)}個の有意なルールを発見")
+
+
+
+====================================================================================================
+【_calculate_roi_projections】
+====================================================================================================
+
+実装行数: 32行（コメント除く）
+
+    def _calculate_roi_projections(self):
+        print("\n【ROI予測分析】")
+        print("  リサーチベースのROI予測を計算中...")
+        total_candidates = len(self.df_processed)
+        improvements = {
+            'application_rate_improvement': {'min':0.35,'expected':0.56,'max':0.77,'source':'プログラマティック求人広告'},
+            'cost_reduction': {'min':0.25,'expected':0.375,'max':0.50,'source':'AI導入事例'},
+            'time_reduction': {'min':0.16,'expected':0.33,'max':0.50,'source':'複数企業の効果測定'},
+            'quality_improvement': 0.12,
+            'diversity_improvement': 0.19
+        }
+        high_potential = self.df_processed[(self.df_processed.get('app_score', 0) > 75) | (self.df_processed.get('app_likelihood', '') == 'Very High')]
+        medium_potential = self.df_processed[(self.df_processed.get('app_score', 0).between(50, 75)) | (self.df_processed.get('app_likelihood', '') == 'High')]
+        addressable = len(high_potential) + len(medium_potential)
+        roi_projection = {
+            'summary': {
+                'total_database_size': total_candidates,
+                'immediately_addressable': len(high_potential),
+                'secondary_targets': len(medium_potential),
+                'total_addressable': addressable,
+                'addressable_percentage': addressable/total_candidates*100 if total_candidates>0 else 0
+            },
+            'expected_improvements': improvements,
+            'timeline': {'0-3_months':{'focus':'Quick Wins','expected_roi':'10-20%','confidence':'高'},
+                         '3-6_months':{'focus':'セグメント最適化','expected_roi':'50-100%','confidence':'中'},
+                         '6-12_months':{'focus':'AIマッチング導入','expected_roi':'100-300%','confidence':'中'},
+                         '12-24_months':{'focus':'自動化','expected_roi':'300-500%','confidence':'低'}},
+            'quick_wins': {'給与レンジ開示':{'効果':'CTR↑','必要投資':'¥0'}, '火曜午前投稿':{'効果':'応募率↑','必要投資':'¥0'}},
+            'risk_factors': ['実装品質のばらつき','競合の同様施策','行動変化','景況変動']
+        }
+        self.analysis_results['roi_projection'] = roi_projection
+        print(f"    → 即座にアプローチ可能: {len(high_potential):,}人 / {total_candidates:,}人")
+
+
+
+====================================================================================================
+【_infer_segment_characteristics】
+====================================================================================================
+
+実装行数: 15行（コメント除く）
+
+    def _infer_segment_characteristics(self, seg_data, evidence):
+        inferred = {}
+        avg_age = evidence.get('basic_stats', {}).get('avg_age', 40)
+        if avg_age and avg_age > 55: inferred['life_stage'] = 'シニア期（安定重視の可能性）'
+        elif avg_age and avg_age > 40: inferred['life_stage'] = '中堅期（家族責任重め）'
+        elif avg_age: inferred['life_stage'] = '成長期（柔軟）'
+        avg_locations = evidence.get('mobility_profile', {}).get('avg_desired_locations', 1)
+        if avg_locations < 2: inferred['mobility_preference'] = '地域限定型'
+        elif avg_locations > 5: inferred['mobility_preference'] = '広域活動型'
+        else: inferred['mobility_preference'] = '中程度移動型'
+        nat_rate = evidence.get('qualification_profile', {}).get('national_license_rate', 0)
+        if nat_rate > 0.7: inferred['career_stage'] = '専門職確立'
+        elif nat_rate < 0.3: inferred['career_stage'] = 'エントリー層'
+        else: inferred['career_stage'] = '中間層'
+        return inferred
+
+
+
+====================================================================================================
+【_generate_evidence_based_name】
+====================================================================================================
+
+実装行数: 15行（コメント除く）
+
+    def _generate_evidence_based_name(self, actual, inferred):
+        name_parts, basis = [], []
+        avg_age = actual['measured_traits'].get('avg_age')
+        if avg_age:
+            if avg_age > 55: name_parts.append('シニア'); basis.append(f'平均年齢{avg_age:.1f}歳')
+            elif avg_age > 40: name_parts.append('ミドル'); basis.append(f'平均年齢{avg_age:.1f}歳')
+            else: name_parts.append('ヤング'); basis.append(f'平均年齢{avg_age:.1f}歳')
+        avg_locations = actual['measured_traits'].get('avg_desired_locations')
+        if avg_locations:
+            if avg_locations < 2: name_parts.append('地域密着'); basis.append(f'希望地{avg_locations:.1f}箇所')
+            elif avg_locations > 5: name_parts.append('広域活動'); basis.append(f'希望地{avg_locations:.1f}箇所')
+        nat_rate = actual['measured_traits'].get('national_license_rate')
+        if nat_rate and nat_rate > 0.7: name_parts.append('専門職'); basis.append(f'国家資格{nat_rate:.1%}')
+        if name_parts: return '・'.join(name_parts[:2]) + '層', basis
+        else: return f"セグメント{actual['segment_id']}", ['特徴的な属性なし']
+
+
+
+====================================================================================================
+【_generate_evidence_based_strategies】
+====================================================================================================
+
+実装行数: 19行（コメント除く）
+
+    def _generate_evidence_based_strategies(self, actual, inferred):
+        strategies = []
+        avg_age = actual['measured_traits'].get('avg_age', 40)
+        avg_locations = actual['measured_traits'].get('avg_desired_locations', 1)
+        nat_rate = actual['measured_traits'].get('national_license_rate', 0)
+        app_score = actual['measured_traits'].get('avg_app_score', 50)
+        if avg_age and avg_age < 30:
+            strategies.append({'strategy':'SNS（Instagram、TikTok）重視','basis':f'平均年齢{avg_age:.1f}歳'})
+        elif avg_age and avg_age < 45:
+            strategies.append({'strategy':'LinkedIn/Indeed中心','basis':f'平均年齢{avg_age:.1f}歳'})
+        else:
+            strategies.append({'strategy':'従来媒体も併用','basis':f'平均年齢{avg_age:.1f}歳'})
+        if avg_locations < 2:
+            strategies.append({'strategy':'通勤30km圏の求人を優先表示','basis':f'希望地{avg_locations:.1f}箇所'})
+        if nat_rate > 0.5:
+            strategies.append({'strategy':'資格手当・専門待遇を明示','basis':f'国家資格{nat_rate:.1%}'})
+        if app_score and app_score > 70:
+            strategies.append({'strategy':'期間限定オファーで即応募喚起','basis':f'応募スコア{app_score:.1f}'})
+        return strategies
+
+
+
+====================================================================================================
+【_calculate_confidence_level】
+====================================================================================================
+
+実装行数: 12行（コメント除く）
+
+    def _calculate_confidence_level(self, evidence):
+        confidence_factors = []
+        size = evidence.get('basic_stats', {}).get('size', 0)
+        if size > 1000: confidence_factors.append('高')
+        elif size > 100: confidence_factors.append('中')
+        else: confidence_factors.append('低')
+        if evidence.get('basic_stats', {}).get('avg_age'): confidence_factors.append('年齢データあり')
+        if evidence.get('qualification_profile', {}).get('avg_count', 0) > 0: confidence_factors.append('資格データあり')
+        if evidence.get('statistical_tests', {}).get('age_difference_t_test', {}).get('significant'): confidence_factors.append('統計的有意')
+        if len(confidence_factors) >= 3: return '高信頼度'
+        elif len(confidence_factors) >= 2: return '中信頼度'
+        else: return '低信頼度（参考値）'
+
+
+
+====================================================================================================
+依存関係分析
+====================================================================================================
+
+【必要なライブラリ】
+----------------------------------------------------------------------------------------------------
+  import pandas as pd
+  import numpy as np
+  import json
+  import re
+  import os
+  from pathlib import Path
+  from datetime import datetime
+  import warnings
+  import matplotlib.pyplot as plt
+  import seaborn as sns
+  import platform
+  import japanize_matplotlib
+  from sklearn.preprocessing import StandardScaler
+  from sklearn.cluster import KMeans
+  from sklearn.metrics import silhouette_score
+  from sklearn.mixture import GaussianMixture
+  from collections import defaultdict
+  from scipy import stats
+  from mlxtend.preprocessing import TransactionEncoder
+  from mlxtend.frequent_patterns import apriori, association_rules
+
+
+【mlxtend使用状況】
+----------------------------------------------------------------------------------------------------
+  from mlxtend.preprocessing import TransactionEncoder
+  from mlxtend.frequent_patterns import apriori, association_rules
+  MLXTEND_AVAILABLE = True
+  MLXTEND_AVAILABLE = False
+  print("mlxtend がインストールされていません。アソシエーションルール分析は簡易版を使用します。")
+  if MLXTEND_AVAILABLE:
+  print("  mlxtendを使用した高度な分析を実行中...")

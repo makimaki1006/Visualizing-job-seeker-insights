@@ -1,0 +1,47 @@
+{
+  "test_name": "Phase 1 E2Eテスト",
+  "timestamp": "2025-10-27T09:47:13.314573",
+  "tests": [
+    {
+      "name": "cross_analysis_engine.py実行",
+      "status": "PASS",
+      "details": "2件の分析完了"
+    },
+    {
+      "name": "CrossAnalysisResults.json検証",
+      "status": "PASS",
+      "details": {
+        "analysis_count": 2,
+        "data_sources_loaded": 18
+      }
+    },
+    {
+      "name": "インサイト生成確認",
+      "status": "PASS",
+      "details": "4件のインサイト生成"
+    },
+    {
+      "name": "PersonaMapData.csv品質確認",
+      "status": "PASS",
+      "details": {
+        "total_locations": 792,
+        "missing_coordinates": 0,
+        "quality_score": 100.0
+      }
+    },
+    {
+      "name": "PersonaMobilityCross.csv品質確認",
+      "status": "PASS",
+      "details": {
+        "persona_count": 11,
+        "ratio_errors": 0,
+        "quality_score": 100.0
+      }
+    },
+    {
+      "name": "GAS連携準備確認",
+      "status": "PASS",
+      "details": "3ファイル存在確認"
+    }
+  ]
+}

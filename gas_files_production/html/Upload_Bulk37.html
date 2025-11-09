@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f5f7fa; }
+    .container { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h3 { color: #667eea; margin-top: 0; }
+    .upload-area { border: 3px dashed #667eea; border-radius: 12px; padding: 50px; text-align: center; margin: 20px 0; cursor: pointer; background: #f8f9ff; transition: 0.3s; }
+    .upload-area:hover { border-color: #5568d3; background: #f0f2ff; }
+    .upload-area.dragover { background: #e3e8ff; border-color: #4a5bbf; transform: scale(1.02); }
+    #fileInput { display: none; }
+    .button { background: #667eea; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; margin: 5px; transition: 0.3s; }
+    .button:hover { background: #5568d3; }
+    .button:disabled { background: #ccc; cursor: not-allowed; }
+    .button-secondary { background: #6c757d; }
+    .status { margin: 15px 0; padding: 12px; border-radius: 6px; display: none; font-weight: 500; }
+    .status.success { background: #d1f2eb; color: #0f5132; display: block; }
+    .status.error { background: #f8d7da; color: #842029; display: block; }
+    .status.info { background: #cfe2ff; color: #084298; display: block; }
+    .status.warning { background: #fff3cd; color: #856404; display: block; }
+    .file-list { margin: 20px 0; max-height: 400px; overflow-y: auto; background: #f8f9fa; border-radius: 8px; padding: 15px; }
+    .file-item { padding: 10px; margin: 5px 0; background: white; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #667eea; }
+    .file-name { font-weight: 500; color: #333; flex: 1; }
+    .file-size { color: #666; font-size: 12px; margin: 0 10px; }
+    .file-status { font-size: 12px; padding: 4px 8px; border-radius: 4px; }
+    .file-status.waiting { background: #e9ecef; color: #6c757d; }
+    .file-status.uploading { background: #cfe2ff; color: #084298; }
+    .file-status.success { background: #d1f2eb; color: #0f5132; }
+    .file-status.error { background: #f8d7da; color: #842029; }
+    .progress-container { width: 100%; height: 30px; background: #e9ecef; border-radius: 15px; margin: 20px 0; overflow: hidden; display: none; }
+    .progress-bar { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 500; }
+    .summary { background: #e8f4fd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 10px; }
+    .summary-item { text-align: center; padding: 10px; background: white; border-radius: 6px; }
+    .summary-value { font-size: 24px; font-weight: bold; color: #667eea; }
+    .summary-label { font-size: 12px; color: #666; margin-top: 5px; }
+    .info-box { background: #fff3cd; padding: 12px; border-radius: 6px; margin: 15px 0; font-size: 14px; border-left: 4px solid #ffc107; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h3>⚡ ローカルファイルを直接アップロード（37ファイル一括対応）</h3>
+
+    <div class="info-box">
+      💡 <strong>使い方</strong>: output_v2フォルダ内の全ファイル（37個）を選択してドラッグ&ドロップしてください。<br>
+      フォルダ構造は自動で認識され、適切なシートに振り分けられます。
+    </div>
+
+    <div class="upload-area" id="uploadArea">
+      <p style="font-size: 18px; margin: 10px 0;">📁 37ファイルをドラッグ&ドロップ</p>
+      <p style="color: #666; font-size: 14px;">またはクリックして複数ファイルを選択</p>
+      <p style="color: #999; font-size: 12px; margin-top: 10px;">
+        ※ Phase 1-10の全CSVファイル + geocache.json<br>
+        ※ Ctrl+Aで全選択してドラッグ&ドロップ
+      </p>
+    </div>
+
+    <input type="file" id="fileInput" accept=".csv,.json" multiple/>
+
+    <div id="summary" class="summary" style="display: none;">
+      <strong>📊 選択ファイルサマリー</strong>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-value" id="totalFiles">0</div>
+          <div class="summary-label">総ファイル数</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-value" id="totalSize">0 MB</div>
+          <div class="summary-label">合計サイズ</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-value" id="detectedPhases">0</div>
+          <div class="summary-label">検出Phase数</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-value" id="uploadedCount">0</div>
+          <div class="summary-label">アップロード済み</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="file-list" id="fileList" style="display: none;"></div>
+
+    <div class="progress-container" id="progressContainer">
+      <div class="progress-bar" id="progressBar">0%</div>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div style="text-align: center; margin-top: 20px;">
+      <button class="button" id="uploadButton" disabled onclick="startBulkUpload()">📤 一括アップロード開始</button>
+      <button class="button button-secondary" onclick="clearAll()">🔄 クリア</button>
+      <button class="button button-secondary" onclick="google.script.host.close()">閉じる</button>
+    </div>
+  </div>
+
+<script>
+// グローバル変数
+let selectedFiles = [];
+let uploadedCount = 0;
+let phaseMapping = {};
+
+// ファイル名からPhaseとシート名を判定（PythonCSVImporter.gsと完全一致）
+const FILE_MAPPING = {
+  // Phase 1: 基本データ（必須）
+  'MapMetrics.csv': { phase: 1, sheet: 'MapMetrics', required: true },
+  'Applicants.csv': { phase: 1, sheet: 'Applicants', required: true },
+  'DesiredWork.csv': { phase: 1, sheet: 'DesiredWork', required: true },
+  'AggDesired.csv': { phase: 1, sheet: 'AggDesired', required: true },
+  'P1_QualityReport.csv': { phase: 1, sheet: 'P1_QualityReport', required: false },
+  'QualityReport_Descriptive.csv': { phase: 1, sheet: 'P1_QualityDesc', required: false },
+
+  // Phase 2: 統計的検定結果
+  'ChiSquareTests.csv': { phase: 2, sheet: 'ChiSquareTests', required: false },
+  'ANOVATests.csv': { phase: 2, sheet: 'ANOVATests', required: false },
+  'P2_QualityReport_Inferential.csv': { phase: 2, sheet: 'P2_QualityInfer', required: false },
+
+  // Phase 3: ペルソナ分析結果
+  'PersonaSummary.csv': { phase: 3, sheet: 'PersonaSummary', required: false },
+  'PersonaDetails.csv': { phase: 3, sheet: 'PersonaDetails', required: false },
+  'P3_QualityReport_Inferential.csv': { phase: 3, sheet: 'P3_QualityInfer', required: false },
+
+  // Phase 6: フロー・近接分析
+  'MunicipalityFlowEdges.csv': { phase: 6, sheet: 'Phase6_MunicipalityFlowEdges', required: false },
+  'MunicipalityFlowNodes.csv': { phase: 6, sheet: 'Phase6_MunicipalityFlowNodes', required: false },
+  'ProximityAnalysis.csv': { phase: 6, sheet: 'ProximityAnalysis', required: false },
+  'P6_QualityReport_Inferential.csv': { phase: 6, sheet: 'P6_QualityInfer', required: false },
+
+  // Phase 7: 高度分析
+  'SupplyDensityMap.csv': { phase: 7, sheet: 'Phase7_SupplyDensity', required: false },
+  'QualificationDistribution.csv': { phase: 7, sheet: 'Phase7_QualificationDist', required: false },
+  'AgeGenderCrossAnalysis.csv': { phase: 7, sheet: 'Phase7_AgeGenderCross', required: false },
+  'MobilityScore.csv': { phase: 7, sheet: 'Phase7_MobilityScore', required: false },
+  'DetailedPersonaProfile.csv': { phase: 7, sheet: 'Phase7_PersonaProfile', required: false },
+  'P7_QualityReport_Inferential.csv': { phase: 7, sheet: 'P7_QualityInfer', required: false },
+
+  // Phase 8: キャリア・学歴分析
+  'EducationDistribution.csv': { phase: 8, sheet: 'P8_EducationDist', required: false },
+  'EducationAgeCross.csv': { phase: 8, sheet: 'P8_EduAgeCross', required: false },
+  'EducationAgeCross_Matrix.csv': { phase: 8, sheet: 'P8_EduAgeMatrix', required: false },
+  'GraduationYearDistribution.csv': { phase: 8, sheet: 'P8_GradYearDist', required: false },
+  'P8_QualityReport.csv': { phase: 8, sheet: 'P8_QualityReport', required: false },
+  'P8_QualityReport_Inferential.csv': { phase: 8, sheet: 'P8_QualityInfer', required: false },
+
+  // Phase 10: 転職意欲・緊急度分析
+  'UrgencyDistribution.csv': { phase: 10, sheet: 'P10_UrgencyDist', required: false },
+  'UrgencyDistribution_ByMunicipality.csv': { phase: 10, sheet: 'P10_UrgencyDist_Muni', required: false },
+  'UrgencyAgeCross.csv': { phase: 10, sheet: 'P10_UrgencyAge', required: false },
+  'UrgencyAgeCross_ByMunicipality.csv': { phase: 10, sheet: 'P10_UrgencyAge_Muni', required: false },
+  'UrgencyAgeCross_Matrix.csv': { phase: 10, sheet: 'P10_UrgencyAgeMatrix', required: false },
+  'UrgencyEmploymentCross.csv': { phase: 10, sheet: 'P10_UrgencyEmp', required: false },
+  'UrgencyEmploymentCross_Matrix.csv': { phase: 10, sheet: 'P10_UrgencyEmpMatrix', required: false },
+  'UrgencyEmploymentCross_ByMunicipality.csv': { phase: 10, sheet: 'P10_UrgencyEmp_Muni', required: false },
+  'UrgencyDesiredWorkCross.csv': { phase: 10, sheet: 'P10_UrgencyDesired', required: false },
+  'P10_QualityReport.csv': { phase: 10, sheet: 'P10_QualityReport', required: false },
+  'P10_QualityReport_Inferential.csv': { phase: 10, sheet: 'P10_QualityInfer', required: false },
+
+  // Root統合品質レポート
+  'OverallQualityReport.csv': { phase: 0, sheet: 'OverallQuality', required: false },
+  'OverallQualityReport_Inferential.csv': { phase: 0, sheet: 'OverallQualityInfer', required: false },
+  'geocache.json': { phase: 0, sheet: 'Geocache', required: false }
+};
+
+// イベントリスナー
+document.getElementById('uploadArea').addEventListener('click', () => {
+  document.getElementById('fileInput').click();
+});
+
+document.getElementById('uploadArea').addEventListener('dragover', (e) => {
+  e.preventDefault();
+  e.target.classList.add('dragover');
+});
+
+document.getElementById('uploadArea').addEventListener('dragleave', (e) => {
+  e.target.classList.remove('dragover');
+});
+
+document.getElementById('uploadArea').addEventListener('drop', (e) => {
+  e.preventDefault();
+  e.target.classList.remove('dragover');
+  if (e.dataTransfer.files.length) {
+    handleFiles(e.dataTransfer.files);
+  }
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  if (e.target.files.length) {
+    handleFiles(e.target.files);
+  }
+});
+
+// 複数ファイル処理
+function handleFiles(files) {
+  selectedFiles = Array.from(files);
+
+  if (selectedFiles.length === 0) {
+    showStatus('ファイルが選択されていません', 'error');
+    return;
+  }
+
+  // ファイルリスト表示
+  displayFileList();
+
+  // サマリー更新
+  updateSummary();
+
+  // アップロードボタン有効化
+  document.getElementById('uploadButton').disabled = false;
+
+  showStatus(`${selectedFiles.length}ファイルが選択されました`, 'info');
+}
+
+// ファイルリスト表示
+function displayFileList() {
+  const listEl = document.getElementById('fileList');
+  listEl.innerHTML = '';
+  listEl.style.display = 'block';
+
+  phaseMapping = {};
+
+  selectedFiles.forEach((file, index) => {
+    const mapping = FILE_MAPPING[file.name];
+    const phase = mapping ? mapping.phase : '不明';
+    const sheet = mapping ? mapping.sheet : '未対応';
+
+    if (mapping) {
+      if (!phaseMapping[phase]) phaseMapping[phase] = [];
+      phaseMapping[phase].push(file.name);
+    }
+
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    item.id = `file-${index}`;
+
+    const statusClass = mapping ? 'waiting' : 'error';
+    const statusText = mapping ? '待機中' : '未対応';
+
+    item.innerHTML = `
+      <div class="file-name">${file.name}</div>
+      <div class="file-size">${formatFileSize(file.size)}</div>
+      <div class="file-status ${statusClass}" id="status-${index}">${statusText}</div>
+    `;
+
+    listEl.appendChild(item);
+  });
+}
+
+// サマリー更新
+function updateSummary() {
+  const summaryEl = document.getElementById('summary');
+  summaryEl.style.display = 'block';
+
+  const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
+  const phases = Object.keys(phaseMapping).length;
+
+  document.getElementById('totalFiles').textContent = selectedFiles.length;
+  document.getElementById('totalSize').textContent = formatFileSize(totalSize);
+  document.getElementById('detectedPhases').textContent = phases;
+  document.getElementById('uploadedCount').textContent = uploadedCount;
+}
+
+// ファイルサイズフォーマット
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+// 一括アップロード開始
+async function startBulkUpload() {
+  uploadedCount = 0;
+  document.getElementById('uploadButton').disabled = true;
+  document.getElementById('progressContainer').style.display = 'block';
+
+  showStatus('アップロード開始...', 'info');
+
+  for (let i = 0; i < selectedFiles.length; i++) {
+    const file = selectedFiles[i];
+    const mapping = FILE_MAPPING[file.name];
+
+    if (!mapping) {
+      updateFileStatus(i, 'error', 'スキップ');
+      continue;
+    }
+
+    try {
+      updateFileStatus(i, 'uploading', 'アップロード中');
+
+      // ファイル読み込み
+      const content = await readFileContent(file);
+
+      // GAS側にアップロード
+      await uploadToGAS(file.name, mapping.sheet, content);
+
+      updateFileStatus(i, 'success', '完了');
+      uploadedCount++;
+
+    } catch (error) {
+      updateFileStatus(i, 'error', 'エラー');
+      console.error(`${file.name} のアップロードに失敗:`, error);
+    }
+
+    // プログレス更新
+    const progress = ((i + 1) / selectedFiles.length * 100).toFixed(0);
+    updateProgress(progress);
+    document.getElementById('uploadedCount').textContent = uploadedCount;
+  }
+
+  // 完了
+  showStatus(`✅ ${uploadedCount}/${selectedFiles.length}ファイルのアップロードが完了しました！`, 'success');
+
+  setTimeout(() => {
+    google.script.host.close();
+  }, 2000);
+}
+
+// ファイル内容読み込み
+function readFileContent(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      resolve(e.target.result);
+    };
+
+    reader.onerror = (e) => {
+      reject(new Error('ファイル読み込みエラー'));
+    };
+
+    if (file.name.endsWith('.json')) {
+      reader.readAsText(file, 'UTF-8');
+    } else {
+      reader.readAsText(file, 'UTF-8');
+    }
+  });
+}
+
+// GASにアップロード
+function uploadToGAS(fileName, sheetName, content) {
+  return new Promise((resolve, reject) => {
+    google.script.run
+      .withSuccessHandler((result) => {
+        resolve(result);
+      })
+      .withFailureHandler((error) => {
+        reject(error);
+      })
+      .importSingleCSVFromHTML(fileName, sheetName, content);
+  });
+}
+
+// ファイルステータス更新
+function updateFileStatus(index, statusClass, statusText) {
+  const statusEl = document.getElementById(`status-${index}`);
+  if (statusEl) {
+    statusEl.className = `file-status ${statusClass}`;
+    statusEl.textContent = statusText;
+  }
+}
+
+// プログレス更新
+function updateProgress(percent) {
+  const bar = document.getElementById('progressBar');
+  bar.style.width = percent + '%';
+  bar.textContent = percent + '%';
+}
+
+// ステータス表示
+function showStatus(message, type) {
+  const status = document.getElementById('status');
+  status.textContent = message;
+  status.className = 'status ' + type;
+  status.style.display = 'block';
+}
+
+// クリア
+function clearAll() {
+  selectedFiles = [];
+  uploadedCount = 0;
+  phaseMapping = {};
+
+  document.getElementById('fileList').style.display = 'none';
+  document.getElementById('summary').style.display = 'none';
+  document.getElementById('progressContainer').style.display = 'none';
+  document.getElementById('status').style.display = 'none';
+  document.getElementById('uploadButton').disabled = true;
+  document.getElementById('fileInput').value = '';
+}
+</script>
+</body>
+</html>

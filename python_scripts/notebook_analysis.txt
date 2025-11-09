@@ -1,0 +1,135 @@
+================================================================================
+Jupyter Notebook構造解析
+================================================================================
+
+Notebookファイル: ジョブメドレーの求職者データを分析する&可視化するファイル_fixed.ipynb
+セル数: 2個
+カーネル: Python 3 (python)
+
+================================================================================
+セル一覧（インデックス、タイプ、先頭行）
+================================================================================
+
+[  0] code       | #!/usr/bin/env python # -*- coding: utf-8 -*- """ 求職者データ包括分析システム - 完全統合版（拡張分析機能付き） Job Seeker Compre...
+      キーワード 'import': import pandas as pd
+      キーワード 'def ': def __init__(self, filepath):
+      キーワード 'class ': class MasterData:
+      キーワード 'pd.': elif pd.isna(obj):
+      キーワード 'plt.': plt.rcParams['font.family'] = ['MS Gothic', 'Yu Gothic', 'Meiryo', 'sans-serif']
+      キーワード 'sns.': sns.heatmap(cross_tab, annot=True, fmt='d', cmap='YlOrRd', ax=ax2)
+
+[  1] code       | #!/usr/bin/env python # -*- coding: utf-8 -*- """ 求職者データ包括分析システム - 改修版（東京フォールバック廃止 & 応募傾向モデル更新） Vers...
+      キーワード 'import': import pandas as pd
+      キーワード 'def ': def __init__(self, filepath):
+      キーワード 'class ': class MasterData:
+      キーワード 'pd.': self.df = pd.read_csv(self.filepath, encoding=encoding)
+      キーワード 'plt.': plt.rcParams['font.family'] = ['MS Gothic', 'Yu Gothic', 'Meiryo', 'sans-serif']
+      キーワード 'sns.': sns.heatmap(matrix, annot=False, fmt='g', cmap='Blues', xticklabels=regions, yticklabels=regions, ax=ax3)
+
+================================================================================
+Markdownセルの見出し（構造）
+================================================================================
+
+================================================================================
+コードセルの主要な定義（関数/クラス）
+================================================================================
+[  0] class MasterData:
+[  0] class AdvancedJobSeekerAnalyzer:
+[  0] def __init__(self, filepath):
+[  0] def _convert_to_json_serializable(self, obj):
+[  0] def get_coordinates_from_gsi_api(self, address):
+[  0] def run_complete_analysis(self):
+[  0] def _display_summary(self):
+[  0] def load_geocache(self):
+[  0] def save_geocache(self):
+[  0] def load_data(self):
+[  0] def _analyze_columns(self):
+[  0] def _analyze_desired_work_columns(self, cols):
+[  0] def process_data(self):
+[  0] def _extract_basic_info(self):
+[  0] def _split_prefecture_municipality(self, series, prefix):
+[  0] def get_region(pref):
+[  0] def _extract_desired_locations(self):
+[  0] def _get_region(self, prefecture):
+[  0] def _extract_qualifications(self):
+[  0] def _analyze_geographic_patterns(self):
+[  0] def _analyze_mobility_patterns(self):
+[  0] def _calculate_distance(self, lat1, lon1, lat2, lon2):
+[  0] def _cluster_analysis(self):
+[  0] def _assess_data_quality(self):
+[  0] def advanced_visualizations(self):
+[  0] def _plot_japan_map(self, ax, data_type='residence'):
+[  0] def _plot_flow_map(self, ax):
+[  0] def _plot_heatmap_on_map(self, ax):
+[  0] def generate_advanced_insights(self):
+[  0] def export_results(self, output_dir='.'):
+[  0] def select_csv_file():
+[  0] def main():
+[  1] class MasterData:
+[  1] class EnhancedJobSeekerAnalyzer:
+[  1] def __init__(self, filepath):
+[  1] def _load_prefecture_coords(self):
+[  1] def run_complete_analysis(self):
+[  1] def load_data(self):
+[  1] def _analyze_columns(self):
+[  1] def _analyze_desired_work_columns(self, cols):
+[  1] def process_data(self):
+[  1] def _extract_basic_info(self):
+[  1] def _split_prefecture_municipality(self, series, prefix):
+[  1] def get_region(pref):
+[  1] def _extract_desired_locations(self):
+[  1] def _get_region(self, prefecture):
+[  1] def _extract_qualifications(self):
+[  1] def _extract_employment_status(self):
+[  1] def _assign_coords_primary(self):
+[  1] def _gender_relative_location_intent(self):
+[  1] def _analyze_geographic_patterns(self):
+[  1] def _analyze_mobility_patterns(self):
+[  1] def _calculate_distance(self, lat1, lon1, lat2, lon2):
+[  1] def _cluster_analysis(self):
+[  1] def _assess_data_quality(self):
+[  1] def _create_application_propensity_model(self):
+[  1] def _dist_km(row):
+[  1] def loc_score(n, sex):
+[  1] def _latent_class_analysis(self):
+[  1] def _analyze_segment_evidence(self):
+[  1] def _association_rule_mining(self):
+[  1] def _association_rule_mining_advanced(self):
+[  1] def _association_rule_mining_simple(self):
+[  1] def _interpret_rules(self, rules_df):
+[  1] def _generate_evidence_based_personas(self):
+[  1] def _infer_segment_characteristics(self, seg_data, evidence):
+[  1] def _generate_evidence_based_name(self, actual, inferred):
+[  1] def _generate_evidence_based_strategies(self, actual, inferred):
+[  1] def _calculate_confidence_level(self, evidence):
+[  1] def _calculate_roi_projections(self):
+[  1] def advanced_visualizations(self):
+[  1] def generate_strategic_insights(self):
+[  1] def load_geocache(self):
+[  1] def save_geocache(self):
+[  1] def _load_external_muni_coords(self):
+[  1] def _get_coords(self, prefecture, municipality=None):
+[  1] def _qa_checks(self):
+[  1] def add_issue(t, msg, meta=None):
+[  1] def _export_dir(self):
+[  1] def export_enhanced_results(self):
+[  1] def _age_bucket_jp(self, age):
+[  1] def _display_enhanced_summary(self):
+[  1] def select_csv_file():
+[  1] def main():
+
+================================================================================
+実行結果があるセル
+================================================================================
+[  0] 出力数: 5個
+      タイプ: stream
+      テキスト: ✓ japanize_matplotlib を使用
+============================================================
+求職者データ包括分析システ...
+[  1] 出力数: 4個
+      タイプ: stream
+      テキスト: ✓ japanize_matplotlib を使用
+mlxtend がインストールされていません。アソシエーションルール分析は簡易版を使用します。
+==========================...
+
+実行結果があるセル: 2/2個

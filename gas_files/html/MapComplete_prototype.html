@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>Talent Insight Map Prototype</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0d1525;
+      --panel-bg: rgba(12, 20, 37, 0.95);
+      --accent: #38bdf8;
+      --accent-2: #f97316;
+      --accent-3: #a855f7;
+      --accent-4: #22c55e;
+      --accent-5: #facc15;
+      --accent-6: #ec4899;
+      --text: #f8fafc;
+      --muted: rgba(226, 232, 240, 0.75);
+      --border: rgba(148, 163, 184, 0.22);
+      --card: rgba(15, 23, 42, 0.82);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      height: 100vh;
+      font-family: 'Noto Sans JP', 'Yu Gothic', Meiryo, sans-serif;
+      background: radial-gradient(circle at top left, #0f172a 0%, #1e293b 65%);
+      color: var(--text);
+      overflow: hidden;
+      position: relative;
+    }
+    .main-layout { position: relative; width: 100%; height: 100%; }
+    .map-area { position: absolute; inset: 0; }
+    .map-placeholder {
+      position: absolute;
+      inset: 24px;
+      border-radius: 20px;
+      background: url('https://tile.openstreetmap.org/6/55/26.png') center/cover;
+      filter: brightness(0.8) grayscale(0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      letter-spacing: 0.1em;
+      color: rgba(13, 23, 43, 0.8);
+    }
+    .chip-bar {
+      position: absolute;
+      top: 28px;
+      left: 28px;
+      display: flex;
+      gap: 10px;
+    }
+    .chip {
+      padding: 10px 18px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+    .chip.active {
+      background: var(--accent);
+      color: #021321;
+      border-color: transparent;
+      box-shadow: 0 12px 28px rgba(56, 189, 248, 0.25);
+    }
+    .sidebar {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 440px;
+      background: var(--panel-bg);
+      border-left: 1px solid rgba(148, 163, 184, 0.24);
+      display: flex;
+      flex-direction: column;
+      padding: 32px 28px 28px 36px;
+      gap: 20px;
+      overflow: visible;
+      box-shadow: -18px 0 40px rgba(10, 20, 40, 0.35);
+      backdrop-filter: blur(12px);
+    }
+    .resize-handle {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 16px;
+      cursor: col-resize;
+      transform: translateX(-100%);
+      background: linear-gradient(180deg, rgba(56,189,248,0.4), rgba(148,163,184,0.3));
+      border-left: 1px solid rgba(148, 163, 184, 0.25);
+      border-right: 1px solid rgba(148, 163, 184, 0.25);
+      touch-action: none;
+    }
+    body.resizing, body.resizing * { cursor: col-resize !important; }
+    .sidebar header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .sidebar header .badge {
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      background: rgba(56, 189, 248, 0.18);
+      color: var(--accent);
+      font-size: 11px;
+    }
+    .selector { display: grid; gap: 6px; }
+    .selector label {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .selector select {
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(17, 27, 44, 0.92);
+      color: var(--text);
+      font-size: 13px;
+    }
+    .area-summary {
+      border-radius: 18px;
+      border: 1px solid rgba(56, 189, 248, 0.32);
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.26), rgba(56, 189, 248, 0.08));
+      padding: 20px;
+      display: grid;
+      gap: 6px;
+    }
+    .area-summary h1 { font-size: 22px; font-weight: 600; }
+    .area-summary p { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+    .tab-nav {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .tab-button {
+      padding: 12px 0;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.32);
+      background: rgba(17, 27, 44, 0.9);
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+    .tab-button.active {
+      background: var(--accent);
+      color: #021321;
+      border-color: transparent;
+      box-shadow: 0 10px 24px rgba(56, 189, 248, 0.22);
+    }
+    .tab-panels {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding-right: 6px;
+      display: grid;
+      gap: 16px;
+    }
+    .tab-panel {
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(8, 15, 28, 0.78);
+      padding: 20px;
+      display: none;
+      gap: 18px;
+    }
+    .tab-panel.active { display: grid; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+    }
+    .kpi-card {
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      background: rgba(12, 20, 37, 0.86);
+      padding: 16px;
+      display: grid;
+      gap: 6px;
+    }
+    .kpi-label { font-size: 12px; letter-spacing: 0.08em; color: var(--muted); }
+    .kpi-value { font-size: 24px; font-weight: 600; }
+    .kpi-note { font-size: 11px; color: var(--muted); }
+    .section {
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(10, 18, 34, 0.82);
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+    }
+    .section-title { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .stat-grid { display: grid; gap: 10px; font-size: 13px; }
+    .stat-row { display: flex; justify-content: space-between; gap: 12px; }
+    .matrix {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(8, 15, 28, 0.78);
+    }
+    .matrix table { width: 100%; border-collapse: collapse; min-width: 420px; font-size: 13px; }
+    .matrix th, .matrix td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+      text-align: left;
+      color: var(--text);
+    }
+    .matrix th { color: var(--muted); font-weight: 500; letter-spacing: 0.04em; }
+    .matrix tbody tr:last-child td { border-bottom: none; }
+    .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .chart-card {
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(5, 12, 26, 0.88);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 240px;
+      height: clamp(240px, 28vh, 320px);
+    }
+    .chart-card header { font-size: 13px; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; }
+    .chart-card canvas { width: 100% !important; height: 100% !important; }
+    .persona-list { display: grid; gap: 8px; font-size: 13px; }
+    .persona-list li { list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.04); }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.25); border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="main-layout">
+    <section class="map-area">
+      <div class="map-placeholder">MAP PLACEHOLDER</div>
+      <div class="chip-bar" id="modeChips"></div>
+    </section>
+    <aside class="sidebar" id="sidebar">
+      <div class="resize-handle" id="resizeHandle" role="separator" aria-label="サイドバーの幅を調整"></div>
+      <header>
+        <span>Job Medley Insight Suite</span>
+        <span class="badge">プロトタイプ</span>
+      </header>
+      <div class="selector">
+        <label for="citySelect">対象エリア</label>
+        <select id="citySelect"></select>
+      </div>
+      <div class="area-summary">
+        <h1 id="cityName"></h1>
+        <p id="cityMeta"></p>
+      </div>
+      <nav class="tab-nav" id="tabNav"></nav>
+      <div class="tab-panels">
+        <section class="tab-panel active" data-panel="overview"></section>
+        <section class="tab-panel" data-panel="supply"></section>
+        <section class="tab-panel" data-panel="career"></section>
+        <section class="tab-panel" data-panel="urgency"></section>
+        <section class="tab-panel" data-panel="persona"></section>
+      </div>
+    </aside>
+  </div>
+  <script type="application/json" id="prototypeData">[
+  {
+    "id": "kyoto-fushimi",
+    "prefecture": "京都府",
+    "municipality": "京都市伏見区",
+    "name": "京都府 京都市伏見区",
+    "updated": "2025-10-30",
+    "overview": {
+      "kpis": [
+        {
+          "label": "求職者数",
+          "value": 1748,
+          "unit": "人"
+        },
+        {
+          "label": "平均年齢",
+          "value": 48.7,
+          "unit": "歳"
+        },
+        {
+          "label": "男女比 (男性/女性)",
+          "labels": [
+            "男性",
+            "女性"
+          ],
+          "values": [
+            628,
+            1120
+          ],
+          "unit": "人"
+        },
+        {
+          "label": "国家資格保有率",
+          "value": 0.0269,
+          "unit": "割合",
+          "note": "保有者 47人"
+        }
+      ],
+      "age_gender": {
+        "rows": [
+          {
+            "age": "20代",
+            "男性": 87,
+            "女性": 163,
+            "その他": 0,
+            "不明": 0
+          },
+          {
+            "age": "30代",
+            "男性": 107,
+            "女性": 135,
+            "その他": 0,
+            "不明": 0
+          },
+          {
+            "age": "40代",
+            "男性": 121,
+            "女性": 202,
+            "その他": 0,
+            "不明": 0
+          },
+          {
+            "age": "50代",
+            "男性": 150,
+            "女性": 347,
+            "その他": 0,
+            "不明": 0
+          },
+          {
+            "age": "60代",
+            "男性": 107,
+            "女性": 222,
+            "その他": 0,
+            "不明": 0
+          },
+          {
+            "age": "70歳以上",
+            "男性": 56,
+            "女性": 51,
+            "その他": 0,
+            "不明": 0
+          }
+        ],
+        "age_labels": [
+          "20代",
+          "30代",
+          "40代",
+          "50代",
+          "60代",
+          "70歳以上"
+        ],
+        "age_totals": [
+          250,
+          242,
+          323,
+          497,
+          329,
+          107
+        ],
+        "gender_labels": [
+          "男性",
+          "女性"
+        ],
+        "gender_totals": [
+          628,
+          1120
+        ]
+      },
+      "averages": {
+        "希望勤務地数": 5.27,
+        "保有資格数": 1.72
+      }
+    },
+    "supply": {
+      "status_counts": {
+        "就業中": 1121,
+        "離職中": 550,
+        "在学中": 77
+      },
+      "qualification_buckets": [
+        {
+          "label": "資格なし",
+          "value": 370
+        },
+        {
+          "label": "1資格",
+          "value": 533
+        },
+        {
+          "label": "2資格",
+          "value": 440
+        },
+        {
+          "label": "3資格以上",
+          "value": 405
+        }
+      ],
+      "national_license_count": 47,
+      "avg_qualifications": 1.72
+    },
+    "career": {
+      "summary": {
+        "平均保有資格数": 1.72,
+        "平均希望勤務地数": 5.27,
+        "国家資格保有率": 0.0269
+      },
+      "employment_age": {
+        "age_labels": [
+          "20代",
+          "30代",
+          "40代",
+          "50代",
+          "60代",
+          "70歳以上"
+        ],
+        "rows": [
+          {
+            "status": "就業中",
+            "counts": [
+              114,
+              159,
+              229,
+              351,
+              218,
+              50
+            ]
+          },
+          {
+            "status": "離職中",
+            "counts": [
+              79,
+              76,
+              88,
+              142,
+              109,
+              56
+            ]
+          },
+          {
+            "status": "在学中",
+            "counts": [
+              57,
+              7,
+              6,
+              4,
+              2,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "urgency": {
+      "summary": {
+        "対象人数": 1748,
+        "平均スコア": 4.0961098398169336
+      },
+      "by_age": [
+        {
+          "age_group": "20代",
+          "count": 250,
+          "avg_score": 3.48
+        },
+        {
+          "age_group": "30代",
+          "count": 242,
+          "avg_score": 4.206611570247934
+        },
+        {
+          "age_group": "40代",
+          "count": 323,
+          "avg_score": 4.256965944272446
+        },
+        {
+          "age_group": "50代",
+          "count": 497,
+          "avg_score": 4.185110663983903
+        },
+        {
+          "age_group": "60代",
+          "count": 329,
+          "avg_score": 4.09726443768997
+        },
+        {
+          "age_group": "70歳以上",
+          "count": 107,
+          "avg_score": 4.383177570093458
+        }
+      ],
+      "by_employment": [
+        {
+          "status": "在学中",
+          "count": 77,
+          "avg_score": 1.896103896103896
+        },
+        {
+          "status": "就業中",
+          "count": 1121,
+          "avg_score": 3.8974130240856377
+        },
+        {
+          "status": "離職中",
+          "count": 550,
+          "avg_score": 4.8090909090909095
+        }
+      ]
+    },
+    "persona": {
+      "top": [
+        {
+          "label": "50代 × 女性 × 就業中",
+          "count": 256,
+          "share": 0.1465
+        },
+        {
+          "label": "60代 × 女性 × 就業中",
+          "count": 158,
+          "share": 0.0904
+        },
+        {
+          "label": "40代 × 女性 × 就業中",
+          "count": 150,
+          "share": 0.0858
+        },
+        {
+          "label": "50代 × 男性 × 就業中",
+          "count": 95,
+          "share": 0.0543
+        },
+        {
+          "label": "50代 × 女性 × 離職中",
+          "count": 89,
+          "share": 0.0509
+        }
+      ]
+    }
+  },
+  {
+    "id": "kanagawa-yokohama-naka",
+    "prefecture": "神奈川県",
+    "municipality": "横浜市中区",
+    "name": "神奈川県 横浜市中区",
+    "updated": "2025-10-30",
+    "overview": {
+      "kpis": [
+        {
+          "label": "求職者数",
+          "value": 17,
+          "unit": "人"
+        },
+        {
+          "label": "平均年齢",
+          "value": 42.8,
+          "unit": "歳"
+        },
+        {
+          "label": "男女比 (男性/女性)",
+          "labels": [
+            "男性",
+            "女性"
+          ],
+          "values": [
+            7,
+            10
+          ],
+          "unit": "人"
+        },
+        {
+          "label": "国家資格保有率",
+          "value": 0.0588,
+          "unit": "割合",
+          "note": "保有者 1人"
+        }
+      ],
+      "age_gender": {
+        "rows": [
+          {
+            "age": "20代",
+            "男性": 2,
+            "女性": 1,
+            "その他": 0,
+            "不明": 0
+          },
+          {
+            "age": "30代",
+            "男性": 1,
+            "女性": 5,
+            "その他": 0,
+            "不明": 0
+          },
+          {
+            "age": "40代",
+            "男性": 2,
+            "女性": 1,
+            "その他": 0,
+            "不明": 0
+          },
+          {
+            "age": "50代",
+            "男性": 0,
+            "女性": 2,
+            "その他": 0,
+            "不明": 0
+          },
+          {
+            "age": "60代",
+            "男性": 1,
+            "女性": 1,
+            "その他": 0,
+            "不明": 0
+          },
+          {
+            "age": "70歳以上",
+            "男性": 1,
+            "女性": 0,
+            "その他": 0,
+            "不明": 0
+          }
+        ],
+        "age_labels": [
+          "20代",
+          "30代",
+          "40代",
+          "50代",
+          "60代",
+          "70歳以上"
+        ],
+        "age_totals": [
+          3,
+          6,
+          3,
+          2,
+          2,
+          1
+        ],
+        "gender_labels": [
+          "男性",
+          "女性"
+        ],
+        "gender_totals": [
+          7,
+          10
+        ]
+      },
+      "averages": {
+        "希望勤務地数": 113.24,
+        "保有資格数": 3.12
+      }
+    },
+    "supply": {
+      "status_counts": {
+        "就業中": 11,
+        "離職中": 5,
+        "在学中": 1
+      },
+      "qualification_buckets": [
+        {
+          "label": "資格なし",
+          "value": 0
+        },
+        {
+          "label": "1資格",
+          "value": 7
+        },
+        {
+          "label": "2資格",
+          "value": 4
+        },
+        {
+          "label": "3資格以上",
+          "value": 6
+        }
+      ],
+      "national_license_count": 1,
+      "avg_qualifications": 3.12
+    },
+    "career": {
+      "summary": {
+        "平均保有資格数": 3.12,
+        "平均希望勤務地数": 113.24,
+        "国家資格保有率": 0.0588
+      },
+      "employment_age": {
+        "age_labels": [
+          "20代",
+          "30代",
+          "40代",
+          "50代",
+          "60代",
+          "70歳以上"
+        ],
+        "rows": [
+          {
+            "status": "就業中",
+            "counts": [
+              2,
+              5,
+              2,
+              1,
+              1,
+              0
+            ]
+          },
+          {
+            "status": "離職中",
+            "counts": [
+              1,
+              1,
+              0,
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "status": "在学中",
+            "counts": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      }
+    },
+    "urgency": {
+      "summary": {
+        "対象人数": 17,
+        "平均スコア": 5.588235294117647
+      },
+      "by_age": [
+        {
+          "age_group": "20代",
+          "count": 3,
+          "avg_score": 5.666666666666667
+        },
+        {
+          "age_group": "30代",
+          "count": 6,
+          "avg_score": 4.833333333333333
+        },
+        {
+          "age_group": "40代",
+          "count": 3,
+          "avg_score": 5.333333333333333
+        },
+        {
+          "age_group": "50代",
+          "count": 2,
+          "avg_score": 7.0
+        },
+        {
+          "age_group": "60代",
+          "count": 2,
+          "avg_score": 6.5
+        },
+        {
+          "age_group": "70歳以上",
+          "count": 1,
+          "avg_score": 6.0
+        }
+      ],
+      "by_employment": [
+        {
+          "status": "在学中",
+          "count": 1,
+          "avg_score": 4.0
+        },
+        {
+          "status": "就業中",
+          "count": 11,
+          "avg_score": 5.454545454545454
+        },
+        {
+          "status": "離職中",
+          "count": 5,
+          "avg_score": 6.2
+        }
+      ]
+    },
+    "persona": {
+      "top": [
+        {
+          "label": "30代 × 女性 × 就業中",
+          "count": 4,
+          "share": 0.2353
+        },
+        {
+          "label": "40代 × 男性 × 就業中",
+          "count": 2,
+          "share": 0.1176
+        },
+        {
+          "label": "60代 × 女性 × 離職中",
+          "count": 1,
+          "share": 0.0588
+        },
+        {
+          "label": "50代 × 女性 × 離職中",
+          "count": 1,
+          "share": 0.0588
+        },
+        {
+          "label": "20代 × 男性 × 就業中",
+          "count": 1,
+          "share": 0.0588
+        }
+      ]
+    }
+  }
+]</script>
+  <script>
+    const MODE_CHIPS = [
+      { id: 'bubble', label: 'バブル' },
+      { id: 'heatmap', label: 'ヒートマップ' },
+      { id: 'cluster', label: 'クラスタ' },
+      { id: 'choropleth', label: 'コロプレス' }
+    ];
+    const TABS = [
+      { id: 'overview', label: '総合概要' },
+      { id: 'supply', label: '人材供給' },
+      { id: 'career', label: 'キャリア分析' },
+      { id: 'urgency', label: '緊急度分析' },
+      { id: 'persona', label: 'ペルソナ分析' }
+    ];
+    const COLOR_PALETTE = ['#38bdf8', '#f97316', '#a855f7', '#22c55e', '#facc15', '#ec4899', '#8b5cf6'];
+    const DATA = JSON.parse(document.getElementById('prototypeData').textContent);
+    const charts = {};
+    let sidebarResizeObserver;
+    const numberFormatter = new Intl.NumberFormat('ja-JP');
+    const percentFormatter = new Intl.NumberFormat('ja-JP', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+    const qs = (selector) => document.querySelector(selector);
+    const qsa = (selector) => Array.from(document.querySelectorAll(selector));
+
+    function renderModeChips() {
+      const bar = qs('#modeChips');
+      bar.innerHTML = MODE_CHIPS.map(chip => `
+        <button type="button" class="chip${chip.id === activeMode ? ' active' : ''}" data-mode="${chip.id}">${chip.label}</button>
+      `).join('');
+      qsa('.chip').forEach(btn => btn.addEventListener('click', () => {
+        activeMode = btn.dataset.mode;
+        qsa('.chip').forEach(el => el.classList.toggle('active', el.dataset.mode === activeMode));
+      }));
+    }
+
+    function renderTabNavigation() {
+      const nav = qs('#tabNav');
+      nav.innerHTML = TABS.map(tab => `
+        <button type="button" class="tab-button${tab.id === activeTab ? ' active' : ''}" data-tab="${tab.id}">${tab.label}</button>
+      `).join('');
+      qsa('.tab-button').forEach(btn => btn.addEventListener('click', () => {
+        activeTab = btn.dataset.tab;
+        syncActiveTab();
+      }));
+    }
+
+    function syncActiveTab() {
+      qsa('.tab-button').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === activeTab));
+      qsa('.tab-panel').forEach(panel => panel.classList.toggle('active', panel.dataset.panel === activeTab));
+    }
+
+    function destroyChart(id) {
+      if (charts[id]) {
+        charts[id].destroy();
+        delete charts[id];
+      }
+    }
+
+    function upsertChart(id, config) {
+      destroyChart(id);
+      const canvas = document.getElementById(id);
+      if (!canvas) return;
+      charts[id] = new Chart(canvas.getContext('2d'), config);
+    }
+
+    function formatSingleValue(value, unit) {
+      if (value === null || value === undefined) return '-';
+      if (unit === '割合') return percentFormatter.format(value);
+      if (unit === '歳') return `${value.toFixed(1)}歳`;
+      if (typeof value === 'number') return `${numberFormatter.format(value)}${unit || ''}`;
+      return `${value}${unit || ''}`;
+    }
+
+    function formatKpiValue(kpi) {
+      if (Array.isArray(kpi.values)) {
+        return kpi.values.map((v, idx) => {
+          const label = kpi.labels ? `${kpi.labels[idx]}: ` : '';
+          return `${label}${numberFormatter.format(v)}${kpi.unit || ''}`;
+        }).join(' / ');
+      }
+      return formatSingleValue(kpi.value, kpi.unit);
+    }
+
+    function buildMatrix(headers, rows) {
+      if (!rows.length) return '';
+      const headerCells = headers.map(title => `<th>${title}</th>`).join('');
+      const bodyRows = rows.map(row => `<tr>${row.map((cell, idx) => idx === 0 ? `<th>${cell}</th>` : `<td>${cell}</td>`).join('')}</tr>`).join('');
+      return `
+        <div class="matrix">
+          <table>
+            <thead><tr>${headerCells}</tr></thead>
+            <tbody>${bodyRows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function chartBaseOptions() {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 350 }
+      };
+    }
+
+    function renderOverview(city) {
+      const panel = qs('.tab-panel[data-panel="overview"]');
+      const { overview } = city;
+      const kpiCards = overview.kpis.map(kpi => `
+        <article class="kpi-card">
+          <span class="kpi-label">${kpi.label}</span>
+          <span class="kpi-value">${formatKpiValue(kpi)}</span>
+          ${kpi.note ? `<span class='kpi-note'>${kpi.note}</span>` : ''}
+        </article>
+      `).join('');
+
+      const detailRows = Object.entries(overview.averages).map(([label, value]) => `
+        <div class="stat-row"><span>${label}</span><span>${Number(value).toFixed(2)}</span></div>
+      `).join('');
+
+      const ageGenderRows = (overview.age_gender.rows || []).map(row => {
+        const values = ['男性', '女性', 'その他', '不明'].map(key => numberFormatter.format(row[key] || 0));
+        return [row.age, ...values];
+      });
+      const matrixHTML = buildMatrix(['年齢帯', '男性', '女性', 'その他', '不明'], ageGenderRows);
+
+      panel.innerHTML = `
+        <div class="kpi-grid">${kpiCards}</div>
+        <section class="section">
+          <h2 class="section-title">主要指標の平均値</h2>
+          <div class="stat-grid">${detailRows}</div>
+        </section>
+        <section class="section">
+          <h2 class="section-title">ビジュアルサマリー</h2>
+          <div class="chart-grid">
+            <div class="chart-card">
+              <header>性別構成</header>
+              <canvas id="overviewGenderChart"></canvas>
+            </div>
+            <div class="chart-card">
+              <header>年齢帯別求職者数</header>
+              <canvas id="overviewAgeChart"></canvas>
+            </div>
+          </div>
+        </section>
+        <section class="section">
+          <h2 class="section-title">年齢帯 × 性別一覧</h2>
+          ${matrixHTML}
+        </section>
+      `;
+
+      renderOverviewCharts(city);
+    }
+
+    function renderOverviewCharts(city) {
+      const { overview } = city;
+      const genderTotals = overview.age_gender.gender_totals || [];
+      const genderLabels = overview.age_gender.gender_labels || ['男性', '女性'];
+      upsertChart('overviewGenderChart', {
+        type: 'doughnut',
+        data: {
+          labels: genderLabels,
+          datasets: [{
+            data: genderTotals,
+            backgroundColor: [COLOR_PALETTE[0], COLOR_PALETTE[1], COLOR_PALETTE[2], COLOR_PALETTE[3]]
+          }]
+        },
+        options: {
+          ...chartBaseOptions(),
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+
+      const ageLabels = overview.age_gender.age_labels || [];
+      const ageTotals = overview.age_gender.age_totals || [];
+      upsertChart('overviewAgeChart', {
+        type: 'bar',
+        data: {
+          labels: ageLabels,
+          datasets: [{
+            label: '人数',
+            data: ageTotals,
+            backgroundColor: COLOR_PALETTE[0]
+          }]
+        },
+        options: {
+          ...chartBaseOptions(),
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+
+    function renderSupply(city) {
+      const panel = qs('.tab-panel[data-panel="supply"]');
+      const { supply } = city;
+      const statusEntries = Object.entries(supply.status_counts);
+      const statusRows = statusEntries.map(([label, value]) => `
+        <div class="stat-row"><span>${label}</span><span>${numberFormatter.format(value)}人</span></div>
+      `).join('');
+      const extraRows = `
+        <div class="stat-row"><span>国家資格保有者</span><span>${numberFormatter.format(supply.national_license_count || 0)}人</span></div>
+        <div class="stat-row"><span>平均資格保有数</span><span>${Number(supply.avg_qualifications || 0).toFixed(2)}</span></div>
+      `;
+
+      const qualificationRows = supply.qualification_buckets.map(bucket => [bucket.label, `${numberFormatter.format(bucket.value)}人`]);
+      const qualificationMatrix = buildMatrix(['カテゴリ', '人数'], qualificationRows);
+
+      panel.innerHTML = `
+        <section class="section">
+          <h2 class="section-title">ステータスサマリー</h2>
+          <div class="stat-grid">${statusRows}${extraRows}</div>
+        </section>
+        <section class="section">
+          <h2 class="section-title">ビジュアル</h2>
+          <div class="chart-grid">
+            <div class="chart-card">
+              <header>就業ステータス</header>
+              <canvas id="supplyStatusChart"></canvas>
+            </div>
+            <div class="chart-card">
+              <header>保有資格カテゴリ</header>
+              <canvas id="supplyQualificationChart"></canvas>
+            </div>
+          </div>
+        </section>
+        <section class="section">
+          <h2 class="section-title">資格カテゴリ一覧</h2>
+          ${qualificationMatrix}
+        </section>
+      `;
+
+      renderSupplyCharts(city);
+    }
+
+    function renderSupplyCharts(city) {
+      const statusEntries = Object.entries(city.supply.status_counts);
+      upsertChart('supplyStatusChart', {
+        type: 'bar',
+        data: {
+          labels: statusEntries.map(([label]) => label),
+          datasets: [{
+            label: '人数',
+            data: statusEntries.map(([, value]) => value),
+            backgroundColor: COLOR_PALETTE.slice(0, statusEntries.length)
+          }]
+        },
+        options: {
+          ...chartBaseOptions(),
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+
+      const buckets = city.supply.qualification_buckets;
+      upsertChart('supplyQualificationChart', {
+        type: 'bar',
+        data: {
+          labels: buckets.map(bucket => bucket.label),
+          datasets: [{
+            label: '人数',
+            data: buckets.map(bucket => bucket.value),
+            backgroundColor: COLOR_PALETTE.slice(0, buckets.length)
+          }]
+        },
+        options: {
+          ...chartBaseOptions(),
+          indexAxis: 'y',
+          scales: { x: { beginAtZero: true } }
+        }
+      });
+    }
+
+    function renderCareer(city) {
+      const panel = qs('.tab-panel[data-panel="career"]');
+      const { career } = city;
+      const summaryRows = Object.entries(career.summary).map(([label, value]) => {
+        if (label === '国家資格保有率') {
+          return `<div class="stat-row"><span>${label}</span><span>${percentFormatter.format(value)}</span></div>`;
+        }
+        return `<div class="stat-row"><span>${label}</span><span>${Number(value).toFixed(2)}</span></div>`;
+      }).join('');
+
+      const ageLabels = career.employment_age.age_labels || [];
+      const matrixRows = career.employment_age.rows.map(row => [row.status, ...row.counts.map(value => `${numberFormatter.format(value)}人`)]);
+      const matrixHTML = buildMatrix(['就業ステータス', ...ageLabels], matrixRows);
+
+      panel.innerHTML = `
+        <section class="section">
+          <h2 class="section-title">キャリア指標</h2>
+          <div class="stat-grid">${summaryRows}</div>
+        </section>
+        <section class="section">
+          <h2 class="section-title">就業ステータス × 年齢帯</h2>
+          <div class="chart-grid">
+            <div class="chart-card">
+              <header>年齢帯別構成</header>
+              <canvas id="careerEmploymentChart"></canvas>
+            </div>
+          </div>
+          ${matrixHTML}
+        </section>
+      `;
+
+      renderCareerCharts(city);
+    }
+
+    function renderCareerCharts(city) {
+      const ageLabels = city.career.employment_age.age_labels || [];
+      const datasets = city.career.employment_age.rows.map((row, index) => ({
+        label: row.status,
+        data: row.counts,
+        backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length],
+        stack: 'career'
+      }));
+
+      upsertChart('careerEmploymentChart', {
+        type: 'bar',
+        data: { labels: ageLabels, datasets },
+        options: {
+          ...chartBaseOptions(),
+          scales: {
+            x: { stacked: true },
+            y: { stacked: true, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function renderUrgency(city) {
+      const panel = qs('.tab-panel[data-panel="urgency"]');
+      const { urgency } = city;
+      const summaryRows = Object.entries(urgency.summary).map(([label, value]) => {
+        if (label === '平均スコア') {
+          return `<div class="stat-row"><span>${label}</span><span>${value ? value.toFixed(2) : '-'}</span></div>`;
+        }
+        return `<div class="stat-row"><span>${label}</span><span>${numberFormatter.format(value)}人</span></div>`;
+      }).join('');
+
+      panel.innerHTML = `
+        <section class="section">
+          <h2 class="section-title">緊急度サマリー</h2>
+          <div class="stat-grid">${summaryRows}</div>
+        </section>
+        <section class="section">
+          <h2 class="section-title">緊急度チャート</h2>
+          <div class="chart-grid">
+            <div class="chart-card">
+              <header>年齢帯別</header>
+              <canvas id="urgencyAgeChart"></canvas>
+            </div>
+            <div class="chart-card">
+              <header>就業ステータス別</header>
+              <canvas id="urgencyEmploymentChart"></canvas>
+            </div>
+          </div>
+        </section>
+      `;
+
+      renderUrgencyCharts(city);
+    }
+
+    function renderUrgencyCharts(city) {
+      const ageLabels = city.urgency.by_age.map(item => item.age_group);
+      const ageCounts = city.urgency.by_age.map(item => item.count);
+      const ageScores = city.urgency.by_age.map(item => item.avg_score || 0);
+
+      upsertChart('urgencyAgeChart', {
+        type: 'bar',
+        data: {
+          labels: ageLabels,
+          datasets: [
+            {
+              type: 'bar',
+              label: '人数',
+              data: ageCounts,
+              backgroundColor: COLOR_PALETTE[0],
+              yAxisID: 'y'
+            },
+            {
+              type: 'line',
+              label: '平均スコア',
+              data: ageScores,
+              borderColor: COLOR_PALETTE[1],
+              backgroundColor: COLOR_PALETTE[1],
+              tension: 0.3,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          ...chartBaseOptions(),
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: '人数' } },
+            y1: { position: 'right', beginAtZero: false, min: 0, max: 10, title: { display: true, text: '平均スコア' }, grid: { drawOnChartArea: false } }
+          }
+        }
+      });
+
+      const employmentLabels = city.urgency.by_employment.map(item => item.status);
+      const employmentCounts = city.urgency.by_employment.map(item => item.count);
+      const employmentScores = city.urgency.by_employment.map(item => item.avg_score || 0);
+
+      upsertChart('urgencyEmploymentChart', {
+        type: 'bar',
+        data: {
+          labels: employmentLabels,
+          datasets: [
+            {
+              type: 'bar',
+              label: '人数',
+              data: employmentCounts,
+              backgroundColor: COLOR_PALETTE[2],
+              yAxisID: 'y'
+            },
+            {
+              type: 'line',
+              label: '平均スコア',
+              data: employmentScores,
+              borderColor: COLOR_PALETTE[3],
+              backgroundColor: COLOR_PALETTE[3],
+              tension: 0.3,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          ...chartBaseOptions(),
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: '人数' } },
+            y1: { position: 'right', beginAtZero: false, min: 0, max: 10, title: { display: true, text: '平均スコア' }, grid: { drawOnChartArea: false } }
+          }
+        }
+      });
+    }
+
+    function renderPersona(city) {
+      const panel = qs('.tab-panel[data-panel="persona"]');
+      const personas = city.persona.top || [];
+      const listItems = personas.map(item => `
+        <li><span>${item.label}</span><span>${numberFormatter.format(item.count)}人 / ${percentFormatter.format(item.share)}</span></li>
+      `).join('');
+
+      panel.innerHTML = `
+        <section class="section">
+          <h2 class="section-title">主要ペルソナ</h2>
+          <div class="chart-grid">
+            <div class="chart-card">
+              <header>構成比</header>
+              <canvas id="personaShareChart"></canvas>
+            </div>
+          </div>
+          <ul class="persona-list">${listItems}</ul>
+        </section>
+      `;
+
+      renderPersonaCharts(city);
+    }
+
+    function renderPersonaCharts(city) {
+      const personas = city.persona.top || [];
+      upsertChart('personaShareChart', {
+        type: 'doughnut',
+        data: {
+          labels: personas.map(item => item.label),
+          datasets: [{
+            data: personas.map(item => item.count),
+            backgroundColor: personas.map((_, idx) => COLOR_PALETTE[idx % COLOR_PALETTE.length])
+          }]
+        },
+        options: {
+          ...chartBaseOptions(),
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    }
+
+    function setupResizableSidebar() {
+      const sidebar = qs('#sidebar');
+      const handle = qs('#resizeHandle');
+      const minWidth = 280;
+      let startX = 0;
+      let startWidth = sidebar.getBoundingClientRect().width;
+      let pointerId = null;
+
+      if (sidebarResizeObserver) {
+        sidebarResizeObserver.disconnect();
+      }
+      sidebarResizeObserver = new ResizeObserver(() => {
+        requestAnimationFrame(() => {
+          Object.values(charts).forEach(chart => chart.resize());
+        });
+      });
+      sidebarResizeObserver.observe(sidebar);
+
+      const stopResize = () => {
+        if (pointerId !== null) {
+          handle.releasePointerCapture(pointerId);
+          pointerId = null;
+          document.body.classList.remove('resizing');
+        }
+      };
+
+      handle.addEventListener('pointerdown', (event) => {
+        pointerId = event.pointerId;
+        startX = event.clientX;
+        startWidth = sidebar.getBoundingClientRect().width;
+        handle.setPointerCapture(pointerId);
+        document.body.classList.add('resizing');
+      });
+
+      handle.addEventListener('pointermove', (event) => {
+        if (pointerId === null) return;
+        const delta = startX - event.clientX;
+        const maxWidth = Math.max(minWidth, window.innerWidth - 40);
+        let newWidth = startWidth + delta;
+        newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+        sidebar.style.width = `${newWidth}px`;
+        requestAnimationFrame(() => {
+          Object.values(charts).forEach(chart => chart.resize());
+        });
+      });
+
+      handle.addEventListener('pointerup', stopResize);
+      handle.addEventListener('pointercancel', stopResize);
+      handle.addEventListener('lostpointercapture', stopResize);
+
+      window.addEventListener('resize', () => {
+        const currentWidth = sidebar.getBoundingClientRect().width;
+        const maxWidth = Math.max(minWidth, window.innerWidth - 40);
+        if (currentWidth > maxWidth) {
+          sidebar.style.width = `${maxWidth}px`;
+        }
+        requestAnimationFrame(() => {
+          Object.values(charts).forEach(chart => chart.resize());
+        });
+      });
+    }
+
+    function populateSelector() {
+      const selector = qs('#citySelect');
+      selector.innerHTML = DATA.map((city, index) => `<option value="${index}">${city.name}</option>`).join('');
+      selector.addEventListener('change', (event) => {
+        activeCityIndex = Number(event.target.value);
+        renderCity();
+      });
+    }
+
+    function renderCity() {
+      const city = DATA[activeCityIndex];
+      qs('#cityName').textContent = city.name;
+      const peopleKpi = city.overview.kpis.find(item => item.label === '求職者数');
+      const updated = city.updated ? ` / 更新日: ${city.updated}` : '';
+      qs('#cityMeta').textContent = `求職者数: ${peopleKpi ? numberFormatter.format(peopleKpi.value) : '-'}人${updated}`;
+      renderOverview(city);
+      renderSupply(city);
+      renderCareer(city);
+      renderUrgency(city);
+      renderPersona(city);
+      syncActiveTab();
+    }
+
+    let activeMode = MODE_CHIPS[0].id;
+    let activeTab = TABS[0].id;
+    let activeCityIndex = 0;
+
+    function init() {
+      renderModeChips();
+      renderTabNavigation();
+      populateSelector();
+      setupResizableSidebar();
+      renderCity();
+    }
+
+    init();
+  </script>
+</body>
+</html>

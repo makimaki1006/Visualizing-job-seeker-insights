@@ -1,0 +1,72 @@
+{
+  "test1_full_flow": {
+    "step1_execution": "PASS",
+    "step2_file_creation": "PASS",
+    "step3_row_count": {
+      "status": "PASS",
+      "value": 601
+    },
+    "step3_col_count": {
+      "status": "PASS",
+      "value": 43
+    },
+    "step3_required_columns": "PASS",
+    "step4_data_types": "PASS",
+    "step5_data_integrity": "PASS",
+    "overall": "PASS"
+  },
+  "test2_merge_accuracy": {
+    "phase3_base": "PASS",
+    "phase13": {
+      "status": "PASS",
+      "null_ratio": 0.0
+    },
+    "phase6": {
+      "status": "PASS",
+      "null_ratio": 0.0
+    },
+    "phase14": {
+      "status": "PASS",
+      "null_ratio": 0.0
+    },
+    "phase10": {
+      "status": "PASS",
+      "null_ratio": 0.0
+    },
+    "phase7": {
+      "status": "PASS",
+      "null_ratio": 0.0
+    },
+    "prefecture_dedup": "PASS",
+    "overall": "PASS"
+  },
+  "test3_all_prefectures": {
+    "file_count": {
+      "status": "PASS",
+      "value": 48
+    },
+    "file_size": {
+      "status": "PASS",
+      "ratio": 1.0
+    },
+    "row_range": {
+      "status": "PASS",
+      "ratio": 1.0
+    },
+    "prefecture_accuracy": {
+      "status": "PASS",
+      "ratio": 0.9791666666666666
+    },
+    "overall": "PASS"
+  },
+  "test4_edge_cases": {
+    "single_row": "PASS",
+    "phase13_missing": "PASS",
+    "prefecture_null": "PASS",
+    "special_chars": "PASS",
+    "overall": "PASS"
+  },
+  "overall_status": "PASS",
+  "pass_rate": 100.0,
+  "critical_issues": []
+}

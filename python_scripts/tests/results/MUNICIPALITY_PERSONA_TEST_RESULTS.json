@@ -1,0 +1,48 @@
+{
+  "total_tests": 8,
+  "passed": 8,
+  "failed": 0,
+  "success_rate": 100.0,
+  "test_results": [
+    {
+      "test": "ファイル存在確認",
+      "status": "PASS",
+      "message": "3つの必須ファイルが存在します"
+    },
+    {
+      "test": "データ構造検証",
+      "status": "PASS",
+      "message": "12カラム全て存在（4885行）"
+    },
+    {
+      "test": "市町村数検証",
+      "status": "PASS",
+      "message": "市町村数: 944（DesiredWork.csvと一致）"
+    },
+    {
+      "test": "市町村内シェア計算検証",
+      "status": "PASS",
+      "message": "5市町村のシェア計算が正確（誤差<0.01%）"
+    },
+    {
+      "test": "データ整合性検証",
+      "status": "PASS",
+      "message": "3市町村の総人数がDesiredWork.csvと一致"
+    },
+    {
+      "test": "人数合計検証",
+      "status": "PASS",
+      "message": "5市町村でペルソナ人数合計が総数と一致"
+    },
+    {
+      "test": "統計値検証",
+      "status": "PASS",
+      "message": "統計値が合理的な範囲内（シェア: 0-100%, 年齢: 15-100歳, 就業率: 0-100%）"
+    },
+    {
+      "test": "サンプルデータ詳細確認",
+      "status": "PASS",
+      "message": "京都府京都市伏見区:\n  総希望者数: 1748人\n  ペルソナ種類数: 23\n  最多ペルソナ: 50代・女性・国家資格なし (340人, 19.45%)\n  最少ペルソナ: 30代・男性・国家資格あり (1人, 0.06%)"
+    }
+  ]
+}

@@ -1,0 +1,3619 @@
+<!-- ===== BubbleMap.html ===== -->
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>希望勤務地バブルマップ</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Chart.js v3 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+    #map-container { display: flex; height: 100vh; position: relative; }
+    #map { flex: 1; height: 100%; z-index: 1; }
+    #sidebar { width: 600px; background: white; box-shadow: -2px 0 5px rgba(0,0,0,0.1); overflow-y: auto; padding: 20px; display: none; z-index: 2; }
+    #sidebar.active { display: block; }
+    .close-btn { position: absolute; right: 10px; top: 10px; cursor: pointer; font-size: 24px; color: #666; z-index: 10; }
+    .close-btn:hover { color: #000; }
+    .stats-header { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #667eea; }
+    .stats-header h2 { color: #333; font-size: 20px; margin-bottom: 5px; }
+    .stats-header .total { font-size: 28px; color: #667eea; font-weight: bold; }
+    .chart-container { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; }
+    .chart-title { font-weight: bold; margin-bottom: 10px; color: #555; }
+    .chart-wrapper { position: relative; height: 200px; }
+    .loading { text-align: center; padding: 50px; color: #999; }
+    .error { background: #fee; color: #c00; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    .legend { position: absolute; bottom: 30px; right: 10px; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; }
+    .legend-item { display: flex; align-items: center; margin: 5px 0; }
+    .legend-color { width: 20px; height: 20px; border-radius: 50%; margin-right: 8px; border: 1px solid #333; }
+
+    /* Controls */
+    #controls { position: absolute; top: 10px; left: 10px; background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; }
+    #controls label { font-weight: bold; margin-right: 10px; }
+    #controls select, #controls input { padding: 5px; }
+  </style>
+</head>
+<body>
+  <div id="map-container">
+    <div id="map"></div>
+    <div id="sidebar">
+      <span class="close-btn" onclick="closeSidebar()">×</span>
+      <div id="sidebar-content">
+        <div class="loading">データを読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div id="controls">
+    <div style="margin-bottom: 10px;">
+      <label>バブルサイズ:</label>
+      <input type="range" id="sizeSlider" min="0.5" max="2" step="0.1" value="1" onchange="updateBubbleSize()">
+      <span id="sizeValue">1.0</span>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="chart-title">希望者数</div>
+    <div class="legend-item"><div class="legend-color" style="background: #ff0000;"></div><span>100人以上</span></div>
+    <div class="legend-item"><div class="legend-color" style="background: #ff6600;"></div><span>50-99人</span></div>
+    <div class="legend-item"><div class="legend-color" style="background: #ffaa00;"></div><span>20-49人</span></div>
+    <div class="legend-item"><div class="legend-color" style="background: #00aa00;"></div><span>10-19人</span></div>
+    <div class="legend-item"><div class="legend-color" style="background: #0066ff;"></div><span>1-9人</span></div>
+  </div>
+
+  <script>
+    var map;
+    var markers = [];
+    var charts = {};
+    var bubbleSizeMultiplier = 1.0;
+
+    // 地図初期化
+    function initMap() {
+      map = L.map('map').setView([36.5, 138.0], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18
+      }).addTo(map);
+      loadMapData();
+    }
+
+    // データ読み込み
+    function loadMapData() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          displayMarkers(data);
+        })
+        .withFailureHandler(function(error) {
+          alert('データの読み込みに失敗しました: ' + error);
+        })
+        .getMapMetricsData();
+    }
+
+    // マーカー表示
+    function displayMarkers(points) {
+      window.lastPointsData = points;
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+
+      points.forEach(function(point) {
+        if (!point.lat || !point.lng) return;
+
+        var color = getColorByCount(point.count);
+        var radius = Math.min(Math.max(point.count / 5, 5), 30);
+
+        var marker = L.circleMarker([point.lat, point.lng], {
+          radius: radius,
+          fillColor: color,
+          color: '#333',
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.7,
+          originalRadius: radius
+        });
+
+        marker.bindPopup('<b>' + point.prefecture + '</b><br>希望者数: ' + point.count + '人');
+
+        marker.on('click', (function(p) {
+          return function() {
+            showDetailedInfo(p.prefecture, p.key, p.count);
+          };
+        })(point));
+
+        marker.addTo(map);
+        markers.push(marker);
+      });
+    }
+
+    // 詳細情報表示
+    function showDetailedInfo(prefecture, key, count) {
+      document.getElementById('sidebar').classList.add('active');
+      document.getElementById('sidebar-content').innerHTML = '<div class="loading">詳細データを読み込み中...</div>';
+
+      google.script.run
+        .withSuccessHandler(function(detail) {
+          displayDetailedStats(prefecture, key, detail);
+        })
+        .withFailureHandler(function(error) {
+          document.getElementById('sidebar-content').innerHTML =
+            '<div class="error">データの取得に失敗しました: ' + error + '</div>';
+        })
+        .getApplicantsStats();
+    }
+
+    // 詳細統計表示
+    function displayDetailedStats(prefecture, key, detail) {
+      var html = `
+        <div class="stats-header">
+          <h2>${prefecture}</h2>
+          <div class="total">希望者数: ${detail.total}人</div>
+        </div>
+      `;
+
+      // 性別分布
+      if (detail.byGender) {
+        html += `
+          <div class="chart-container">
+            <div class="chart-title">性別分布</div>
+            <div class="chart-wrapper"><canvas id="genderChart"></canvas></div>
+          </div>`;
+      }
+
+      // 年齢分布
+      if (detail.byAge) {
+        html += `
+          <div class="chart-container">
+            <div class="chart-title">年齢分布</div>
+            <div class="chart-wrapper"><canvas id="ageChart"></canvas></div>
+          </div>`;
+      }
+
+      document.getElementById('sidebar-content').innerHTML = html;
+
+      // グラフ描画
+      setTimeout(function() {
+        drawCharts(detail);
+      }, 100);
+    }
+
+    // グラフ描画
+    function drawCharts(detail) {
+      // 既存のチャートを破棄
+      Object.values(charts).forEach(function(chart) {
+        if (chart) {
+          try { chart.destroy(); } catch(e) {}
+        }
+      });
+      charts = {};
+
+      // 性別グラフ
+      if (detail.byGender && document.getElementById('genderChart')) {
+        var genderCanvas = document.getElementById('genderChart');
+        var genderData = detail.byGender;
+        charts.gender = new Chart(genderCanvas, {
+          type: 'pie',
+          data: {
+            labels: Object.keys(genderData),
+            datasets: [{
+              data: Object.values(genderData),
+              backgroundColor: ['#667eea', '#764ba2', '#f4b400'],
+              borderWidth: 2,
+              borderColor: '#fff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  padding: 15,
+                  font: { size: 12 }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // 年齢グラフ
+      if (detail.byAge && document.getElementById('ageChart')) {
+        var ageCanvas = document.getElementById('ageChart');
+        var ageLabels = Object.keys(detail.byAge);
+        var ageData = Object.values(detail.byAge);
+
+        charts.age = new Chart(ageCanvas, {
+          type: 'bar',
+          data: {
+            labels: ageLabels,
+            datasets: [{
+              label: '人数',
+              data: ageData,
+              backgroundColor: '#667eea',
+              borderColor: '#5568d3',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              y: { beginAtZero: true }
+            }
+          }
+        });
+      }
+    }
+
+    // UI操作
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('active');
+      Object.values(charts).forEach(function(chart) {
+        if (chart) {
+          try { chart.destroy(); } catch(e) {}
+        }
+      });
+      charts = {};
+    }
+
+    function getColorByCount(count) {
+      if (count >= 100) return '#ff0000';
+      if (count >= 50) return '#ff6600';
+      if (count >= 20) return '#ffaa00';
+      if (count >= 10) return '#00aa00';
+      return '#0066ff';
+    }
+
+    function updateBubbleSize() {
+      bubbleSizeMultiplier = parseFloat(document.getElementById('sizeSlider').value);
+      document.getElementById('sizeValue').textContent = bubbleSizeMultiplier.toFixed(1);
+
+      markers.forEach(function(marker) {
+        var originalRadius = marker.options.originalRadius || marker.getRadius();
+        marker.setRadius(originalRadius * bubbleSizeMultiplier);
+      });
+    }
+
+    window.onload = function() {
+      initMap();
+    };
+  </script>
+</body>
+</html>
+
+<!-- ===== HeatMap.html ===== -->
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>希望勤務地ヒートマップ</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Chart.js v3 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Leaflet.heat Plugin -->
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+    .container { display: flex; height: 100vh; }
+    .sidebar { width: 350px; background: white; padding: 20px; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 2; }
+    .map-container { flex: 1; position: relative; }
+    #map { width: 100%; height: 100%; z-index: 1; }
+
+    h2 { color: #667eea; font-size: 20px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #667eea; }
+
+    .stats-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+    .stats-label { font-size: 12px; opacity: 0.9; margin-bottom: 5px; }
+    .stats-value { font-size: 28px; font-weight: bold; }
+
+    .controls { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; }
+    .control-label { font-size: 13px; font-weight: bold; color: #666; margin-bottom: 10px; display: block; }
+    .slider-container { margin-bottom: 15px; }
+    .slider { width: 100%; height: 6px; border-radius: 3px; background: #ddd; outline: none; -webkit-appearance: none; }
+    .slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #667eea; cursor: pointer; }
+    .slider-value { font-size: 12px; color: #667eea; font-weight: bold; margin-top: 5px; }
+
+    .top10-list { list-style: none; margin-top: 10px; }
+    .top10-item { display: flex; justify-content: space-between; padding: 10px; margin-bottom: 5px; background: #f8f9fa; border-radius: 4px; font-size: 13px; }
+    .top10-rank { font-weight: bold; color: #667eea; margin-right: 10px; }
+    .top10-prefecture { flex: 1; }
+    .top10-count { font-weight: bold; color: #333; }
+
+    .loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; font-size: 18px; color: #667eea; z-index: 1000; }
+    .error { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 400px; z-index: 1000; }
+    .error-icon { font-size: 48px; margin-bottom: 15px; }
+    .error-message { color: #721c24; font-size: 14px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <h2>📊 統計情報</h2>
+
+      <div class="stats-card">
+        <div class="stats-label">総求職者数</div>
+        <div class="stats-value" id="totalCount">-</div>
+      </div>
+
+      <div class="stats-card">
+        <div class="stats-label">平均年齢</div>
+        <div class="stats-value" id="avgAge">-</div>
+      </div>
+
+      <h2>⚙️ ヒートマップ設定</h2>
+      <div class="controls">
+        <div class="slider-container">
+          <label class="control-label">強度（Intensity）</label>
+          <input type="range" min="0.1" max="1.0" step="0.1" value="0.5" class="slider" id="intensitySlider">
+          <div class="slider-value" id="intensityValue">0.5</div>
+        </div>
+
+        <div class="slider-container">
+          <label class="control-label">半径（Radius）</label>
+          <input type="range" min="10" max="50" value="25" class="slider" id="radiusSlider">
+          <div class="slider-value" id="radiusValue">25 px</div>
+        </div>
+      </div>
+
+      <h2>📍 希望勤務地 TOP10</h2>
+      <ul class="top10-list" id="top10List"></ul>
+    </div>
+
+    <div class="map-container">
+      <div class="loading" id="loading">
+        🔄 データ読み込み中...
+      </div>
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <script>
+    var map;
+    var heatLayer;
+    var heatmapData = [];
+    var heatRadius = 25;
+    var heatIntensity = 0.5;
+
+    // 地図初期化
+    function initMap() {
+      map = L.map('map').setView([36.5, 138.0], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18
+      }).addTo(map);
+
+      // コントロール設定
+      setupControls();
+
+      // データ読み込み
+      loadData();
+    }
+
+    // コントロール設定
+    function setupControls() {
+      var intensitySlider = document.getElementById('intensitySlider');
+      var radiusSlider = document.getElementById('radiusSlider');
+
+      intensitySlider.addEventListener('input', function(e) {
+        heatIntensity = parseFloat(e.target.value);
+        document.getElementById('intensityValue').textContent = heatIntensity.toFixed(1);
+        updateHeatmap();
+      });
+
+      radiusSlider.addEventListener('input', function(e) {
+        heatRadius = parseInt(e.target.value);
+        document.getElementById('radiusValue').textContent = heatRadius + ' px';
+        updateHeatmap();
+      });
+    }
+
+    // データ読み込み
+    function loadData() {
+      document.getElementById('loading').style.display = 'block';
+
+      Promise.all([
+        callGAS('getMapMetricsData'),
+        callGAS('getApplicantsStats'),
+        callGAS('getDesiredWorkTop10')
+      ]).then(function(results) {
+        var mapData = results[0];
+        var stats = results[1];
+        var top10 = results[2];
+
+        document.getElementById('loading').style.display = 'none';
+
+        // 統計情報表示
+        displayStats(stats);
+
+        // TOP10表示
+        displayTop10(top10);
+
+        // ヒートマップデータ準備
+        prepareHeatmapData(mapData);
+
+        // ヒートマップ表示
+        displayHeatmap();
+
+      }).catch(function(error) {
+        document.getElementById('loading').innerHTML =
+          '<div class="error">' +
+            '<div class="error-icon">⚠️</div>' +
+            '<div class="error-message">' +
+              '<strong>データ読み込みエラー</strong><br><br>' +
+              error.message +
+            '</div>' +
+          '</div>';
+      });
+    }
+
+    // GAS関数呼び出しヘルパー
+    function callGAS(functionName) {
+      return new Promise(function(resolve, reject) {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          [functionName]();
+      });
+    }
+
+    // 統計情報表示
+    function displayStats(stats) {
+      document.getElementById('totalCount').textContent = stats.total.toLocaleString();
+      document.getElementById('avgAge').textContent = stats.avgAge + '歳';
+    }
+
+    // TOP10表示
+    function displayTop10(top10) {
+      var listEl = document.getElementById('top10List');
+      listEl.innerHTML = '';
+
+      top10.forEach(function(item, index) {
+        var li = document.createElement('li');
+        li.className = 'top10-item';
+        li.innerHTML =
+          '<span class="top10-rank">' + (index + 1) + '</span>' +
+          '<span class="top10-prefecture">' + item.prefecture + '</span>' +
+          '<span class="top10-count">' + item.count.toLocaleString() + '人</span>';
+        listEl.appendChild(li);
+      });
+    }
+
+    // ヒートマップデータ準備
+    function prepareHeatmapData(data) {
+      heatmapData = data
+        .filter(function(item) {
+          return item.lat && item.lng && item.count;
+        })
+        .map(function(item) {
+          return [item.lat, item.lng, item.count / 100];
+        });
+    }
+
+    // ヒートマップ表示
+    function displayHeatmap() {
+      if (heatLayer) {
+        map.removeLayer(heatLayer);
+      }
+
+      heatLayer = L.heatLayer(heatmapData, {
+        radius: heatRadius,
+        blur: 15,
+        maxZoom: 17,
+        max: heatIntensity,
+        gradient: {
+          0.0: 'blue',
+          0.2: 'cyan',
+          0.4: 'lime',
+          0.6: 'yellow',
+          0.8: 'orange',
+          1.0: 'red'
+        }
+      }).addTo(map);
+    }
+
+    // ヒートマップ更新
+    function updateHeatmap() {
+      if (!heatLayer) return;
+
+      map.removeLayer(heatLayer);
+
+      heatLayer = L.heatLayer(heatmapData, {
+        radius: heatRadius,
+        blur: 15,
+        maxZoom: 17,
+        max: heatIntensity,
+        gradient: {
+          0.0: 'blue',
+          0.2: 'cyan',
+          0.4: 'lime',
+          0.6: 'yellow',
+          0.8: 'orange',
+          1.0: 'red'
+        }
+      }).addTo(map);
+    }
+
+    // ページ読み込み時に実行
+    window.onload = function() {
+      initMap();
+    };
+  </script>
+</body>
+</html>
+
+<!-- ===== MapComplete.html ===== -->
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>求職者データ分析マップ</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Leaflet Plugins -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.1/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.1/dist/MarkerCluster.Default.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.1/dist/leaflet.markercluster.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Yu Gothic', 'Hiragino Kaku Gothic Pro', Meiryo, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+
+    #map {
+      flex: 1;
+      height: 100%;
+    }
+
+    .sidebar {
+      width: 350px;
+      background: #2d2d5f;
+      color: white;
+      padding: 20px;
+      overflow-y: auto;
+      box-shadow: -5px 0 20px rgba(0,0,0,0.3);
+    }
+
+    .sidebar-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      text-align: center;
+      color: #667eea;
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 5px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .chart-container {
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      height: 200px;
+    }
+
+    .control-group {
+      margin-bottom: 15px;
+    }
+
+    .control-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 13px;
+    }
+
+    .top10-list {
+      list-style: none;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .top10-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px;
+      margin-bottom: 5px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+    }
+
+    .top10-rank {
+      font-weight: bold;
+      color: #667eea;
+      margin-right: 10px;
+    }
+
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 9999;
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255,255,255,0.05);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading">
+    🔄 データ読み込み中...
+  </div>
+
+  <div class="container">
+    <div id="map"></div>
+
+    <div class="sidebar">
+      <div class="sidebar-title">📊 求職者分析</div>
+
+      <div class="stat-card">
+        <div class="stat-label">総求職者数</div>
+        <div class="stat-value" id="totalCount">-</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">平均年齢</div>
+        <div class="stat-value" id="avgAge">-</div>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">表示モード</label>
+        <select id="displayMode" onchange="changeDisplayMode()">
+          <option value="markers">個別マーカー</option>
+          <option value="cluster">クラスター</option>
+          <option value="heatmap">ヒートマップ</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">フィルター</label>
+        <select id="dataFilter" onchange="applyFilter()">
+          <option value="all">全データ</option>
+          <option value="male">男性のみ</option>
+          <option value="female">女性のみ</option>
+          <option value="young">20-30代</option>
+          <option value="middle">40-50代</option>
+          <option value="senior">60代以上</option>
+        </select>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">希望勤務地 TOP10</div>
+        <ul class="top10-list" id="top10List"></ul>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="genderChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let map;
+    let markers = [];
+    let markerCluster;
+    let heatLayer;
+    let allData = {
+      mapMetrics: [],
+      applicants: [],
+      desiredWork: [],
+      aggDesired: []
+    };
+
+    // 地図初期化
+    function initMap() {
+      console.log('[DEBUG] Initializing map...');
+
+      map = L.map('map', {
+        center: [35.0116, 135.7681],
+        zoom: 10
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 18
+      }).addTo(map);
+
+      markerCluster = L.markerClusterGroup({
+        chunkedLoading: true,
+        maxClusterRadius: 60
+      });
+
+      console.log('[DEBUG] Map initialized');
+    }
+
+    // データ読み込み
+    function loadData() {
+      console.log('[DEBUG] Loading data...');
+
+      google.script.run
+        .withSuccessHandler(function(data) {
+          console.log('[DEBUG] Data loaded:', data);
+          allData = data;
+          document.getElementById('loading').style.display = 'none';
+          processData();
+        })
+        .withFailureHandler(function(error) {
+          console.error('[ERROR]', error);
+          alert('データ読み込みエラー: ' + error.message);
+          document.getElementById('loading').style.display = 'none';
+        })
+        .getAllVisualizationData();
+    }
+
+    // データ処理
+    function processData() {
+      console.log('[DEBUG] Processing data...');
+
+      // 統計情報更新
+      updateStats();
+
+      // 地図更新
+      updateMap();
+
+      // TOP10更新
+      updateTop10();
+
+      // グラフ更新
+      updateGenderChart();
+    }
+
+    // 統計情報更新
+    function updateStats() {
+      const total = allData.applicants.length;
+      document.getElementById('totalCount').textContent = total.toLocaleString();
+
+      // 平均年齢計算
+      let totalAge = 0;
+      let validCount = 0;
+      allData.applicants.forEach(row => {
+        const age = row['年齢'];
+        if (age && age > 0) {
+          totalAge += age;
+          validCount++;
+        }
+      });
+
+      const avgAge = validCount > 0 ? (totalAge / validCount).toFixed(1) : 0;
+      document.getElementById('avgAge').textContent = avgAge + '歳';
+    }
+
+    // 地図更新
+    function updateMap() {
+      clearMap();
+
+      const mode = document.getElementById('displayMode').value;
+      const filter = document.getElementById('dataFilter').value;
+
+      let data = allData.mapMetrics;
+
+      // フィルタリング
+      if (filter !== 'all') {
+        data = applyFilterToData(data, filter);
+      }
+
+      switch(mode) {
+        case 'markers':
+          displayMarkers(data);
+          break;
+        case 'cluster':
+          displayClusters(data);
+          break;
+        case 'heatmap':
+          displayHeatmap(data);
+          break;
+      }
+    }
+
+    // フィルタリング
+    function applyFilterToData(data, filterType) {
+      // Applicantsから対象IDを取得
+      const targetIds = new Set();
+
+      allData.applicants.forEach(row => {
+        let include = false;
+
+        switch(filterType) {
+          case 'male':
+            include = row['性別'] === '男性';
+            break;
+          case 'female':
+            include = row['性別'] === '女性';
+            break;
+          case 'young':
+            include = row['年齢'] >= 20 && row['年齢'] < 40;
+            break;
+          case 'middle':
+            include = row['年齢'] >= 40 && row['年齢'] < 60;
+            break;
+          case 'senior':
+            include = row['年齢'] >= 60;
+            break;
+        }
+
+        if (include) {
+          targetIds.add(row['ID']);
+        }
+      });
+
+      // DesiredWorkから該当の希望勤務地を取得
+      const targetMunicipalities = new Set();
+      allData.desiredWork.forEach(row => {
+        if (targetIds.has(row['申請者ID'])) {
+          targetMunicipalities.add(row['希望勤務地_市区町村']);
+        }
+      });
+
+      // MapMetricsをフィルタリング
+      return data.filter(row => targetMunicipalities.has(row['市区町村']));
+    }
+
+    // マーカー表示
+    function displayMarkers(data) {
+      data.forEach(row => {
+        if (row['緯度'] && row['経度']) {
+          const marker = L.marker([row['緯度'], row['経度']])
+            .bindPopup(`
+              <strong>${row['市区町村']}</strong><br>
+              求職者数: ${row['カウント']}名<br>
+              都道府県: ${row['都道府県']}
+            `);
+          marker.on('click', function() {
+            handleRegionSelection(row['都道府県'], row['市区町杁E]);
+          });
+          markers.push(marker);
+          marker.addTo(map);
+        }
+      });
+    }
+
+    // クラスター表示
+    function displayClusters(data) {
+      markerCluster.clearLayers();
+      data.forEach(row => {
+        if (row['緯度'] && row['経度']) {
+          const marker = L.marker([row['緯度'], row['経度']])
+            .bindPopup(`
+              <strong>${row['市区町村']}</strong><br>
+              求職者数: ${row['カウント']}名
+            `);
+          marker.on('click', function() {
+            handleRegionSelection(row['都道府県'], row['市区町杁E]);
+          });
+          markerCluster.addLayer(marker);
+        }
+      });
+      map.addLayer(markerCluster);
+    }
+
+    // ヒートマップ表示
+    function displayHeatmap(data) {
+      const heatData = data
+        .filter(row => row['緯度'] && row['経度'] && row['カウント'])
+        .map(row => [row['緯度'], row['経度'], row['カウント']]);
+
+      if (heatLayer) {
+        map.removeLayer(heatLayer);
+      }
+
+      heatLayer = L.heatLayer(heatData, {
+        radius: 25,
+        blur: 15,
+        maxZoom: 17
+      }).addTo(map);
+    }
+
+    // 地図クリア
+    function clearMap() {
+      markers.forEach(marker => map.removeLayer(marker));
+      markers = [];
+      markerCluster.clearLayers();
+      map.removeLayer(markerCluster);
+    if (heatLayer) {
+      map.removeLayer(heatLayer);
+    }
+  }
+
+  function handleRegionSelection(prefecture, municipality) {
+    if (!prefecture) {
+      return;
+    }
+    google.script.run
+      .withSuccessHandler(() => {
+        console.log('[INFO] Region selection saved:', prefecture, municipality);
+      })
+      .withFailureHandler(error => {
+        console.error('[ERROR] Failed to save region selection', error);
+      })
+      .saveSelectedRegion(prefecture, municipality || null);
+  }
+
+  // TOP10更新
+  function updateTop10() {
+      const listEl = document.getElementById('top10List');
+      listEl.innerHTML = '';
+
+      // AggDesiredから上位10件取得
+      const top10 = allData.aggDesired
+        .sort((a, b) => b['カウント'] - a['カウント'])
+        .slice(0, 10);
+
+      top10.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.className = 'top10-item';
+        li.innerHTML = `
+          <span>
+            <span class="top10-rank">${index + 1}</span>
+            ${item['市区町村'] || item['希望勤務地_市区町村']}
+          </span>
+          <span><strong>${item['カウント']}人</strong></span>
+        `;
+        listEl.appendChild(li);
+      });
+    }
+
+    // 性別グラフ更新
+    function updateGenderChart() {
+      const ctx = document.getElementById('genderChart');
+      if (!ctx) return;
+
+      // 性別集計
+      const genderCounts = {};
+      allData.applicants.forEach(row => {
+        const gender = row['性別'] || '不明';
+        genderCounts[gender] = (genderCounts[gender] || 0) + 1;
+      });
+
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(genderCounts),
+          datasets: [{
+            data: Object.values(genderCounts),
+            backgroundColor: [
+              'rgba(102, 126, 234, 0.8)',
+              'rgba(255, 99, 132, 0.8)',
+              'rgba(255, 206, 86, 0.8)'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: 'white'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // イベントハンドラー
+    function changeDisplayMode() {
+      updateMap();
+    }
+
+    function applyFilter() {
+      updateMap();
+    }
+
+    // 初期化
+    window.addEventListener('DOMContentLoaded', function() {
+      try {
+        initMap();
+        loadData();
+      } catch (error) {
+        console.error('[ERROR]', error);
+        alert('初期化エラー: ' + error.message);
+      }
+    });
+  </script>
+</body>
+</html>
+
+<!-- ===== PersonaDifficultyCheckerUI.html ===== -->
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+      margin: 0;
+    }
+
+    h2 {
+      color: #1976d2;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .filter-panel {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-label {
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #333;
+      font-size: 14px;
+    }
+
+    select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      background: white;
+    }
+
+    select[multiple] {
+      min-height: 120px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: #1976d2;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1565c0;
+    }
+
+    .btn-secondary {
+      background: #757575;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #616161;
+    }
+
+    .stats-panel {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+    }
+
+    .stat-card {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: #1976d2;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .persona-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    .persona-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      position: relative;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .persona-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .difficulty-badge {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      color: white;
+    }
+
+    .difficulty-S { background: #d32f2f; }
+    .difficulty-A { background: #f57c00; }
+    .difficulty-B { background: #fbc02d; }
+    .difficulty-C { background: #7cb342; }
+    .difficulty-D { background: #66bb6a; }
+    .difficulty-E { background: #81c784; }
+
+    .persona-header {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .persona-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .persona-subtitle {
+      font-size: 14px;
+      color: #666;
+    }
+
+    .persona-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .metric-item {
+      padding: 10px;
+      background: #f5f5f5;
+      border-radius: 4px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 3px;
+    }
+
+    .metric-value {
+      font-size: 16px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .persona-categories {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .category-tag {
+      padding: 4px 10px;
+      background: #e0e0e0;
+      border-radius: 12px;
+      font-size: 11px;
+      color: #333;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 60px;
+      color: #999;
+      font-size: 18px;
+    }
+
+    .help-text {
+      font-size: 12px;
+      color: #666;
+      font-style: italic;
+      margin-top: 5px;
+    }
+
+    .score-bar {
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .score-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #81c784 0%, #fbc02d 50%, #d32f2f 100%);
+      transition: width 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <h2>🎯 ペルソナ難易度確認</h2>
+
+  <!-- フィルターパネル -->
+  <div class="filter-panel">
+    <h3 style="margin-top: 0; color: #1976d2;">フィルター設定（複数選択可）</h3>
+
+    <div class="filter-grid">
+      <!-- 難易度レベル -->
+      <div class="filter-group">
+        <div class="filter-label">難易度レベル</div>
+        <select id="difficultyFilter" multiple>
+          <option value="S級（最難）">S級（最難）</option>
+          <option value="A級（難）">A級（難）</option>
+          <option value="B級（やや難）">B級（やや難）</option>
+          <option value="C級（普通）">C級（普通）</option>
+          <option value="D級（やや易）">D級（やや易）</option>
+          <option value="E級（易）">E級（易）</option>
+        </select>
+        <div class="help-text">採用難易度ランク</div>
+      </div>
+
+      <!-- 年齢グループ -->
+      <div class="filter-group">
+        <div class="filter-label">年齢層</div>
+        <select id="ageGroupFilter" multiple>
+          <option value="新卒層（～24歳）">新卒層（～24歳）</option>
+          <option value="若手層（25～29歳）">若手層（25～29歳）</option>
+          <option value="若手中堅層（30～34歳）">若手中堅層（30～34歳）</option>
+          <option value="中堅層（35～39歳）">中堅層（35～39歳）</option>
+          <option value="ミドル層（40～44歳）">ミドル層（40～44歳）</option>
+          <option value="シニアミドル層（45～49歳）">シニアミドル層（45～49歳）</option>
+          <option value="プレシニア層（50～54歳）">プレシニア層（50～54歳）</option>
+          <option value="シニア層（55～59歳）">シニア層（55～59歳）</option>
+          <option value="アクティブシニア層（60～64歳）">アクティブシニア層（60～64歳）</option>
+          <option value="高齢層（65歳～）">高齢層（65歳～）</option>
+        </select>
+        <div class="help-text">平均年齢によるグループ分類</div>
+      </div>
+
+      <!-- 資格レベル -->
+      <div class="filter-group">
+        <div class="filter-label">資格保有レベル</div>
+        <select id="qualificationFilter" multiple>
+          <option value="超高資格層（5個以上）">超高資格層（5個以上）</option>
+          <option value="高資格層（3～4個）">高資格層（3～4個）</option>
+          <option value="中資格層（2～3個）">中資格層（2～3個）</option>
+          <option value="低資格層（1～2個）">低資格層（1～2個）</option>
+          <option value="微資格層（0.5～1個）">微資格層（0.5～1個）</option>
+          <option value="無資格層（0.5個未満）">無資格層（0.5個未満）</option>
+        </select>
+        <div class="help-text">平均資格保有数</div>
+      </div>
+
+      <!-- 移動性レベル -->
+      <div class="filter-group">
+        <div class="filter-label">希望勤務地の広さ</div>
+        <select id="mobilityFilter" multiple>
+          <option value="超広域希望（10箇所以上）">超広域希望（10箇所以上）</option>
+          <option value="広域希望（6～9箇所）">広域希望（6～9箇所）</option>
+          <option value="中域希望（4～5箇所）">中域希望（4～5箇所）</option>
+          <option value="狭域希望（2.5～3.5箇所）">狭域希望（2.5～3.5箇所）</option>
+          <option value="限定希望（1.5～2.5箇所）">限定希望（1.5～2.5箇所）</option>
+          <option value="固定希望（1.5箇所未満）">固定希望（1.5箇所未満）</option>
+        </select>
+        <div class="help-text">希望勤務地数による柔軟性</div>
+      </div>
+
+      <!-- 性別カテゴリ -->
+      <div class="filter-group">
+        <div class="filter-label">性別構成</div>
+        <select id="genderFilter" multiple>
+          <option value="女性特化層（90%以上）">女性特化層（90%以上）</option>
+          <option value="女性優勢層（70～89%）">女性優勢層（70～89%）</option>
+          <option value="女性やや多層（55～69%）">女性やや多層（55～69%）</option>
+          <option value="男女均衡層（45～54%）">男女均衡層（45～54%）</option>
+          <option value="男性やや多層（31～44%）">男性やや多層（31～44%）</option>
+          <option value="男性優勢層（11～30%）">男性優勢層（11～30%）</option>
+          <option value="男性特化層（10%以下）">男性特化層（10%以下）</option>
+        </select>
+        <div class="help-text">女性比率による分類</div>
+      </div>
+
+      <!-- 市場規模 -->
+      <div class="filter-group">
+        <div class="filter-label">市場規模</div>
+        <select id="marketSizeFilter" multiple>
+          <option value="超大規模（20%以上）">超大規模（20%以上）</option>
+          <option value="大規模（15～19%）">大規模（15～19%）</option>
+          <option value="中規模（10～14%）">中規模（10～14%）</option>
+          <option value="やや小規模（7～9%）">やや小規模（7～9%）</option>
+          <option value="小規模（4～6%）">小規模（4～6%）</option>
+          <option value="超小規模（2～3%）">超小規模（2～3%）</option>
+          <option value="ニッチ（2%未満）">ニッチ（2%未満）</option>
+        </select>
+        <div class="help-text">全体に占める割合</div>
+      </div>
+    </div>
+
+    <div class="button-group">
+      <button class="btn-primary" onclick="applyFilters()">絞り込み実行</button>
+      <button class="btn-secondary" onclick="resetFilters()">フィルタークリア</button>
+    </div>
+  </div>
+
+  <!-- 統計パネル -->
+  <div class="stats-panel" id="statsPanel" style="display: none;">
+    <h3 style="margin-top: 0; color: #1976d2;">統計サマリー</h3>
+    <div class="stats-grid" id="statsGrid"></div>
+  </div>
+
+  <!-- ペルソナ表示エリア -->
+  <div id="personaContainer" class="loading">データ読み込み中...</div>
+
+  <script>
+    let allPersonas = [];
+
+    // 初期データロード
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (result.success) {
+          allPersonas = result.personas;
+          displayPersonas(allPersonas);
+          loadStatistics();
+        } else {
+          document.getElementById('personaContainer').innerHTML =
+            '<div class="no-results">エラー: ' + result.message + '</div>';
+        }
+      })
+      .withFailureHandler(function(error) {
+        document.getElementById('personaContainer').innerHTML =
+          '<div class="no-results">エラー: ' + error + '</div>';
+      })
+      .getPersonaDataForDifficulty();
+
+    // 統計データロード
+    function loadStatistics() {
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = `
+              <div class="stat-card">
+                <div class="stat-value">${result.totalPersonas}</div>
+                <div class="stat-label">ペルソナ数</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${result.totalCount.toLocaleString()}</div>
+                <div class="stat-label">総求職者数</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${result.avgDifficultyScore.toFixed(1)}</div>
+                <div class="stat-label">平均難易度</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${Object.keys(result.difficultyDistribution).length}</div>
+                <div class="stat-label">難易度種類</div>
+              </div>
+            `;
+            document.getElementById('statsPanel').style.display = 'block';
+          }
+        })
+        .getPersonaDifficultyStatistics();
+    }
+
+    // フィルター適用
+    function applyFilters() {
+      const filters = {
+        difficultyLevels: getSelectedValues('difficultyFilter'),
+        ageGroups: getSelectedValues('ageGroupFilter'),
+        qualificationLevels: getSelectedValues('qualificationFilter'),
+        mobilityLevels: getSelectedValues('mobilityFilter'),
+        genderCategories: getSelectedValues('genderFilter'),
+        marketSizeCategories: getSelectedValues('marketSizeFilter')
+      };
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            displayPersonas(result.personas);
+          }
+        })
+        .filterPersonasByConditions(filters);
+    }
+
+    // フィルターリセット
+    function resetFilters() {
+      document.querySelectorAll('select[multiple]').forEach(select => {
+        select.selectedIndex = -1;
+      });
+      displayPersonas(allPersonas);
+    }
+
+    // 選択値取得
+    function getSelectedValues(selectId) {
+      const select = document.getElementById(selectId);
+      return Array.from(select.selectedOptions).map(opt => opt.value);
+    }
+
+    // ペルソナ表示
+    function displayPersonas(personas) {
+      const container = document.getElementById('personaContainer');
+
+      if (personas.length === 0) {
+        container.innerHTML = '<div class="no-results">該当するペルソナが見つかりませんでした</div>';
+        return;
+      }
+
+      container.innerHTML = '';
+      container.className = 'persona-grid';
+
+      personas.forEach(function(p) {
+        const difficultyClass = 'difficulty-' + p.difficultyLevel.charAt(0);
+        const scorePercent = p.difficultyScore;
+
+        const card = document.createElement('div');
+        card.className = 'persona-card';
+        card.innerHTML = `
+          <div class="difficulty-badge ${difficultyClass}">
+            ${p.difficultyLevel} (${p.difficultyScore}点)
+          </div>
+
+          <div class="persona-header">
+            <div class="persona-title">${p.segmentName}</div>
+            <div class="persona-subtitle">
+              セグメントID: ${p.segmentId} | ${p.count.toLocaleString()}人 (${p.percentage.toFixed(1)}%)
+            </div>
+          </div>
+
+          <div class="persona-metrics">
+            <div class="metric-item">
+              <div class="metric-label">平均年齢</div>
+              <div class="metric-value">${p.avgAge.toFixed(1)}歳</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">女性比率</div>
+              <div class="metric-value">${(p.femaleRatio * 100).toFixed(1)}%</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">平均資格数</div>
+              <div class="metric-value">${p.avgQualifications.toFixed(2)}個</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">希望勤務地数</div>
+              <div class="metric-value">${p.avgDesiredLocations.toFixed(1)}箇所</div>
+            </div>
+          </div>
+
+          <div class="score-bar">
+            <div class="score-fill" style="width: ${scorePercent}%"></div>
+          </div>
+
+          <div class="persona-categories" style="margin-top: 15px;">
+            <div class="category-tag">${p.ageGroup}</div>
+            <div class="category-tag">${p.qualificationLevel}</div>
+            <div class="category-tag">${p.mobilityLevel}</div>
+            <div class="category-tag">${p.genderCategory}</div>
+            <div class="category-tag">${p.marketSizeCategory}</div>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+  </script>
+</body>
+</html>
+
+<!-- ===== RegionalDashboard.html ===== -->
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>地域別ダッシュボード</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --surface: #ffffff;
+        --primary: #1a73e8;
+        --primary-light: #e8f0fe;
+        --border: #dfe4ea;
+        --text: #202124;
+        --muted: #5f6368;
+        --warn: #c5221f;
+        --accent: #34a853;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px 24px 48px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 600;
+      }
+
+      .description {
+        margin-top: 6px;
+        color: var(--muted);
+      }
+
+      .region-controls {
+        margin-top: 28px;
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 12px;
+        align-items: end;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      label {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      select {
+        height: 40px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        padding: 0 12px;
+        font-size: 14px;
+        background: var(--surface);
+        transition: border 0.2s ease;
+      }
+
+      select:focus {
+        border-color: var(--primary);
+        outline: none;
+      }
+
+      button.primary {
+        height: 40px;
+        min-width: 120px;
+        border: none;
+        border-radius: 8px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+
+      button.primary:disabled {
+        background: #aac7f6;
+        cursor: default;
+      }
+
+      button.primary:hover:not(:disabled) {
+        background: #1557b0;
+      }
+
+      .tabs {
+        margin-top: 32px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .tab-button {
+        padding: 10px 18px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .tab-button.active {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(26, 115, 232, 0.25);
+      }
+
+      .tab-button:disabled {
+        opacity: 0.7;
+        cursor: default;
+      }
+
+      .panel {
+        margin-top: 24px;
+        padding: 24px;
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow: 0 12px 24px rgba(32, 33, 36, 0.08);
+      }
+
+      .filters {
+        margin-bottom: 12px;
+        display: none;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .filters.active {
+        display: flex;
+      }
+
+      .filters select {
+        min-width: 220px;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 16px;
+      }
+
+      .summary-card {
+        padding: 18px;
+        border-radius: 14px;
+        background: var(--primary-light);
+        border: 1px solid #d2e3fc;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .summary-card .label {
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .summary-card .value {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--primary);
+      }
+
+      .summary-card .note {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .warnings {
+        margin-top: 24px;
+        padding: 16px 20px;
+        border-radius: 12px;
+        border: 1px solid rgba(197, 34, 31, 0.35);
+        background: rgba(197, 34, 31, 0.08);
+        color: var(--warn);
+        display: none;
+        gap: 8px;
+        flex-direction: column;
+      }
+
+      .warnings.visible {
+        display: flex;
+      }
+
+      .warning-title {
+        font-weight: 600;
+      }
+
+      .table-group {
+        margin-top: 28px;
+      }
+
+      .table-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: inset 0 0 0 1px var(--border);
+        background: var(--surface);
+      }
+
+      th,
+      td {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        font-size: 13px;
+        text-align: left;
+      }
+
+      th {
+        background: #f1f4f9;
+        font-weight: 600;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      .empty-placeholder {
+        padding: 18px;
+        border-radius: 12px;
+        background: #f8f9fb;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .loading-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.6);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+
+      .loading-overlay.visible {
+        display: flex;
+      }
+
+      .spinner {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 4px solid rgba(26, 115, 232, 0.15);
+        border-top-color: var(--primary);
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .toast {
+        position: fixed;
+        right: 24px;
+        top: 24px;
+        padding: 14px 18px;
+        background: rgba(32, 33, 36, 0.9);
+        color: #fff;
+        border-radius: 10px;
+        font-size: 13px;
+        display: none;
+        z-index: 1100;
+      }
+
+      .toast.visible {
+        display: block;
+      }
+
+      @media (max-width: 720px) {
+        .region-controls {
+          grid-template-columns: 1fr;
+        }
+        .tabs {
+          overflow-x: auto;
+        }
+        .tab-button {
+          white-space: nowrap;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>地域別ダッシュボード</h1>
+        <p class="description">
+          都道府県・市区町村を切り替えて、Phase1 / 2 / 3 / 7 / 8 / 10 の主要指標と品質情報を横断的に確認できます。
+        </p>
+      </header>
+
+      <section class="region-controls">
+        <div class="field">
+          <label for="prefectureSelect">都道府県</label>
+          <select id="prefectureSelect" disabled>
+            <option value="">読み込み中...</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="municipalitySelect">市区町村</label>
+          <select id="municipalitySelect" disabled>
+            <option value="">都道府県を選択してください</option>
+          </select>
+        </div>
+        <button class="primary" id="refreshButton" disabled>最新データを取得</button>
+      </section>
+
+      <nav class="tabs" id="phaseTabs"></nav>
+
+      <section class="panel">
+        <div class="filters" id="filterPanel"></div>
+        <div class="summary-grid" id="summaryGrid"></div>
+        <div class="warnings" id="warningsBox">
+          <div class="warning-title">⚠︎ 注意事項</div>
+          <div class="warning-list" id="warningList"></div>
+        </div>
+        <div id="tablesContainer"></div>
+      </section>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const PHASE_CONFIG = [
+        {
+          id: "phase1",
+          label: "Phase 1 基礎集計",
+          fetch: "fetchPhase1Metrics",
+          hasFilters: false,
+          summaryLabels: {
+            applicantCount: "応募者数",
+            mapRecords: "MapMetrics 行数",
+            aggDesiredRecords: "AggDesired 行数"
+          }
+        },
+        {
+          id: "phase2",
+          label: "Phase 2 統計解析",
+          fetch: "fetchPhase2Stats",
+          hasFilters: false,
+          summaryLabels: {
+            chiSquareTests: "カイ二乗検定",
+            anovaTests: "ANOVA検定"
+          }
+        },
+        {
+          id: "phase3",
+          label: "Phase 3 ペルソナ分析",
+          fetch: "fetchPhase3Persona",
+          hasFilters: true,
+          summaryLabels: {
+            personaSegments: "セグメント数",
+            averageDifficultyScore: "平均難易度スコア",
+            topDifficultyLevel: "最難ランク"
+          }
+        },
+        {
+          id: "phase7",
+          label: "Phase 7 高度分析",
+          fetch: "fetchPhase7Supply",
+          hasFilters: false,
+          summaryLabels: {
+            supplyRecords: "供給密度レコード",
+            qualificationRecords: "資格分布レコード",
+            mobilityRecords: "移動許容度レコード"
+          }
+        },
+        {
+          id: "phase8",
+          label: "Phase 8 学歴・キャリア",
+          fetch: "fetchPhase8Education",
+          hasFilters: false,
+          summaryLabels: {
+            educationBuckets: "学歴種別",
+            graduationBuckets: "卒業年分布"
+          }
+        },
+        {
+          id: "phase10",
+          label: "Phase 10 転職意欲",
+          fetch: "fetchPhase10Urgency",
+          hasFilters: false,
+          summaryLabels: {
+            urgencyRecords: "緊急度分布",
+            ageCrossRecords: "年齢クロス集計",
+            employmentCrossRecords: "雇用形態クロス"
+          }
+        }
+      ];
+
+      const RESERVED_ALIAS_KEYS = new Set([
+        "prefecture",
+        "municipality",
+        "regionKey",
+        "latitude",
+        "longitude",
+        "count",
+        "ratio",
+        "score",
+        "urgencyLevel",
+        "urgencyScore",
+        "segmentId",
+        "segmentName"
+      ]);
+
+      const state = {
+        region: {
+          prefecture: null,
+          municipality: null,
+          key: null
+        },
+        municipalities: [],
+        activePhase: "phase1",
+        phaseCache: {},
+        phase3Filters: {
+          segmentId: "",
+          difficultyLevel: ""
+        }
+      };
+
+      const dom = {
+        prefSelect: document.getElementById("prefectureSelect"),
+        muniSelect: document.getElementById("municipalitySelect"),
+        refreshButton: document.getElementById("refreshButton"),
+        tabs: document.getElementById("phaseTabs"),
+        filterPanel: document.getElementById("filterPanel"),
+        summaryGrid: document.getElementById("summaryGrid"),
+        warningsBox: document.getElementById("warningsBox"),
+        warningList: document.getElementById("warningList"),
+        tablesContainer: document.getElementById("tablesContainer"),
+        loadingOverlay: document.getElementById("loadingOverlay"),
+        toast: document.getElementById("toast")
+      };
+
+      function showToast(message, timeout = 3500) {
+        dom.toast.textContent = message;
+        dom.toast.classList.add("visible");
+        setTimeout(() => dom.toast.classList.remove("visible"), timeout);
+      }
+
+      function setLoading(isLoading) {
+        dom.loadingOverlay.classList.toggle("visible", isLoading);
+        dom.refreshButton.disabled = isLoading;
+        dom.prefSelect.disabled = isLoading;
+        dom.muniSelect.disabled = isLoading;
+      }
+
+      function initialize() {
+        setLoading(true);
+        google.script.run
+          .withSuccessHandler(handleInitialOptions)
+          .withFailureHandler(handleError)
+          .getRegionOptions();
+      }
+
+      function handleInitialOptions(payload) {
+        state.region = payload.state || state.region;
+        populatePrefectures(payload.prefectures || []);
+        populateMunicipalities(payload.municipalities || []);
+        renderTabs();
+        registerEvents();
+        setLoading(false);
+        activatePhase(state.activePhase);
+      }
+
+      function populatePrefectures(prefectures) {
+        const select = dom.prefSelect;
+        select.innerHTML = "";
+
+        if (!prefectures.length) {
+          select.innerHTML = '<option value="">利用可能な都道府県が見つかりません</option>';
+          select.disabled = true;
+          return;
+        }
+
+        prefectures.forEach(pref => {
+          const option = document.createElement("option");
+          option.value = pref;
+          option.textContent = pref;
+          if (pref === state.region.prefecture) {
+            option.selected = true;
+          }
+          select.append(option);
+        });
+
+        select.disabled = false;
+      }
+
+      function populateMunicipalities(municipalities) {
+        state.municipalities = municipalities;
+        const select = dom.muniSelect;
+        select.innerHTML = "";
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = municipalities.length ? "市区町村を選択（任意）" : "該当する市区町村がありません";
+        select.append(placeholder);
+
+        municipalities.forEach(muni => {
+          const option = document.createElement("option");
+          option.value = muni;
+          option.textContent = muni;
+          if (muni === state.region.municipality) {
+            option.selected = true;
+          }
+          select.append(option);
+        });
+
+        select.disabled = false;
+      }
+
+      function renderTabs() {
+        dom.tabs.innerHTML = "";
+        PHASE_CONFIG.forEach(phase => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "tab-button" + (phase.id === state.activePhase ? " active" : "");
+          button.textContent = phase.label;
+          button.dataset.phase = phase.id;
+          dom.tabs.append(button);
+        });
+      }
+
+      function registerEvents() {
+        dom.prefSelect.addEventListener("change", handlePrefectureChange);
+        dom.muniSelect.addEventListener("change", handleMunicipalityChange);
+        dom.refreshButton.addEventListener("click", () => refreshPhase(state.activePhase, { force: true }));
+        dom.tabs.addEventListener("click", evt => {
+          const target = evt.target.closest(".tab-button");
+          if (!target) return;
+          const phaseId = target.dataset.phase;
+          activatePhase(phaseId);
+        });
+      }
+
+      function handlePrefectureChange() {
+        const selectedPref = dom.prefSelect.value || null;
+        if (!selectedPref) {
+          return;
+        }
+
+        setLoading(true);
+        google.script.run
+          .withSuccessHandler(municipalities => {
+            populateMunicipalities(municipalities || []);
+            const selectedMuni = municipalities.includes(state.region.municipality)
+              ? state.region.municipality
+              : municipalities[0] || null;
+            saveRegion(selectedPref, selectedMuni, true);
+          })
+          .withFailureHandler(handleError)
+          .getMunicipalitiesForPrefecture(selectedPref);
+      }
+
+      function handleMunicipalityChange() {
+        const selectedMuni = dom.muniSelect.value || null;
+        saveRegion(state.region.prefecture, selectedMuni, true);
+      }
+
+      function saveRegion(prefecture, municipality, refreshAfter = false) {
+        setLoading(true);
+        google.script.run
+          .withSuccessHandler(updated => {
+            state.region = updated;
+            state.phaseCache = {};
+            setLoading(false);
+            if (refreshAfter) {
+              refreshPhase(state.activePhase, { force: true });
+            }
+          })
+          .withFailureHandler(handleError)
+          .saveSelectedRegion(prefecture, municipality);
+      }
+
+      function activatePhase(phaseId) {
+        if (!phaseId) return;
+        state.activePhase = phaseId;
+        Array.from(dom.tabs.querySelectorAll(".tab-button")).forEach(button => {
+          button.classList.toggle("active", button.dataset.phase === phaseId);
+        });
+        refreshPhase(phaseId);
+      }
+
+      function refreshPhase(phaseId, options = {}) {
+        const phase = PHASE_CONFIG.find(p => p.id === phaseId);
+        if (!phase) return;
+
+        const useCache = !options.force && state.phaseCache[phaseId];
+        if (useCache) {
+          renderPhaseData(phase, state.phaseCache[phaseId], { fromCache: true });
+          return;
+        }
+
+        setLoading(true);
+        const args = buildPhaseArgs(phaseId);
+
+        let runner = google.script.run
+          .withSuccessHandler(data => {
+            state.phaseCache[phaseId] = data;
+            renderPhaseData(phase, data, { fromCache: false });
+            setLoading(false);
+            if (!options.fromFilter && phaseId === "phase3") {
+              updatePhase3Filters(data);
+            }
+          })
+          .withFailureHandler(handleError);
+
+        runner = runner[phase.fetch];
+        runner.apply(null, args);
+      }
+
+      function buildPhaseArgs(phaseId) {
+        const base = [state.region.prefecture, state.region.municipality];
+        if (phaseId === "phase3") {
+          return [
+            ...base,
+            {
+              segmentId: state.phase3Filters.segmentId || "",
+              difficultyLevel: state.phase3Filters.difficultyLevel || ""
+            }
+          ];
+        }
+        return base;
+      }
+
+      function renderPhaseData(phase, data, meta) {
+        renderSummary(phase, data.summary || {});
+        renderWarnings(data.warnings || []);
+        renderTables(data.tables || {});
+        renderFilters(phase, data);
+        if (meta.fromCache) {
+          showToast("キャッシュされた結果を表示中（最新データが必要な場合は更新してください）", 2500);
+        }
+      }
+
+      function renderSummary(phase, summary) {
+        dom.summaryGrid.innerHTML = "";
+        const labels = phase.summaryLabels || {};
+        const entries = Object.entries(summary || {});
+
+        if (!entries.length) {
+          const placeholder = document.createElement("div");
+          placeholder.className = "empty-placeholder";
+          placeholder.textContent = "このフェーズでは表示可能なサマリー指標がありません。";
+          dom.summaryGrid.append(placeholder);
+          return;
+        }
+
+        entries.forEach(([key, value]) => {
+          const card = document.createElement("div");
+          card.className = "summary-card";
+
+          const label = document.createElement("div");
+          label.className = "label";
+          label.textContent = labels[key] || key;
+
+          const val = document.createElement("div");
+          val.className = "value";
+          val.textContent = formatValue(value);
+
+          card.append(label, val);
+          dom.summaryGrid.append(card);
+        });
+      }
+
+      function renderWarnings(warnings) {
+        if (!warnings || !warnings.length) {
+          dom.warningsBox.classList.remove("visible");
+          dom.warningList.innerHTML = "";
+          return;
+        }
+
+        dom.warningsBox.classList.add("visible");
+        dom.warningList.innerHTML = "";
+        warnings.forEach(message => {
+          const row = document.createElement("div");
+          row.textContent = message;
+          dom.warningList.append(row);
+        });
+      }
+
+      function renderTables(tables) {
+        dom.tablesContainer.innerHTML = "";
+        const entries = Object.entries(tables || {});
+        if (!entries.length) {
+          const placeholder = document.createElement("div");
+          placeholder.className = "empty-placeholder";
+          placeholder.textContent = "表示できるテーブルがありません。";
+          dom.tablesContainer.append(placeholder);
+          return;
+        }
+
+        entries.forEach(([tableKey, rows]) => {
+          const group = document.createElement("section");
+          group.className = "table-group";
+
+          const title = document.createElement("div");
+          title.className = "table-title";
+          title.textContent = deriveTableTitle(tableKey);
+
+          group.append(title);
+          if (!Array.isArray(rows) || !rows.length) {
+            const placeholder = document.createElement("div");
+            placeholder.className = "empty-placeholder";
+            placeholder.textContent = "該当データがありません。";
+            group.append(placeholder);
+          } else {
+            const sanitized = sanitizeRecords(rows);
+            const table = buildTableElement(sanitized);
+            group.append(table);
+          }
+          dom.tablesContainer.append(group);
+        });
+      }
+
+      function deriveTableTitle(key) {
+        const map = {
+          mapMetrics: "MapMetrics",
+          aggDesired: "AggDesired",
+          quality: "品質レポート",
+          chiSquare: "ChiSquareTests",
+          anova: "ANOVATests",
+          personaSummary: "PersonaSummary",
+          personaDetails: "PersonaDetails",
+          supplyDensity: "SupplyDensityMap",
+          qualificationDistribution: "QualificationDistribution",
+          ageGenderCross: "AgeGenderCrossAnalysis",
+          mobilityScore: "MobilityScore",
+          personaProfile: "DetailedPersonaProfile",
+          educationDistribution: "EducationDistribution",
+          educationCross: "EducationAgeCross",
+          graduationDistribution: "GraduationYearDistribution",
+          urgencyDistribution: "UrgencyDistribution",
+          ageCross: "UrgencyAgeCross",
+          employmentCross: "UrgencyEmploymentCross",
+          desiredWorkCross: "UrgencyDesiredWorkCross"
+        };
+        return map[key] || key;
+      }
+
+      function sanitizeRecords(records) {
+        return records.map(record => {
+          const cleaned = {};
+          Object.keys(record).forEach(key => {
+            if (key === "__normalized") return;
+            if (RESERVED_ALIAS_KEYS.has(key)) return;
+            cleaned[key] = record[key];
+          });
+          if (!Object.keys(cleaned).length) {
+            Object.keys(record).forEach(key => {
+              if (key !== "__normalized" && !cleaned.hasOwnProperty(key)) {
+                cleaned[key] = record[key];
+              }
+            });
+          }
+          return cleaned;
+        });
+      }
+
+      function buildTableElement(records) {
+        const table = document.createElement("table");
+        const thead = document.createElement("thead");
+        const tbody = document.createElement("tbody");
+
+        const columns = deriveColumns(records);
+        const headerRow = document.createElement("tr");
+        columns.forEach(col => {
+          const th = document.createElement("th");
+          th.textContent = col;
+          headerRow.append(th);
+        });
+        thead.append(headerRow);
+
+        records.forEach(record => {
+          const row = document.createElement("tr");
+          columns.forEach(col => {
+            const td = document.createElement("td");
+            td.textContent = formatValue(record[col]);
+            row.append(td);
+          });
+          tbody.append(row);
+        });
+
+        table.append(thead, tbody);
+        return table;
+      }
+
+      function deriveColumns(records) {
+        if (!records.length) return [];
+        const ordered = Object.keys(records[0]);
+        const seen = new Set();
+        return ordered.filter(col => {
+          if (seen.has(col)) return false;
+          seen.add(col);
+          return true;
+        });
+      }
+
+      function formatValue(value) {
+        if (value === null || value === undefined || value === "") {
+          return "-";
+        }
+        if (typeof value === "number") {
+          return Number.isInteger(value) ? value.toLocaleString("ja-JP") : Number(value).toLocaleString("ja-JP", { maximumFractionDigits: 3 });
+        }
+        if (typeof value === "boolean") {
+          return value ? "はい" : "いいえ";
+        }
+        return String(value);
+      }
+
+      function renderFilters(phase, data) {
+        if (!phase.hasFilters) {
+          dom.filterPanel.classList.remove("active");
+          dom.filterPanel.innerHTML = "";
+          return;
+        }
+
+        dom.filterPanel.classList.add("active");
+        dom.filterPanel.innerHTML = "";
+
+        if (phase.id === "phase3") {
+          const { personaSummary = [] } = data.tables || {};
+          const segmentOptions = personaSummary
+            .map(record => {
+              const id = record.segment_id ?? record.segmentId;
+              const name = record.segment_name ?? record.segmentName ?? id;
+              if (id === undefined || id === null || id === "") return null;
+              return { id: String(id), name: String(name) };
+            })
+            .filter(Boolean);
+
+          const difficultyOptions = personaSummary
+            .map(record => record.difficulty_level ?? record.difficultyLevel)
+            .filter(level => level && level !== "");
+
+          const uniqueSegments = [];
+          const seenSegments = new Set();
+          segmentOptions.forEach(option => {
+            if (seenSegments.has(option.id)) return;
+            seenSegments.add(option.id);
+            uniqueSegments.push(option);
+          });
+
+          const uniqueDifficulties = Array.from(new Set(difficultyOptions));
+
+          const segmentWrapper = document.createElement("div");
+          segmentWrapper.className = "field";
+
+          const segmentLabel = document.createElement("label");
+          segmentLabel.textContent = "ペルソナ セグメント";
+          segmentLabel.htmlFor = "segmentFilter";
+
+          const segmentSelect = document.createElement("select");
+          segmentSelect.id = "segmentFilter";
+          segmentSelect.innerHTML = '<option value="">全セグメント</option>';
+
+          uniqueSegments.forEach(option => {
+            const opt = document.createElement("option");
+            opt.value = option.id;
+            opt.textContent = `${option.id}: ${option.name}`;
+            if (option.id === state.phase3Filters.segmentId) {
+              opt.selected = true;
+            }
+            segmentSelect.append(opt);
+          });
+
+          segmentSelect.addEventListener("change", () => {
+            state.phase3Filters.segmentId = segmentSelect.value;
+            state.phaseCache.phase3 = null;
+            refreshPhase("phase3", { force: true, fromFilter: true });
+          });
+
+          segmentWrapper.append(segmentLabel, segmentSelect);
+          dom.filterPanel.append(segmentWrapper);
+
+          const difficultyWrapper = document.createElement("div");
+          difficultyWrapper.className = "field";
+
+          const difficultyLabel = document.createElement("label");
+          difficultyLabel.textContent = "難易度ランク";
+          difficultyLabel.htmlFor = "difficultyFilter";
+
+          const difficultySelect = document.createElement("select");
+          difficultySelect.id = "difficultyFilter";
+          difficultySelect.innerHTML = '<option value="">全ランク</option>';
+
+          uniqueDifficulties.forEach(level => {
+            const opt = document.createElement("option");
+            opt.value = level;
+            opt.textContent = level;
+            if (level === state.phase3Filters.difficultyLevel) {
+              opt.selected = true;
+            }
+            difficultySelect.append(opt);
+          });
+
+          difficultySelect.addEventListener("change", () => {
+            state.phase3Filters.difficultyLevel = difficultySelect.value;
+            state.phaseCache.phase3 = null;
+            refreshPhase("phase3", { force: true, fromFilter: true });
+          });
+
+          difficultyWrapper.append(difficultyLabel, difficultySelect);
+          dom.filterPanel.append(difficultyWrapper);
+        }
+      }
+
+      function updatePhase3Filters(data) {
+        if (state.activePhase !== "phase3") return;
+        renderFilters(PHASE_CONFIG.find(p => p.id === "phase3"), data);
+      }
+
+      function handleError(error) {
+        setLoading(false);
+        console.error(error);
+        const message = error && error.message ? error.message : "不明なエラーが発生しました。";
+        showToast(message);
+      }
+
+      document.addEventListener("DOMContentLoaded", initialize);
+    </script>
+  </body>
+</html>
+
+<!-- ===== Upload_Bulk37.html ===== -->
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f5f7fa; }
+    .container { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h3 { color: #667eea; margin-top: 0; }
+    .upload-area { border: 3px dashed #667eea; border-radius: 12px; padding: 50px; text-align: center; margin: 20px 0; cursor: pointer; background: #f8f9ff; transition: 0.3s; }
+    .upload-area:hover { border-color: #5568d3; background: #f0f2ff; }
+    .upload-area.dragover { background: #e3e8ff; border-color: #4a5bbf; transform: scale(1.02); }
+    #fileInput { display: none; }
+    .button { background: #667eea; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; margin: 5px; transition: 0.3s; }
+    .button:hover { background: #5568d3; }
+    .button:disabled { background: #ccc; cursor: not-allowed; }
+    .button-secondary { background: #6c757d; }
+    .status { margin: 15px 0; padding: 12px; border-radius: 6px; display: none; font-weight: 500; }
+    .status.success { background: #d1f2eb; color: #0f5132; display: block; }
+    .status.error { background: #f8d7da; color: #842029; display: block; }
+    .status.info { background: #cfe2ff; color: #084298; display: block; }
+    .status.warning { background: #fff3cd; color: #856404; display: block; }
+    .file-list { margin: 20px 0; max-height: 400px; overflow-y: auto; background: #f8f9fa; border-radius: 8px; padding: 15px; }
+    .file-item { padding: 10px; margin: 5px 0; background: white; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #667eea; }
+    .file-name { font-weight: 500; color: #333; flex: 1; }
+    .file-size { color: #666; font-size: 12px; margin: 0 10px; }
+    .file-status { font-size: 12px; padding: 4px 8px; border-radius: 4px; }
+    .file-status.waiting { background: #e9ecef; color: #6c757d; }
+    .file-status.uploading { background: #cfe2ff; color: #084298; }
+    .file-status.success { background: #d1f2eb; color: #0f5132; }
+    .file-status.error { background: #f8d7da; color: #842029; }
+    .progress-container { width: 100%; height: 30px; background: #e9ecef; border-radius: 15px; margin: 20px 0; overflow: hidden; display: none; }
+    .progress-bar { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 500; }
+    .summary { background: #e8f4fd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 10px; }
+    .summary-item { text-align: center; padding: 10px; background: white; border-radius: 6px; }
+    .summary-value { font-size: 24px; font-weight: bold; color: #667eea; }
+    .summary-label { font-size: 12px; color: #666; margin-top: 5px; }
+    .info-box { background: #fff3cd; padding: 12px; border-radius: 6px; margin: 15px 0; font-size: 14px; border-left: 4px solid #ffc107; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h3>⚡ ローカルファイルを直接アップロード（37ファイル一括対応）</h3>
+
+    <div class="info-box">
+      💡 <strong>使い方</strong>: output_v2フォルダ内の全ファイル（37個）を選択してドラッグ&ドロップしてください。<br>
+      フォルダ構造は自動で認識され、適切なシートに振り分けられます。
+    </div>
+
+    <div class="upload-area" id="uploadArea">
+      <p style="font-size: 18px; margin: 10px 0;">📁 37ファイルをドラッグ&ドロップ</p>
+      <p style="color: #666; font-size: 14px;">またはクリックして複数ファイルを選択</p>
+      <p style="color: #999; font-size: 12px; margin-top: 10px;">
+        ※ Phase 1-10の全CSVファイル + geocache.json<br>
+        ※ Ctrl+Aで全選択してドラッグ&ドロップ
+      </p>
+    </div>
+
+    <input type="file" id="fileInput" accept=".csv,.json" multiple/>
+
+    <div id="summary" class="summary" style="display: none;">
+      <strong>📊 選択ファイルサマリー</strong>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-value" id="totalFiles">0</div>
+          <div class="summary-label">総ファイル数</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-value" id="totalSize">0 MB</div>
+          <div class="summary-label">合計サイズ</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-value" id="detectedPhases">0</div>
+          <div class="summary-label">検出Phase数</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-value" id="uploadedCount">0</div>
+          <div class="summary-label">アップロード済み</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="file-list" id="fileList" style="display: none;"></div>
+
+    <div class="progress-container" id="progressContainer">
+      <div class="progress-bar" id="progressBar">0%</div>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div style="text-align: center; margin-top: 20px;">
+      <button class="button" id="uploadButton" disabled onclick="startBulkUpload()">📤 一括アップロード開始</button>
+      <button class="button button-secondary" onclick="clearAll()">🔄 クリア</button>
+      <button class="button button-secondary" onclick="google.script.host.close()">閉じる</button>
+    </div>
+  </div>
+
+<script>
+// グローバル変数
+let selectedFiles = [];
+let uploadedCount = 0;
+let phaseMapping = {};
+
+// ファイル名からPhaseとシート名を判定（PythonCSVImporter.gsと完全一致）
+const FILE_MAPPING = {
+  // Phase 1: 基本データ（必須）
+  'MapMetrics.csv': { phase: 1, sheet: 'MapMetrics', required: true },
+  'Applicants.csv': { phase: 1, sheet: 'Applicants', required: true },
+  'DesiredWork.csv': { phase: 1, sheet: 'DesiredWork', required: true },
+  'AggDesired.csv': { phase: 1, sheet: 'AggDesired', required: true },
+  'P1_QualityReport.csv': { phase: 1, sheet: 'P1_QualityReport', required: false },
+  'QualityReport_Descriptive.csv': { phase: 1, sheet: 'P1_QualityDesc', required: false },
+
+  // Phase 2: 統計的検定結果
+  'ChiSquareTests.csv': { phase: 2, sheet: 'ChiSquareTests', required: false },
+  'ANOVATests.csv': { phase: 2, sheet: 'ANOVATests', required: false },
+  'P2_QualityReport_Inferential.csv': { phase: 2, sheet: 'P2_QualityInfer', required: false },
+
+  // Phase 3: ペルソナ分析結果
+  'PersonaSummary.csv': { phase: 3, sheet: 'PersonaSummary', required: false },
+  'PersonaDetails.csv': { phase: 3, sheet: 'PersonaDetails', required: false },
+  'P3_QualityReport_Inferential.csv': { phase: 3, sheet: 'P3_QualityInfer', required: false },
+
+  // Phase 6: フロー・近接分析
+  'MunicipalityFlowEdges.csv': { phase: 6, sheet: 'Phase6_MunicipalityFlowEdges', required: false },
+  'MunicipalityFlowNodes.csv': { phase: 6, sheet: 'Phase6_MunicipalityFlowNodes', required: false },
+  'ProximityAnalysis.csv': { phase: 6, sheet: 'ProximityAnalysis', required: false },
+  'P6_QualityReport_Inferential.csv': { phase: 6, sheet: 'P6_QualityInfer', required: false },
+
+  // Phase 7: 高度分析
+  'SupplyDensityMap.csv': { phase: 7, sheet: 'Phase7_SupplyDensity', required: false },
+  'QualificationDistribution.csv': { phase: 7, sheet: 'Phase7_QualificationDist', required: false },
+  'AgeGenderCrossAnalysis.csv': { phase: 7, sheet: 'Phase7_AgeGenderCross', required: false },
+  'MobilityScore.csv': { phase: 7, sheet: 'Phase7_MobilityScore', required: false },
+  'DetailedPersonaProfile.csv': { phase: 7, sheet: 'Phase7_PersonaProfile', required: false },
+  'P7_QualityReport_Inferential.csv': { phase: 7, sheet: 'P7_QualityInfer', required: false },
+
+  // Phase 8: キャリア・学歴分析
+  'EducationDistribution.csv': { phase: 8, sheet: 'P8_EducationDist', required: false },
+  'EducationAgeCross.csv': { phase: 8, sheet: 'P8_EduAgeCross', required: false },
+  'EducationAgeCross_Matrix.csv': { phase: 8, sheet: 'P8_EduAgeMatrix', required: false },
+  'GraduationYearDistribution.csv': { phase: 8, sheet: 'P8_GradYearDist', required: false },
+  'P8_QualityReport.csv': { phase: 8, sheet: 'P8_QualityReport', required: false },
+  'P8_QualityReport_Inferential.csv': { phase: 8, sheet: 'P8_QualityInfer', required: false },
+
+  // Phase 10: 転職意欲・緊急度分析
+  'UrgencyDistribution.csv': { phase: 10, sheet: 'P10_UrgencyDist', required: false },
+  'UrgencyDistribution_ByMunicipality.csv': { phase: 10, sheet: 'P10_UrgencyDist_Muni', required: false },
+  'UrgencyAgeCross.csv': { phase: 10, sheet: 'P10_UrgencyAge', required: false },
+  'UrgencyAgeCross_ByMunicipality.csv': { phase: 10, sheet: 'P10_UrgencyAge_Muni', required: false },
+  'UrgencyAgeCross_Matrix.csv': { phase: 10, sheet: 'P10_UrgencyAgeMatrix', required: false },
+  'UrgencyEmploymentCross.csv': { phase: 10, sheet: 'P10_UrgencyEmp', required: false },
+  'UrgencyEmploymentCross_Matrix.csv': { phase: 10, sheet: 'P10_UrgencyEmpMatrix', required: false },
+  'UrgencyEmploymentCross_ByMunicipality.csv': { phase: 10, sheet: 'P10_UrgencyEmp_Muni', required: false },
+  'UrgencyDesiredWorkCross.csv': { phase: 10, sheet: 'P10_UrgencyDesired', required: false },
+  'P10_QualityReport.csv': { phase: 10, sheet: 'P10_QualityReport', required: false },
+  'P10_QualityReport_Inferential.csv': { phase: 10, sheet: 'P10_QualityInfer', required: false },
+
+  // Root統合品質レポート
+  'OverallQualityReport.csv': { phase: 0, sheet: 'OverallQuality', required: false },
+  'OverallQualityReport_Inferential.csv': { phase: 0, sheet: 'OverallQualityInfer', required: false },
+  'geocache.json': { phase: 0, sheet: 'Geocache', required: false }
+};
+
+// イベントリスナー
+document.getElementById('uploadArea').addEventListener('click', () => {
+  document.getElementById('fileInput').click();
+});
+
+document.getElementById('uploadArea').addEventListener('dragover', (e) => {
+  e.preventDefault();
+  e.target.classList.add('dragover');
+});
+
+document.getElementById('uploadArea').addEventListener('dragleave', (e) => {
+  e.target.classList.remove('dragover');
+});
+
+document.getElementById('uploadArea').addEventListener('drop', (e) => {
+  e.preventDefault();
+  e.target.classList.remove('dragover');
+  if (e.dataTransfer.files.length) {
+    handleFiles(e.dataTransfer.files);
+  }
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  if (e.target.files.length) {
+    handleFiles(e.target.files);
+  }
+});
+
+// 複数ファイル処理
+function handleFiles(files) {
+  selectedFiles = Array.from(files);
+
+  if (selectedFiles.length === 0) {
+    showStatus('ファイルが選択されていません', 'error');
+    return;
+  }
+
+  // ファイルリスト表示
+  displayFileList();
+
+  // サマリー更新
+  updateSummary();
+
+  // アップロードボタン有効化
+  document.getElementById('uploadButton').disabled = false;
+
+  showStatus(`${selectedFiles.length}ファイルが選択されました`, 'info');
+}
+
+// ファイルリスト表示
+function displayFileList() {
+  const listEl = document.getElementById('fileList');
+  listEl.innerHTML = '';
+  listEl.style.display = 'block';
+
+  phaseMapping = {};
+
+  selectedFiles.forEach((file, index) => {
+    const mapping = FILE_MAPPING[file.name];
+    const phase = mapping ? mapping.phase : '不明';
+    const sheet = mapping ? mapping.sheet : '未対応';
+
+    if (mapping) {
+      if (!phaseMapping[phase]) phaseMapping[phase] = [];
+      phaseMapping[phase].push(file.name);
+    }
+
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    item.id = `file-${index}`;
+
+    const statusClass = mapping ? 'waiting' : 'error';
+    const statusText = mapping ? '待機中' : '未対応';
+
+    item.innerHTML = `
+      <div class="file-name">${file.name}</div>
+      <div class="file-size">${formatFileSize(file.size)}</div>
+      <div class="file-status ${statusClass}" id="status-${index}">${statusText}</div>
+    `;
+
+    listEl.appendChild(item);
+  });
+}
+
+// サマリー更新
+function updateSummary() {
+  const summaryEl = document.getElementById('summary');
+  summaryEl.style.display = 'block';
+
+  const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
+  const phases = Object.keys(phaseMapping).length;
+
+  document.getElementById('totalFiles').textContent = selectedFiles.length;
+  document.getElementById('totalSize').textContent = formatFileSize(totalSize);
+  document.getElementById('detectedPhases').textContent = phases;
+  document.getElementById('uploadedCount').textContent = uploadedCount;
+}
+
+// ファイルサイズフォーマット
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+// 一括アップロード開始
+async function startBulkUpload() {
+  uploadedCount = 0;
+  document.getElementById('uploadButton').disabled = true;
+  document.getElementById('progressContainer').style.display = 'block';
+
+  showStatus('アップロード開始...', 'info');
+
+  for (let i = 0; i < selectedFiles.length; i++) {
+    const file = selectedFiles[i];
+    const mapping = FILE_MAPPING[file.name];
+
+    if (!mapping) {
+      updateFileStatus(i, 'error', 'スキップ');
+      continue;
+    }
+
+    try {
+      updateFileStatus(i, 'uploading', 'アップロード中');
+
+      // ファイル読み込み
+      const content = await readFileContent(file);
+
+      // GAS側にアップロード
+      await uploadToGAS(file.name, mapping.sheet, content);
+
+      updateFileStatus(i, 'success', '完了');
+      uploadedCount++;
+
+    } catch (error) {
+      updateFileStatus(i, 'error', 'エラー');
+      console.error(`${file.name} のアップロードに失敗:`, error);
+    }
+
+    // プログレス更新
+    const progress = ((i + 1) / selectedFiles.length * 100).toFixed(0);
+    updateProgress(progress);
+    document.getElementById('uploadedCount').textContent = uploadedCount;
+  }
+
+  // 完了
+  showStatus(`✅ ${uploadedCount}/${selectedFiles.length}ファイルのアップロードが完了しました！`, 'success');
+
+  setTimeout(() => {
+    google.script.host.close();
+  }, 2000);
+}
+
+// ファイル内容読み込み
+function readFileContent(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      resolve(e.target.result);
+    };
+
+    reader.onerror = (e) => {
+      reject(new Error('ファイル読み込みエラー'));
+    };
+
+    if (file.name.endsWith('.json')) {
+      reader.readAsText(file, 'UTF-8');
+    } else {
+      reader.readAsText(file, 'UTF-8');
+    }
+  });
+}
+
+// GASにアップロード
+function uploadToGAS(fileName, sheetName, content) {
+  return new Promise((resolve, reject) => {
+    google.script.run
+      .withSuccessHandler((result) => {
+        resolve(result);
+      })
+      .withFailureHandler((error) => {
+        reject(error);
+      })
+      .importSingleCSVFromHTML(fileName, sheetName, content);
+  });
+}
+
+// ファイルステータス更新
+function updateFileStatus(index, statusClass, statusText) {
+  const statusEl = document.getElementById(`status-${index}`);
+  if (statusEl) {
+    statusEl.className = `file-status ${statusClass}`;
+    statusEl.textContent = statusText;
+  }
+}
+
+// プログレス更新
+function updateProgress(percent) {
+  const bar = document.getElementById('progressBar');
+  bar.style.width = percent + '%';
+  bar.textContent = percent + '%';
+}
+
+// ステータス表示
+function showStatus(message, type) {
+  const status = document.getElementById('status');
+  status.textContent = message;
+  status.className = 'status ' + type;
+  status.style.display = 'block';
+}
+
+// クリア
+function clearAll() {
+  selectedFiles = [];
+  uploadedCount = 0;
+  phaseMapping = {};
+
+  document.getElementById('fileList').style.display = 'none';
+  document.getElementById('summary').style.display = 'none';
+  document.getElementById('progressContainer').style.display = 'none';
+  document.getElementById('status').style.display = 'none';
+  document.getElementById('uploadButton').disabled = true;
+  document.getElementById('fileInput').value = '';
+}
+</script>
+</body>
+</html>
+
+<!-- ===== Upload_Enhanced.html ===== -->
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    body{font-family:Arial,sans-serif;padding:20px}
+    .upload-area{border:2px dashed #ccc;border-radius:4px;padding:30px;text-align:center;margin:20px 0;cursor:pointer}
+    .upload-area:hover{border-color:#4285f4}
+    .upload-area.dragover{background:#f5f7ff}
+    #fileInput{display:none}
+    .button{background:#4285f4;color:#fff;padding:10px 20px;border:none;border-radius:4px;cursor:pointer;font-size:14px;margin:5px}
+    .button:disabled{background:#ccc;cursor:not-allowed}
+    .button.secondary{background:#6c757d}
+    .status{margin:10px 0;padding:10px;border-radius:4px;display:none}
+    .status.success{background:#d4edda;color:#155724}
+    .status.error{background:#f8d7da;color:#721c24}
+    .status.info{background:#d1ecf1;color:#0c5460}
+    .status.warning{background:#fff3cd;color:#856404}
+    .file-info{margin:10px 0;padding:10px;background:#f5f5f5;border-radius:4px;display:none;font-size:14px}
+    .progress-container{width:100%;height:30px;background:#f0f0f0;border-radius:15px;margin:20px 0;overflow:hidden;display:none}
+    .progress-bar{height:100%;background:linear-gradient(90deg,#4285f4,#66a6ff);transition:width 0.3s;display:flex;align-items:center;justify-content:center;color:white;font-size:14px}
+    .analysis-results{margin:20px 0;padding:15px;background:#f8f9fa;border-radius:8px;display:none}
+    .result-item{margin:10px 0;padding:8px;background:white;border-radius:4px;border-left:4px solid #4285f4}
+    .tabs{display:flex;gap:10px;margin:20px 0}
+    .tab{padding:8px 16px;background:#e0e0e0;border-radius:4px;cursor:pointer;transition:0.3s}
+    .tab.active{background:#4285f4;color:white}
+    .tab-content{display:none;margin:20px 0}
+    .tab-content.active{display:block}
+    h4{color:#333;margin-top:20px}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin:15px 0}
+    .stat-card{padding:15px;background:white;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);text-align:center}
+    .stat-value{font-size:24px;font-weight:bold;color:#4285f4}
+    .stat-label{font-size:12px;color:#666;margin-top:5px}
+  </style>
+</head>
+<body>
+  <h3>🚀 高速CSVインポート（Python処理エンジン搭載）</h3>
+  
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('import')">インポート</div>
+    <div class="tab" onclick="switchTab('analysis')">分析結果</div>
+    <div class="tab" onclick="switchTab('settings')">設定</div>
+  </div>
+  
+  <div class="tab-content active" id="import-tab">
+    <div class="upload-area" id="uploadArea">
+      <p>📁 CSVファイルをドラッグ＆ドロップ<br>またはクリックして選択</p>
+    </div>
+    <input type="file" id="fileInput" accept=".csv" multiple/>
+    <div class="file-info" id="fileInfo"></div>
+    <div class="progress-container" id="progressContainer">
+      <div class="progress-bar" id="progressBar">0%</div>
+    </div>
+    <div class="status" id="status"></div>
+    
+    <div style="text-align:center;margin-top:20px;">
+      <button class="button" id="analyzeButton" disabled onclick="analyzeCSV()">🔍 高速分析</button>
+      <button class="button" id="importButton" disabled onclick="importToSheets()">📊 シートに展開</button>
+      <button class="button secondary" onclick="clearAll()">🔄 クリア</button>
+      <button class="button secondary" onclick="google.script.host.close()">閉じる</button>
+    </div>
+  </div>
+  
+  <div class="tab-content" id="analysis-tab">
+    <div class="analysis-results" id="analysisResults">
+      <h4>📈 分析結果サマリー</h4>
+      <div class="stats-grid" id="statsGrid"></div>
+      
+      <h4>🎯 検出された希望勤務地カラム</h4>
+      <div id="desiredColumns"></div>
+      
+      <h4>📍 希望勤務地TOP10</h4>
+      <div id="topLocations"></div>
+      
+      <h4>👥 人口統計</h4>
+      <div id="demographics"></div>
+      
+      <h4>💡 インサイト</h4>
+      <div id="insights"></div>
+    </div>
+  </div>
+  
+  <div class="tab-content" id="settings-tab">
+    <h4>⚙️ 処理設定</h4>
+    <div class="result-item">
+      <label><input type="checkbox" id="fullScan" checked> 全行スキャン（精度優先）</label>
+    </div>
+    <div class="result-item">
+      <label><input type="checkbox" id="autoGeocode"> 自動ジオコーディング</label>
+    </div>
+    <div class="result-item">
+      <label>サンプル行数: <input type="number" id="sampleSize" value="1000" min="100" max="10000"></label>
+    </div>
+  </div>
+
+<script>
+// グローバル変数
+var selectedFile = null;
+var csvData = null;
+var analysisResult = null;
+var processedData = null;
+
+// 都道府県座標データ
+const prefectureCoords = {
+  '北海道': {lat: 43.0642, lng: 141.3469},
+  '青森県': {lat: 40.8244, lng: 140.7400},
+  '岩手県': {lat: 39.7036, lng: 141.1527},
+  '宮城県': {lat: 38.2682, lng: 140.8694},
+  '秋田県': {lat: 39.7186, lng: 140.1024},
+  '山形県': {lat: 38.2405, lng: 140.3634},
+  '福島県': {lat: 37.7503, lng: 140.4676},
+  '茨城県': {lat: 36.3418, lng: 140.4468},
+  '栃木県': {lat: 36.5657, lng: 139.8836},
+  '群馬県': {lat: 36.3907, lng: 139.0604},
+  '埼玉県': {lat: 35.8570, lng: 139.6489},
+  '千葉県': {lat: 35.6050, lng: 140.1233},
+  '東京都': {lat: 35.6762, lng: 139.6503},
+  '神奈川県': {lat: 35.4478, lng: 139.6425},
+  '新潟県': {lat: 37.9022, lng: 139.0235},
+  '富山県': {lat: 36.6953, lng: 137.2113},
+  '石川県': {lat: 36.5946, lng: 136.6256},
+  '福井県': {lat: 36.0652, lng: 136.2216},
+  '山梨県': {lat: 35.6640, lng: 138.5684},
+  '長野県': {lat: 36.6513, lng: 138.1810},
+  '岐阜県': {lat: 35.3912, lng: 136.7223},
+  '静岡県': {lat: 34.9769, lng: 138.3831},
+  '愛知県': {lat: 35.1802, lng: 136.9066},
+  '三重県': {lat: 34.7303, lng: 136.5086},
+  '滋賀県': {lat: 35.0045, lng: 135.8685},
+  '京都府': {lat: 35.0116, lng: 135.7681},
+  '大阪府': {lat: 34.6862, lng: 135.5200},
+  '兵庫県': {lat: 34.6913, lng: 135.1830},
+  '奈良県': {lat: 34.6851, lng: 135.8327},
+  '和歌山県': {lat: 34.2260, lng: 135.1675},
+  '鳥取県': {lat: 35.5039, lng: 134.2378},
+  '島根県': {lat: 35.4723, lng: 133.0505},
+  '岡山県': {lat: 34.6618, lng: 133.9345},
+  '広島県': {lat: 34.3966, lng: 132.4596},
+  '山口県': {lat: 34.1860, lng: 131.4705},
+  '徳島県': {lat: 34.0658, lng: 134.5593},
+  '香川県': {lat: 34.3401, lng: 134.0434},
+  '愛媛県': {lat: 33.8416, lng: 132.7658},
+  '高知県': {lat: 33.5597, lng: 133.5311},
+  '福岡県': {lat: 33.6064, lng: 130.4183},
+  '佐賀県': {lat: 33.2494, lng: 130.2988},
+  '長崎県': {lat: 32.7448, lng: 129.8737},
+  '熊本県': {lat: 32.7898, lng: 130.7417},
+  '大分県': {lat: 33.2382, lng: 131.6126},
+  '宮崎県': {lat: 31.9111, lng: 131.4239},
+  '鹿児島県': {lat: 31.5602, lng: 130.5581},
+  '沖縄県': {lat: 26.2124, lng: 127.6809}
+};
+
+// イベントリスナー
+document.getElementById('uploadArea').addEventListener('click', () => {
+  document.getElementById('fileInput').click();
+});
+
+document.getElementById('uploadArea').addEventListener('dragover', (e) => {
+  e.preventDefault();
+  e.target.classList.add('dragover');
+});
+
+document.getElementById('uploadArea').addEventListener('dragleave', (e) => {
+  e.target.classList.remove('dragover');
+});
+
+document.getElementById('uploadArea').addEventListener('drop', (e) => {
+  e.preventDefault();
+  e.target.classList.remove('dragover');
+  if (e.dataTransfer.files.length) {
+    handleFile(e.dataTransfer.files[0]);
+  }
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  if (e.target.files.length) {
+    handleFile(e.target.files[0]);
+  }
+});
+
+// ファイル処理
+function handleFile(file) {
+  if (!file.name.endsWith('.csv')) {
+    showStatus('CSVファイルを選択してください', 'error');
+    return;
+  }
+  
+  selectedFile = file;
+  document.getElementById('fileInfo').textContent = 
+    `📄 ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+  document.getElementById('fileInfo').style.display = 'block';
+  document.getElementById('analyzeButton').disabled = false;
+  showStatus('ファイルが選択されました', 'info');
+}
+
+// CSV分析（Pythonロジックの移植）
+async function analyzeCSV() {
+  if (!selectedFile) return;
+  
+  showStatus('分析を開始しています...', 'info');
+  showProgress(0);
+  
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      // CSVパース
+      csvData = parseCSV(e.target.result);
+      showProgress(20);
+      
+      // カラム検出
+      analysisResult = await detectColumns(csvData);
+      showProgress(40);
+      
+      // データ処理
+      processedData = await processData(csvData, analysisResult);
+      showProgress(60);
+      
+      // 統計分析
+      const stats = await analyzeStatistics(processedData);
+      showProgress(80);
+      
+      // 結果表示
+      displayAnalysisResults(analysisResult, stats);
+      showProgress(100);
+      
+      showStatus('分析完了！「シートに展開」をクリックして保存できます', 'success');
+      document.getElementById('importButton').disabled = false;
+      
+      // 分析タブに切り替え
+      switchTab('analysis');
+      
+    } catch (error) {
+      showStatus('分析エラー: ' + error.message, 'error');
+      console.error(error);
+    }
+  };
+  
+  reader.readAsText(selectedFile, 'UTF-8');
+}
+
+// CSVパース
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/);
+  const result = [];
+  
+  for (let line of lines) {
+    if (line.trim()) {
+      // 簡易CSVパーサー（カンマ区切り）
+      const row = line.split(',').map(cell => cell.trim());
+      result.push(row);
+    }
+  }
+  
+  return result;
+}
+
+// カラム検出（Pythonロジック移植）
+async function detectColumns(data) {
+  const headers = data[0];
+  const dataRows = headers[0].includes('u-fw-bold') ? data.slice(1) : data;
+  
+  const result = {
+    headers: headers,
+    hasHTMLHeaders: headers[0].includes('u-fw-bold'),
+    desiredColumns: [],
+    totalRows: dataRows.length,
+    totalColumns: headers.length
+  };
+  
+  // o-line__itemカラムの検出
+  const oLineItems = [];
+  headers.forEach((header, idx) => {
+    if (header.includes('o-line__item')) {
+      oLineItems.push(idx);
+    }
+  });
+  
+  showStatus(`${oLineItems.length}個の o-line__item カラムを検出中...`, 'info');
+  
+  // 全行スキャンまたはサンプリング
+  const fullScan = document.getElementById('fullScan').checked;
+  const sampleSize = fullScan ? dataRows.length : 
+                     Math.min(parseInt(document.getElementById('sampleSize').value), dataRows.length);
+  
+  // 希望勤務地カラムの判定
+  for (let colIdx of oLineItems) {
+    if (colIdx === 3 || colIdx >= 13) {
+      let addressCount = 0;
+      const checkRows = Math.min(sampleSize, dataRows.length);
+      
+      for (let i = 0; i < checkRows; i++) {
+        if (dataRows[i][colIdx]) {
+          const val = String(dataRows[i][colIdx]);
+          // 都道府県パターンチェック
+          if (/[都道府県].+[市区町村]/.test(val)) {
+            addressCount++;
+          }
+        }
+        
+        // プログレス更新
+        if (i % 100 === 0) {
+          const progress = 20 + (20 * (oLineItems.indexOf(colIdx) + 1) / oLineItems.length);
+          showProgress(progress);
+        }
+      }
+      
+      // 0.1%以上で採用（スパース対応）
+      if (addressCount > checkRows * 0.001) {
+        result.desiredColumns.push({
+          index: colIdx,
+          count: addressCount,
+          ratio: (addressCount / checkRows * 100).toFixed(2)
+        });
+      }
+    }
+  }
+  
+  return result;
+}
+
+// データ処理
+async function processData(data, analysis) {
+  const processedRows = [];
+  const dataRows = analysis.hasHTMLHeaders ? data.slice(1) : data;
+  const locationCounts = {};
+  
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i];
+    const processed = {
+      id: i + 1,
+      age: null,
+      gender: null,
+      residence: null,
+      desiredLocations: []
+    };
+    
+    // 年齢・性別の抽出（3列目と仮定）
+    if (row[2]) {
+      const ageGenderMatch = row[2].match(/(\d+)歳.*([男女])性/);
+      if (ageGenderMatch) {
+        processed.age = parseInt(ageGenderMatch[1]);
+        processed.gender = ageGenderMatch[2] === '男' ? '男性' : '女性';
+      }
+    }
+    
+    // 居住地（2列目と仮定）
+    if (row[1]) {
+      processed.residence = extractPrefecture(row[1]);
+    }
+    
+    // 希望勤務地の抽出
+    for (let colInfo of analysis.desiredColumns) {
+      if (row[colInfo.index]) {
+        const pref = extractPrefecture(row[colInfo.index]);
+        if (pref) {
+          processed.desiredLocations.push(pref);
+          locationCounts[pref] = (locationCounts[pref] || 0) + 1;
+        }
+      }
+    }
+    
+    processedRows.push(processed);
+    
+    // プログレス更新
+    if (i % 100 === 0) {
+      showProgress(60 + (20 * i / dataRows.length));
+    }
+  }
+  
+  return {
+    rows: processedRows,
+    locationCounts: locationCounts
+  };
+}
+
+// 都道府県抽出
+function extractPrefecture(address) {
+  if (!address) return null;
+  
+  const prefectures = Object.keys(prefectureCoords);
+  for (let pref of prefectures) {
+    if (address.includes(pref)) {
+      return pref;
+    }
+  }
+  return null;
+}
+
+// 統計分析
+async function analyzeStatistics(data) {
+  const stats = {
+    totalApplicants: data.rows.length,
+    avgAge: 0,
+    genderRatio: {},
+    topLocations: [],
+    insights: []
+  };
+  
+  // 年齢統計
+  const ages = data.rows.map(r => r.age).filter(a => a);
+  if (ages.length > 0) {
+    stats.avgAge = (ages.reduce((a, b) => a + b, 0) / ages.length).toFixed(1);
+  }
+  
+  // 性別統計
+  const genders = data.rows.map(r => r.gender).filter(g => g);
+  stats.genderRatio = {
+    male: genders.filter(g => g === '男性').length,
+    female: genders.filter(g => g === '女性').length
+  };
+  
+  // TOP10希望勤務地
+  const sorted = Object.entries(data.locationCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+  stats.topLocations = sorted.map(([pref, count]) => ({pref, count}));
+  
+  // インサイト生成
+  if (stats.topLocations.length > 0) {
+    const topPref = stats.topLocations[0];
+    const concentration = (topPref.count / data.rows.length * 100).toFixed(1);
+    if (concentration > 20) {
+      stats.insights.push({
+        type: 'concentration',
+        message: `${topPref.pref}への集中傾向（${concentration}%）が見られます`
+      });
+    }
+  }
+  
+  if (stats.avgAge > 45) {
+    stats.insights.push({
+      type: 'age',
+      message: `平均年齢${stats.avgAge}歳。中高年層が主力です`
+    });
+  }
+  
+  return stats;
+}
+
+// 分析結果表示
+function displayAnalysisResults(analysis, stats) {
+  // 統計グリッド
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-value">${stats.totalApplicants.toLocaleString()}</div>
+      <div class="stat-label">総求職者数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${analysis.desiredColumns.length}</div>
+      <div class="stat-label">希望勤務地カラム</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${stats.avgAge || '-'}</div>
+      <div class="stat-label">平均年齢</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${stats.genderRatio.male || 0}/${stats.genderRatio.female || 0}</div>
+      <div class="stat-label">男性/女性</div>
+    </div>
+  `;
+  
+  // 希望勤務地カラム
+  let columnsHTML = '<div style="max-height:200px;overflow-y:auto;">';
+  analysis.desiredColumns.forEach(col => {
+    columnsHTML += `<div class="result-item">列${col.index}: ${col.count}件 (${col.ratio}%)</div>`;
+  });
+  columnsHTML += '</div>';
+  document.getElementById('desiredColumns').innerHTML = columnsHTML;
+  
+  // TOP10希望勤務地
+  let locationsHTML = '';
+  stats.topLocations.forEach((loc, idx) => {
+    locationsHTML += `<div class="result-item">${idx + 1}. ${loc.pref}: ${loc.count}人</div>`;
+  });
+  document.getElementById('topLocations').innerHTML = locationsHTML;
+  
+  // インサイト
+  let insightsHTML = '';
+  stats.insights.forEach(insight => {
+    insightsHTML += `<div class="result-item">💡 ${insight.message}</div>`;
+  });
+  document.getElementById('insights').innerHTML = insightsHTML || '<div class="result-item">データ分析中...</div>';
+  
+  document.getElementById('analysisResults').style.display = 'block';
+}
+
+// シートへのインポート
+function importToSheets() {
+  if (!processedData) {
+    showStatus('先に分析を実行してください', 'warning');
+    return;
+  }
+  
+  showStatus('シートに展開中...', 'info');
+  
+  // GAS形式のデータを準備
+  const mapMetrics = prepareMapMetrics(processedData);
+  const applicants = prepareApplicants(processedData);
+  const desiredWork = prepareDesiredWork(processedData);
+  
+  // サーバーに送信
+  google.script.run
+    .withSuccessHandler((result) => {
+      showStatus('シートへの展開が完了しました！', 'success');
+      setTimeout(() => {
+        google.script.host.close();
+      }, 2000);
+    })
+    .withFailureHandler((error) => {
+      showStatus('エラー: ' + error.message, 'error');
+    })
+    .importProcessedData({
+      mapMetrics: mapMetrics,
+      applicants: applicants,
+      desiredWork: desiredWork,
+      metadata: {
+        fileName: selectedFile.name,
+        processedAt: new Date().toISOString(),
+        totalRows: processedData.rows.length,
+        desiredColumns: analysisResult.desiredColumns.length
+      }
+    });
+}
+
+// MapMetricsデータ準備
+function prepareMapMetrics(data) {
+  const metrics = [];
+  
+  Object.entries(data.locationCounts).forEach(([pref, count]) => {
+    if (prefectureCoords[pref]) {
+      metrics.push([
+        pref,
+        '',  // 市区町村
+        pref,  // キー
+        count,
+        prefectureCoords[pref].lat,
+        prefectureCoords[pref].lng
+      ]);
+    }
+  });
+  
+  return metrics;
+}
+
+// Applicantsデータ準備
+function prepareApplicants(data) {
+  return data.rows.map(row => [
+    'ID_' + row.id,
+    row.gender || '',
+    row.age || '',
+    getAgeBucket(row.age),
+    row.residence || '',
+    ''  // 市区町村
+  ]);
+}
+
+// DesiredWorkデータ準備
+function prepareDesiredWork(data) {
+  const desired = [];
+  
+  data.rows.forEach(row => {
+    row.desiredLocations.forEach(loc => {
+      desired.push([
+        'ID_' + row.id,
+        loc,
+        '',  // 市区町村
+        loc  // キー
+      ]);
+    });
+  });
+  
+  return desired;
+}
+
+// 年齢バケット
+function getAgeBucket(age) {
+  if (!age) return '';
+  if (age < 30) return '20代';
+  if (age < 40) return '30代';
+  if (age < 50) return '40代';
+  if (age < 60) return '50代';
+  if (age < 70) return '60代';
+  return '70代以上';
+}
+
+// UI関数
+function switchTab(tabName) {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.classList.remove('active');
+  });
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.remove('active');
+  });
+  
+  event.target.classList.add('active');
+  document.getElementById(tabName + '-tab').classList.add('active');
+}
+
+function showStatus(message, type) {
+  const status = document.getElementById('status');
+  status.textContent = message;
+  status.className = 'status ' + type;
+  status.style.display = 'block';
+}
+
+function showProgress(percent) {
+  const container = document.getElementById('progressContainer');
+  const bar = document.getElementById('progressBar');
+  
+  container.style.display = 'block';
+  bar.style.width = percent + '%';
+  bar.textContent = Math.round(percent) + '%';
+}
+
+function clearAll() {
+  selectedFile = null;
+  csvData = null;
+  analysisResult = null;
+  processedData = null;
+  
+  document.getElementById('fileInfo').style.display = 'none';
+  document.getElementById('progressContainer').style.display = 'none';
+  document.getElementById('status').style.display = 'none';
+  document.getElementById('analysisResults').style.display = 'none';
+  document.getElementById('analyzeButton').disabled = true;
+  document.getElementById('importButton').disabled = true;
+  
+  switchTab('import');
+}
+</script>
+</body>
+</html>
