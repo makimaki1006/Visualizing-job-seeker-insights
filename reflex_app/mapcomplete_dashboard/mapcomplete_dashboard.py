@@ -614,7 +614,13 @@ class DashboardState(rx.State):
             'weighted': 'sum',
             'count': 'sum'
         })
-        grouped['avg_qual'] = grouped['weighted'] / grouped['count'].replace(0, 1)  # ゼロ除算対策
+        # ゼロ除算を明示的に処理（count=0の場合は0を返す）
+        import numpy as np
+        grouped['avg_qual'] = np.where(
+            grouped['count'] > 0,
+            grouped['weighted'] / grouped['count'],
+            0
+        )
         grouped = grouped.reset_index()[['category1', 'avg_qual']]
         grouped.columns = ['name', 'avg_qual']
 
@@ -1343,8 +1349,18 @@ class DashboardState(rx.State):
             'weighted_rate': 'sum',
             'count': 'sum'
         })
-        grouped['avg_qual'] = grouped['weighted_qual'] / grouped['count'].replace(0, 1)
-        grouped['national_rate'] = grouped['weighted_rate'] / grouped['count'].replace(0, 1)
+        # ゼロ除算を明示的に処理（count=0の場合は0を返す）
+        import numpy as np
+        grouped['avg_qual'] = np.where(
+            grouped['count'] > 0,
+            grouped['weighted_qual'] / grouped['count'],
+            0
+        )
+        grouped['national_rate'] = np.where(
+            grouped['count'] > 0,
+            grouped['weighted_rate'] / grouped['count'],
+            0
+        )
         grouped = grouped.reset_index()[['category2', 'avg_qual', 'national_rate']]
         grouped.columns = ['age', 'avg_qual', 'national_rate']
 
@@ -1397,8 +1413,18 @@ class DashboardState(rx.State):
             'weighted_rate': 'sum',
             'count': 'sum'
         })
-        grouped['avg_qual'] = grouped['weighted_qual'] / grouped['count'].replace(0, 1)
-        grouped['national_rate'] = grouped['weighted_rate'] / grouped['count'].replace(0, 1)
+        # ゼロ除算を明示的に処理（count=0の場合は0を返す）
+        import numpy as np
+        grouped['avg_qual'] = np.where(
+            grouped['count'] > 0,
+            grouped['weighted_qual'] / grouped['count'],
+            0
+        )
+        grouped['national_rate'] = np.where(
+            grouped['count'] > 0,
+            grouped['weighted_rate'] / grouped['count'],
+            0
+        )
         grouped = grouped.reset_index()[['category1', 'avg_qual', 'national_rate']]
         grouped.columns = ['employment', 'avg_qual', 'national_rate']
 
