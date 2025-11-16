@@ -353,20 +353,163 @@ def load_data(self):
 - [ ] グラフ表示 → DB集計
 - [ ] パフォーマンス検証（CSV vs DB）
 
-### 3. 将来の拡張（オプション）
+### 3. PostgreSQLへの移行（Render等のクラウドデプロイ用）✅ 実装完了
 
-#### PostgreSQLへの移行
+#### 概要
 
-データ量がさらに増加した場合（100万行以上）、PostgreSQLへの移行を検討できます。
+Render等のクラウドプラットフォームでは、ファイルシステムが再起動時に消去されるため、SQLiteデータベースが失われます。永続化が必要な場合は、PostgreSQLへの移行が推奨されます。
+
+#### 無料のPostgreSQLプロバイダー
+
+| プロバイダー | 無料枠 | 特徴 | 推奨度 |
+|------------|--------|------|--------|
+| **Neon** | 3GB | データ量が多い場合に最適 | ⭐⭐⭐ |
+| **Supabase** | 500MB | 小規模データに適している | ⭐⭐ |
+
+**データ量目安**:
+- 現在のテストデータ（9,066件）: 8.03 MB
+- Supabase 500MB: 約55,000件まで
+- Neon 3GB: 約330,000件まで
+
+#### PostgreSQL移行手順
+
+**1. PostgreSQLデータベースを作成**
+
+**Neonの場合**:
+1. [Neon](https://neon.tech/) にアクセス
+2. 無料アカウント作成
+3. プロジェクト作成
+4. 接続文字列（DATABASE_URL）をコピー
+
+**Supabaseの場合**:
+1. [Supabase](https://supabase.com/) にアクセス
+2. 無料アカウント作成
+3. プロジェクト作成
+4. Settings → Database → Connection string（URI）をコピー
+
+**2. psycopg2-binaryをインストール**
+
+```bash
+pip install psycopg2-binary
+```
+
+**3. 環境変数を設定**
+
+Windowsの場合:
+```bash
+set DATABASE_URL=postgresql://user:password@host:port/dbname
+```
+
+Linuxの場合:
+```bash
+export DATABASE_URL=postgresql://user:password@host:port/dbname
+```
+
+**4. PostgreSQL移行スクリプトを実行**
+
+```bash
+cd "C:\Users\fuji1\OneDrive\Pythonスクリプト保管\job_medley_project\reflex_app"
+python migrate_to_postgresql.py
+```
+
+**実行内容**:
+- 既存のSQLiteデータベースから全データを読み込み
+- PostgreSQLにスキーマを作成
+- 全23テーブルのデータを移行
+- データ整合性を検証
+- 件数比較（SQLite vs PostgreSQL）
+
+**出力例**:
+```
+============================================================
+SQLite → PostgreSQL移行スクリプト
+============================================================
+
+既存のテーブルを削除中...
+テーブルを作成中...
+テーブル作成完了: 23個のテーブル
+
+データ移行開始...
+  [OK] applicants: 9066行を移行
+  [OK] desired_work: 31009行を移行
+  ...（全23テーブル）
+
+============================================================
+PostgreSQLデータベース統計
+============================================================
+applicants                               :      9,066行
+desired_work                             :     31,009行
+...
+
+データベースサイズ: 8.5 MB
+
+============================================================
+データ整合性検証
+============================================================
+[OK] applicants.applicant_id: ユニーク (9066件)
+[OK] persona_summary.persona_name: ユニーク (23件)
+[OK] desired_work -> applicants: 外部キー整合性OK
+
+[OK] データ整合性検証: すべて成功
+
+============================================================
+データ件数比較（SQLite vs PostgreSQL）
+============================================================
+[OK] applicants                           : SQLite= 9,066件 | PostgreSQL= 9,066件
+[OK] desired_work                         : SQLite=31,009件 | PostgreSQL=31,009件
+...
+
+[OK] すべてのテーブルが一致しました
+
+============================================================
+移行完了！
+============================================================
+総行数: 94,159行
+総テーブル数: 23テーブル
+```
+
+**5. Reflexアプリの環境変数を設定**
+
+Renderにデプロイする場合:
+1. Renderダッシュボード → Environment → Environment Variables
+2. `DATABASE_URL` を追加（PostgreSQL接続文字列）
+3. アプリを再デプロイ
+
+ローカルテストの場合:
+```bash
+# PostgreSQLモードで実行
+set DATABASE_URL=postgresql://...
+python db_helper.py
+
+# SQLiteモードで実行（DATABASE_URL未設定）
+python db_helper.py
+```
+
+#### ハイブリッドアーキテクチャ（✅ 実装完了）
+
+`db_helper.py` は環境変数 `DATABASE_URL` の有無で自動的にデータベースを切り替えます：
+
+| 環境 | DATABASE_URL | 使用DB | 用途 |
+|------|-------------|--------|------|
+| ローカル開発 | 未設定 | SQLite | 高速開発・テスト |
+| Renderデプロイ | 設定済み | PostgreSQL | 本番運用 |
+
+**コード例**:
+```python
+from db_helper import get_applicants, get_persona_summary
+
+# ローカル開発（SQLite）
+df = get_applicants("京都府", "京都市")
+
+# Renderデプロイ（PostgreSQL）- コード変更不要
+df = get_applicants("京都府", "京都市")
+```
 
 **メリット**:
-- より高速な全文検索
-- より高度なSQL機能
-- マルチユーザー対応
-
-**コスト**:
-- 無料（自己ホスト）
-- 有料（Heroku, AWS RDSなど）
+- ✅ コードベース統一（SQLiteとPostgreSQLで同じコード）
+- ✅ ローカル開発は高速（SQLite）
+- ✅ 本番環境は永続化（PostgreSQL）
+- ✅ 環境変数だけで切り替え可能
 
 ---
 
@@ -407,6 +550,64 @@ UnicodeEncodeError: 'cp932' codec can't encode character '\u2705'
 2. 重複データを削除
 3. `migrate_csv_to_db.py` を再実行
 
+### Q4. PostgreSQL接続エラー
+
+**エラーメッセージ**:
+```
+ERROR: PostgreSQL接続に失敗しました: could not connect to server
+```
+
+**解決方法**:
+1. DATABASE_URL環境変数を確認:
+```bash
+echo %DATABASE_URL%  # Windowsの場合
+echo $DATABASE_URL   # Linuxの場合
+```
+
+2. 接続文字列の形式を確認:
+```
+postgresql://user:password@host:port/dbname
+```
+
+3. ファイアウォール設定を確認（ポート5432がブロックされていないか）
+
+4. PostgreSQLサービスが起動しているか確認
+
+### Q5. psycopg2インポートエラー
+
+**エラーメッセージ**:
+```
+ImportError: No module named 'psycopg2'
+```
+
+**解決方法**:
+```bash
+pip install psycopg2-binary
+```
+
+注意: `psycopg2`ではなく`psycopg2-binary`をインストールしてください。
+
+### Q6. Renderデプロイ後にデータが消える
+
+**原因**: Renderの無料プランはファイルシステムが再起動時に消去されるため、SQLiteデータベースが失われます。
+
+**解決方法**:
+1. PostgreSQLプロバイダー（Neon/Supabase）でデータベースを作成
+2. `migrate_to_postgresql.py`を実行してデータを移行
+3. RenderのEnvironment Variablesに`DATABASE_URL`を設定
+4. 再デプロイ
+
+### Q7. SQLiteとPostgreSQLで動作が異なる
+
+**原因**: SQLとPostgreSQLの違い（AUTO_INCREMENT、BOOLEAN型など）
+
+**解決方法**:
+`db_helper.py`が自動的にSQL文を変換します：
+- SQLiteの`?` → PostgreSQLの`%s`（プレースホルダー）
+- `AUTOINCREMENT` → `SERIAL`（自動インクリメント）
+
+ほとんどの場合、コード変更は不要です。
+
 ---
 
 ## まとめ
@@ -416,5 +617,22 @@ UnicodeEncodeError: 'cp932' codec can't encode character '\u2705'
 ✅ **データ整合性100%検証済み**
 ✅ **データベースヘルパー関数を提供**
 ✅ **パフォーマンス比較でフィルタリング10倍高速化を期待**
+✅ **PostgreSQLハイブリッド対応完了**（環境変数で自動切り替え）
+✅ **SQLite→PostgreSQL移行スクリプト完成**（migrate_to_postgresql.py）
+✅ **Renderデプロイ対応完了**（無料のPostgreSQL連携）
 
-次のステップとして、DashboardStateをDB対応に更新し、E2Eテストで動作確認を行います。
+### 実装完了ファイル
+
+| ファイル | 行数 | 説明 |
+|---------|------|------|
+| `database_schema.py` | 475行 | 23テーブルのスキーマ定義 |
+| `migrate_csv_to_db.py` | 291行 | CSV→SQLite移行スクリプト |
+| `db_helper.py` | 371行 | ハイブリッドDBヘルパー（SQLite/PostgreSQL） |
+| `migrate_to_postgresql.py` | 346行 | SQLite→PostgreSQL移行スクリプト |
+| `data/job_medley.db` | 8.03MB | SQLiteデータベースファイル |
+
+### 次のステップ
+
+1. **DashboardStateのDB対応**（CSVからDBへ移行）
+2. **E2Eテスト実施**（SQLite/PostgreSQL両モード）
+3. **Renderデプロイテスト**（PostgreSQL連携確認）

@@ -1,38 +1,87 @@
 """
-SQLiteデータベースアクセスヘルパー
+ハイブリッドデータベースアクセスヘルパー（SQLite + PostgreSQL対応）
 
 DashboardStateでのデータベースアクセスを簡潔にするヘルパー関数群。
+環境変数DATABASE_URLで自動切り替え：
+- DATABASE_URL設定あり → PostgreSQL使用
+- DATABASE_URL未設定 → SQLite使用
 """
 
+import os
 import sqlite3
 import pandas as pd
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
-# データベースパス
+# 環境変数でデータベースを切り替え
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# SQLiteパス（ローカル開発用）
 DB_PATH = Path(__file__).parent / "data" / "job_medley.db"
 
+# PostgreSQL接続用（必要な場合のみimport）
+if DATABASE_URL:
+    try:
+        import psycopg2
+        import psycopg2.extras
+        _HAS_POSTGRES = True
+    except ImportError:
+        print("WARNING: psycopg2 not installed. Install with: pip install psycopg2-binary")
+        _HAS_POSTGRES = False
+else:
+    _HAS_POSTGRES = False
 
-def get_connection() -> sqlite3.Connection:
+
+def get_db_type() -> str:
     """
-    データベース接続を取得
+    使用中のデータベースタイプを取得
 
     Returns:
-        sqlite3接続オブジェクト
+        "postgresql" または "sqlite"
     """
-    if not DB_PATH.exists():
-        raise FileNotFoundError(
-            f"データベースファイルが見つかりません: {DB_PATH}\n"
-            f"migrate_csv_to_db.py を実行してデータベースを作成してください。"
-        )
+    return "postgresql" if DATABASE_URL and _HAS_POSTGRES else "sqlite"
 
-    conn = sqlite3.connect(str(DB_PATH))
-    return conn
+
+def get_connection() -> Union[sqlite3.Connection, "psycopg2.extensions.connection"]:
+    """
+    データベース接続を取得（環境変数で自動切り替え）
+
+    Returns:
+        PostgreSQLまたはSQLite接続オブジェクト
+    """
+    if DATABASE_URL and _HAS_POSTGRES:
+        # PostgreSQL接続
+        return psycopg2.connect(DATABASE_URL)
+    else:
+        # SQLite接続
+        if not DB_PATH.exists():
+            raise FileNotFoundError(
+                f"データベースファイルが見つかりません: {DB_PATH}\n"
+                f"migrate_csv_to_db.py を実行してデータベースを作成してください。"
+            )
+        return sqlite3.connect(str(DB_PATH))
+
+
+def _convert_sql_placeholders(sql: str, db_type: str) -> str:
+    """
+    SQLプレースホルダーをDB種別に応じて変換
+
+    Args:
+        sql: SQLクエリ文字列
+        db_type: "postgresql" または "sqlite"
+
+    Returns:
+        変換後のSQL文字列
+    """
+    if db_type == "postgresql":
+        # SQLiteの?をPostgreSQLの%sに変換
+        return sql.replace("?", "%s")
+    return sql
 
 
 def query_df(sql: str, params: Optional[tuple] = None) -> pd.DataFrame:
     """
-    SQLクエリを実行してDataFrameとして取得
+    SQLクエリを実行してDataFrameとして取得（両DB対応）
 
     Args:
         sql: SQLクエリ文字列
@@ -42,11 +91,16 @@ def query_df(sql: str, params: Optional[tuple] = None) -> pd.DataFrame:
         クエリ結果のDataFrame
     """
     conn = get_connection()
+    db_type = get_db_type()
+
     try:
+        # SQLプレースホルダー変換
+        converted_sql = _convert_sql_placeholders(sql, db_type)
+
         if params:
-            df = pd.read_sql_query(sql, conn, params=params)
+            df = pd.read_sql_query(converted_sql, conn, params=params)
         else:
-            df = pd.read_sql_query(sql, conn)
+            df = pd.read_sql_query(converted_sql, conn)
         return df
     finally:
         conn.close()
