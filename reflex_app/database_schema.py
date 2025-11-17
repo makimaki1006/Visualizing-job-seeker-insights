@@ -346,12 +346,13 @@ DATABASE_SCHEMA = {
 }
 
 
-def get_create_table_sql(table_name: str) -> str:
+def get_create_table_sql(table_name: str, db_type: str = "sqlite") -> str:
     """
-    テーブル作成SQL文を生成
+    テーブル作成SQL文を生成（PostgreSQL/SQLite両対応）
 
     Args:
         table_name: テーブル名
+        db_type: "postgresql" または "sqlite" (デフォルト: "sqlite")
 
     Returns:
         CREATE TABLE SQL文
@@ -362,7 +363,20 @@ def get_create_table_sql(table_name: str) -> str:
     schema = DATABASE_SCHEMA[table_name]
     columns = schema["columns"]
 
-    columns_sql = ",\n    ".join([f"{col[0]} {col[1]}" for col in columns])
+    # PostgreSQL用に構文変換
+    columns_sql_list = []
+    for col in columns:
+        col_def = f"{col[0]} {col[1]}"
+
+        if db_type == "postgresql":
+            # PostgreSQL対応変換
+            col_def = col_def.replace(" AUTOINCREMENT", "")  # AUTOINCREMENTを削除
+            col_def = col_def.replace("INTEGER PRIMARY KEY", "SERIAL PRIMARY KEY")  # SERIALに変換
+            col_def = col_def.replace("BOOLEAN", "BOOLEAN")  # 変更なし（PostgreSQLもBOOLEAN対応）
+
+        columns_sql_list.append(col_def)
+
+    columns_sql = ",\n    ".join(columns_sql_list)
 
     sql = f"""CREATE TABLE IF NOT EXISTS {table_name} (
     {columns_sql}
@@ -371,16 +385,19 @@ def get_create_table_sql(table_name: str) -> str:
     return sql
 
 
-def get_all_create_table_sqls() -> list:
+def get_all_create_table_sqls(db_type: str = "sqlite") -> list:
     """
-    全テーブルのCREATE TABLE SQL文を生成
+    全テーブルのCREATE TABLE SQL文を生成（PostgreSQL/SQLite両対応）
+
+    Args:
+        db_type: "postgresql" または "sqlite" (デフォルト: "sqlite")
 
     Returns:
         CREATE TABLE SQL文のリスト
     """
     sqls = []
     for table_name in DATABASE_SCHEMA.keys():
-        sqls.append(get_create_table_sql(table_name))
+        sqls.append(get_create_table_sql(table_name, db_type))
 
         # インデックス作成SQL
         if "indexes" in DATABASE_SCHEMA[table_name]:

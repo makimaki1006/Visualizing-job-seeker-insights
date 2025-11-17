@@ -13,11 +13,9 @@ import pandas as pd
 import json
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from pathlib import Path
-import sys
 
 # db_helper.py のインポート（データベース統合用）
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# rootDirectoryがreflex_appなので、sys.path操作不要
 try:
     from db_helper import get_connection, get_db_type, query_df
     _DB_AVAILABLE = True

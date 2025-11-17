@@ -19,6 +19,9 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 # SQLiteパス（ローカル開発用）
 DB_PATH = Path(__file__).parent / "data" / "job_medley.db"
 
+# データディレクトリ自動作成（SQLiteフォールバック対策）
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
 # PostgreSQL接続用（必要な場合のみimport）
 if DATABASE_URL:
     try:
