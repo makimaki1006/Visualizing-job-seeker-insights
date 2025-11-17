@@ -32,6 +32,27 @@ echo ""
 echo "Step 3: Building frontend and backend..."
 reflex export --no-zip
 
+# 3.5. エクスポート出力の検証
+echo ""
+echo "Step 3.5: Verifying export output..."
+if [ -d ".web/_static" ]; then
+    echo "[OK] Export directory found: .web/_static"
+    echo "[INFO] Static files:"
+    ls -lh .web/_static/ 2>/dev/null | head -10
+elif [ -d "frontend" ]; then
+    echo "[OK] Frontend directory found"
+    echo "[INFO] Frontend files:"
+    ls -lh frontend/ 2>/dev/null | head -10
+else
+    echo "[WARNING] No standard export output found"
+    echo "[INFO] Searching for build output..."
+    find . -maxdepth 3 -type d -name "_static" -o -name "build" -o -name "dist" 2>/dev/null
+fi
+
+echo ""
+echo "[INFO] Available directories:"
+ls -d .web*/ 2>/dev/null || echo "No .web directories found"
+
 # 5. データベーススキーマの初期化（オプション）
 if [ ! -z "$DATABASE_URL" ]; then
     echo ""

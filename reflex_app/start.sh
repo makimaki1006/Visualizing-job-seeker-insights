@@ -14,24 +14,33 @@ echo "Environment Check:"
 echo "- DATABASE_URL: ${DATABASE_URL:0:30}... (${#DATABASE_URL} chars)"
 echo "- PORT: ${PORT:-8000}"
 
-# フロントエンドの存在確認
+# 静的フロントエンドの存在確認
 echo ""
-echo "Checking frontend build:"
-if [ -d "frontend" ]; then
-    echo "✓ Frontend directory exists"
-    ls -lh frontend/ | head -5
+echo "Checking exported frontend:"
+STATIC_DIR=""
+if [ -d ".web/_static" ]; then
+    echo "✓ Export directory found: .web/_static"
+    STATIC_DIR=".web/_static"
+    ls -lh .web/_static/ 2>/dev/null | head -5
+elif [ -d "frontend" ]; then
+    echo "✓ Frontend directory found"
+    STATIC_DIR="frontend"
+    ls -lh frontend/ 2>/dev/null | head -5
 else
-    echo "✗ Frontend directory NOT found"
+    echo "✗ No static frontend found"
     echo "Available directories:"
-    ls -ld */ 2>/dev/null || echo "No directories found"
+    ls -d .web*/ */ 2>/dev/null | grep -v "^mapcomplete_dashboard" || echo "No directories found"
 fi
 
 # Reflexアプリケーションの起動
 echo ""
 echo "Starting Reflex production server..."
-echo "- Using production mode with backend host 0.0.0.0"
-echo ""
-
-# 本番モードで起動
-# --backend-host 0.0.0.0: Render.comからのリクエストを受け付ける
-exec reflex run --env prod --backend-host 0.0.0.0 --loglevel info
+if [ -n "$STATIC_DIR" ]; then
+    echo "- Mode: Backend-only (serving static files from $STATIC_DIR)"
+    echo "- Backend will serve both API and static frontend files"
+    exec reflex run --env prod --backend-only --loglevel info
+else
+    echo "- Mode: Full stack (backend + frontend development server)"
+    echo "- WARNING: This may not work correctly on Render.com"
+    exec reflex run --env prod --loglevel info
+fi
