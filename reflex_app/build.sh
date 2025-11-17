@@ -13,20 +13,18 @@ echo ""
 echo "Step 1: Installing Python dependencies..."
 pip install -r requirements.txt
 
-# 2. Reflexアプリケーションの初期化
+# 2. Reflexアプリケーションの初期化（既存プロジェクトのため、rxconfig.pyが存在すればスキップ）
 echo ""
-echo "Step 2: Initializing Reflex app..."
-reflex init
+echo "Step 2: Checking Reflex configuration..."
+if [ ! -f "rxconfig.py" ]; then
+    echo "[WARNING] rxconfig.py not found. This should not happen in production."
+    echo "[INFO] Skipping reflex init (using existing project structure)"
+fi
 
-# 3. フロントエンドの依存関係インストール
+# 3. フロントエンドのビルド（reflex exportでまとめて実行）
 echo ""
-echo "Step 3: Installing frontend dependencies..."
-cd .web && npm install && cd ..
-
-# 4. フロントエンドのビルド
-echo ""
-echo "Step 4: Building frontend..."
-reflex export --frontend-only
+echo "Step 3: Building frontend and backend..."
+reflex export --no-zip
 
 # 5. データベーススキーマの初期化（オプション）
 if [ ! -z "$DATABASE_URL" ]; then
