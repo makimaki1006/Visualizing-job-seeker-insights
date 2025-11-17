@@ -8,8 +8,9 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: cd reflex_app && chmod +x build.sh && ./build.sh
-    startCommand: cd reflex_app && chmod +x start.sh && ./start.sh
+    rootDirectory: reflex_app
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: chmod +x start.sh && ./start.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
