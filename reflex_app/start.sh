@@ -13,15 +13,25 @@ echo ""
 echo "Environment Check:"
 echo "- DATABASE_URL: ${DATABASE_URL:0:30}... (${#DATABASE_URL} chars)"
 echo "- PORT: ${PORT:-8000}"
-echo "- Exported frontend: $(ls -d frontend 2>/dev/null && echo 'YES' || echo 'NO')"
+
+# フロントエンドの存在確認
+echo ""
+echo "Checking frontend build:"
+if [ -d "frontend" ]; then
+    echo "✓ Frontend directory exists"
+    ls -lh frontend/ | head -5
+else
+    echo "✗ Frontend directory NOT found"
+    echo "Available directories:"
+    ls -ld */ 2>/dev/null || echo "No directories found"
+fi
 
 # Reflexアプリケーションの起動
 echo ""
 echo "Starting Reflex production server..."
-echo "- Backend will serve both API and static frontend files"
+echo "- Using production mode with backend host 0.0.0.0"
 echo ""
 
-# 本番モードで起動（バックエンドのみ、フロントエンドは静的ファイル配信）
-# --backend-only: バックエンドサーバーのみ起動
-# フロントエンドは reflex export で生成された静的ファイルを配信
-exec reflex run --env prod --backend-only --loglevel info
+# 本番モードで起動
+# --backend-host 0.0.0.0: Render.comからのリクエストを受け付ける
+exec reflex run --env prod --backend-host 0.0.0.0 --loglevel info
