@@ -35,7 +35,13 @@ reflex export --no-zip
 # 3.5. エクスポート出力の検証
 echo ""
 echo "Step 3.5: Verifying export output..."
-if [ -d ".web/_static" ]; then
+if [ -d ".web/build" ]; then
+    echo "[OK] Export directory found: .web/build"
+    echo "[INFO] Build files:"
+    ls -lh .web/build/ 2>/dev/null | head -10
+    echo "[INFO] Subdirectories:"
+    find .web/build -maxdepth 2 -type d 2>/dev/null | head -10
+elif [ -d ".web/_static" ]; then
     echo "[OK] Export directory found: .web/_static"
     echo "[INFO] Static files:"
     ls -lh .web/_static/ 2>/dev/null | head -10

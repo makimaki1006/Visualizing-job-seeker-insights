@@ -18,7 +18,11 @@ echo "- PORT: ${PORT:-8000}"
 echo ""
 echo "Checking exported frontend:"
 STATIC_DIR=""
-if [ -d ".web/_static" ]; then
+if [ -d ".web/build" ]; then
+    echo "✓ Export directory found: .web/build"
+    STATIC_DIR=".web/build"
+    ls -lh .web/build/ 2>/dev/null | head -5
+elif [ -d ".web/_static" ]; then
     echo "✓ Export directory found: .web/_static"
     STATIC_DIR=".web/_static"
     ls -lh .web/_static/ 2>/dev/null | head -5
