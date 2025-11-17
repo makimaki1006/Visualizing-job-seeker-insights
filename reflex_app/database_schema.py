@@ -387,3 +387,53 @@ def get_all_create_table_sqls() -> list:
             sqls.extend(DATABASE_SCHEMA[table_name]["indexes"])
 
     return sqls
+
+
+# ===========================
+# Reflex Dashboard用テーブル
+# ===========================
+DATABASE_SCHEMA["mapcomplete_raw"] = {
+    "description": "ReflexダッシュボードからアップロードされたMapComplete生データ（動的カラム対応）",
+    "columns": [
+        # 基本カラム（必須）
+        ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+        ("upload_timestamp", "TEXT"),  # アップロード日時
+
+        # MapComplete標準カラム（Phase 1-14の統合データ）
+        ("row_type", "TEXT"),  # SUMMARY, DETAIL, MATRIX等
+        ("prefecture", "TEXT"),
+        ("municipality", "TEXT"),
+
+        # Phase 1: 基礎集計
+        ("applicant_id", "INTEGER"),
+        ("applicant_count", "INTEGER"),
+        ("avg_age", "REAL"),
+        ("male_count", "INTEGER"),
+        ("female_count", "INTEGER"),
+
+        # Phase 2-14: 高度分析（動的カラム）
+        # 実際のCSVカラムに応じて自動的にカラムが追加される
+        # pandas to_sql()により動的に処理
+    ],
+    "indexes": [
+        "CREATE INDEX idx_mapcomplete_prefecture ON mapcomplete_raw(prefecture)",
+        "CREATE INDEX idx_mapcomplete_municipality ON mapcomplete_raw(municipality)",
+        "CREATE INDEX idx_mapcomplete_row_type ON mapcomplete_raw(row_type)",
+    ],
+    "notes": [
+        "このテーブルは動的カラム対応のため、実際の構造はCSVに依存",
+        "pandas DataFrame.to_sql()により自動的にカラムが追加される",
+        "applicant_id はユニークキーではない（複数のrow_typeで同じIDが出現する）",
+    ]
+}
+
+
+# 更新後のスキーマ情報を再生成
+def get_all_create_table_sqls_updated() -> list:
+    """
+    全テーブルのCREATE TABLE SQL文を生成（更新版）
+
+    Returns:
+        CREATE TABLE SQL文のリスト
+    """
+    return get_all_create_table_sqls()

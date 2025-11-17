@@ -12,6 +12,18 @@ import reflex as rx
 import pandas as pd
 import json
 from typing import Optional, List, Dict, Any
+from datetime import datetime
+from pathlib import Path
+import sys
+
+# db_helper.py のインポート（データベース統合用）
+sys.path.insert(0, str(Path(__file__).parent.parent))
+try:
+    from db_helper import get_connection, get_db_type, query_df
+    _DB_AVAILABLE = True
+except ImportError:
+    _DB_AVAILABLE = False
+    print("[WARNING] db_helper.py not found. Database features disabled.")
 
 # =====================================
 # 色覚バリアフリー対応配色（Okabe-Ito Color Palette準拠）
@@ -82,6 +94,43 @@ class DashboardState(rx.State):
     city_meta: str = "-"
     quality_badge: str = "品質未評価"
 
+    def __init__(self, *args, **kwargs):
+        """初期化: DB起動時ロード"""
+        super().__init__(*args, **kwargs)
+
+        # DB起動時ロード
+        if _DB_AVAILABLE:
+            try:
+                # mapcomplete_rawテーブルが存在すればロード
+                df_from_db = query_df("SELECT * FROM mapcomplete_raw LIMIT 1")
+
+                if not df_from_db.empty:
+                    # 全データロード
+                    self.df = query_df("SELECT * FROM mapcomplete_raw")
+                    self.total_rows = len(self.df)
+                    self.is_loaded = True
+
+                    # 都道府県・市区町村リスト初期化
+                    if 'prefecture' in self.df.columns:
+                        self.prefectures = sorted(self.df['prefecture'].dropna().unique().tolist())
+
+                        if len(self.prefectures) > 0:
+                            first_pref = self.prefectures[0]
+                            self.selected_prefecture = first_pref
+
+                            # 市区町村リスト初期化
+                            if 'municipality' in self.df.columns:
+                                filtered = self.df[self.df['prefecture'] == first_pref]
+                                self.municipalities = sorted(filtered['municipality'].dropna().unique().tolist())
+
+                    db_type = get_db_type()
+                    print(f"[DB] 起動時ロード成功: {self.total_rows}行 ({db_type})")
+                    print(f"[INFO] 都道府県数: {len(self.prefectures)}")
+                    print(f"[INFO] 市区町村数: {len(self.municipalities)}")
+
+            except Exception as e:
+                print(f"[INFO] DB起動時ロード失敗（CSVアップロード待機）: {e}")
+
     async def handle_upload(self, files: list[rx.UploadFile]):
         """CSVファイルアップロード処理"""
         if not files:
@@ -120,6 +169,45 @@ class DashboardState(rx.State):
                 print(f"[INFO] 都道府県数: {len(self.prefectures)}")
                 print(f"[INFO] 初期選択: {self.selected_prefecture}")
                 print(f"[INFO] 市区町村数: {len(self.municipalities)}")
+
+                # === DB保存機能（Upsert方式） ===
+                if _DB_AVAILABLE:
+                    try:
+                        conn = get_connection()
+                        db_type = get_db_type()
+
+                        # アップロードタイムスタンプ追加
+                        df_to_save = self.df.copy()
+                        df_to_save['upload_timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                        # 既存データ確認（Upsert用）
+                        existing_count = 0
+                        try:
+                            df_existing = pd.read_sql("SELECT COUNT(*) as count FROM mapcomplete_raw", conn)
+                            existing_count = int(df_existing['count'].iloc[0])
+                        except:
+                            pass  # テーブル未作成の場合
+
+                        # DB保存（完全置き換え = Upsert簡易版）
+                        df_to_save.to_sql(
+                            'mapcomplete_raw',
+                            conn,
+                            if_exists='replace',
+                            index=False,
+                            method='multi'
+                        )
+
+                        conn.close()
+
+                        # 統計情報表示
+                        if existing_count > 0:
+                            print(f"[DB] Upsert完了: {existing_count}件 → {len(df_to_save)}件 ({db_type})")
+                        else:
+                            print(f"[DB] 初回保存完了: {len(df_to_save)}件 ({db_type})")
+
+                    except Exception as db_err:
+                        print(f"[WARNING] DB保存失敗（CSV読み込みは成功）: {db_err}")
+                # === DB保存機能終了 ===
 
             except Exception as e:
                 print(f"[ERROR] CSVロードエラー: {e}")
