@@ -44,6 +44,17 @@ echo "- Backend port: $PORT"
 echo "- Static files: $STATIC_DIR"
 
 # Reflexをプロダクションモードで起動
-# 注意: Render.comは1ポートのみ外部公開可能なため、
-# バックエンドポートに統一し、静的ファイルも同時配信
-exec reflex run --env prod --backend-host 0.0.0.0 --backend-port $PORT --loglevel info
+# GunicornでReflex ASGIアプリケーションを起動（1ポートのみ）
+echo ""
+echo "Starting Gunicorn with Reflex backend..."
+echo "- Workers: 2"
+echo "- Port: $PORT"
+
+# Reflexのバックエンドモジュールを直接Gunicornで起動
+exec gunicorn mapcomplete_dashboard.mapcomplete_dashboard:app \
+    --workers 2 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --bind 0.0.0.0:$PORT \
+    --timeout 120 \
+    --access-logfile - \
+    --error-logfile -
