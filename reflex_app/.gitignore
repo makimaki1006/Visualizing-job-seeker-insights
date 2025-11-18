@@ -1,0 +1,11 @@
+assets/external/
+*.db
+.states
+*.py[cod]
+__pycache__/
+.web
+data/
+__pycache__/
+.pytest_cache/
+nul
+*/nul

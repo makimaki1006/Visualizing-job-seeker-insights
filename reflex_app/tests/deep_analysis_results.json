@@ -1,0 +1,69 @@
+{
+  "UT-01": {
+    "file_exists": true,
+    "file_size_bytes": 2157137,
+    "row_count": 18877
+  },
+  "UT-02": {
+    "total_columns": 36,
+    "required_found": 6,
+    "missing": []
+  },
+  "UT-03": {
+    "expected": [
+      "FLOW",
+      "GAP",
+      "RARITY",
+      "COMPETITION",
+      "SUMMARY"
+    ],
+    "actual": [
+      "SUMMARY",
+      "AGE_GENDER",
+      "PERSONA_MUNI",
+      "EMPLOYMENT_AGE_CROSS",
+      "CAREER_CROSS",
+      "URGENCY_AGE",
+      "URGENCY_EMPLOYMENT",
+      "FLOW",
+      "GAP",
+      "RARITY",
+      "COMPETITION",
+      "PERSONA"
+    ],
+    "missing": [],
+    "extra": [
+      "AGE_GENDER",
+      "PERSONA_MUNI",
+      "EMPLOYMENT_AGE_CROSS",
+      "CAREER_CROSS",
+      "URGENCY_AGE",
+      "URGENCY_EMPLOYMENT",
+      "PERSONA"
+    ],
+    "counts": {
+      "PERSONA_MUNI": 3249,
+      "RARITY": 3129,
+      "EMPLOYMENT_AGE_CROSS": 3113,
+      "URGENCY_AGE": 2310,
+      "CAREER_CROSS": 1440,
+      "URGENCY_EMPLOYMENT": 1430,
+      "FLOW": 901,
+      "GAP": 901,
+      "COMPETITION": 889,
+      "SUMMARY": 889,
+      "AGE_GENDER": 592,
+      "PERSONA": 34
+    }
+  },
+  "IT-05": {
+    "kyoto_rows": 302,
+    "osaka_rows": 910,
+    "mie_rows": 95,
+    "kyoto_cities": 21,
+    "osaka_cities": 61,
+    "mie_cities": 8
+  },
+  "IT-06": {
+    "flow_rows": 901,
+    "valid_net_flow": 
