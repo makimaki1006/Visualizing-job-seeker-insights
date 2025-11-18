@@ -44,6 +44,6 @@ echo "- Backend port: $PORT"
 echo "- Static files: $STATIC_DIR"
 
 # Reflexをプロダクションモードで起動
-# 注意: --backend-onlyは使用せず、通常のprodモードで起動
-# .web/buildの静的ファイルは自動的に配信される
-exec reflex run --env prod --loglevel info
+# 注意: Render.comは1ポートのみ外部公開可能なため、
+# バックエンドポートに統一し、静的ファイルも同時配信
+exec reflex run --env prod --backend-host 0.0.0.0 --backend-port $PORT --loglevel info
