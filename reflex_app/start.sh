@@ -39,12 +39,11 @@ fi
 # Reflexアプリケーションの起動
 echo ""
 echo "Starting Reflex production server..."
-if [ -n "$STATIC_DIR" ]; then
-    echo "- Mode: Backend-only (serving static files from $STATIC_DIR)"
-    echo "- Backend will serve both API and static frontend files"
-    exec reflex run --env prod --backend-only --loglevel info
-else
-    echo "- Mode: Full stack (backend + frontend development server)"
-    echo "- WARNING: This may not work correctly on Render.com"
-    exec reflex run --env prod --loglevel info
-fi
+echo "- Mode: Production with exported build"
+echo "- Backend port: $PORT"
+echo "- Static files: $STATIC_DIR"
+
+# Reflexをプロダクションモードで起動
+# 注意: --backend-onlyは使用せず、通常のprodモードで起動
+# .web/buildの静的ファイルは自動的に配信される
+exec reflex run --env prod --loglevel info
