@@ -258,6 +258,62 @@ def query_municipality(prefecture: str, municipality: str = None) -> pd.DataFram
     return df
 
 
+def get_filtered_data(prefecture: str, municipality: str = None) -> pd.DataFrame:
+    """サーバーサイドフィルタリング: 指定地域のデータのみ取得
+
+    Args:
+        prefecture: 都道府県名
+        municipality: 市区町村名（Noneの場合は都道府県全体）
+
+    Returns:
+        フィルタ済みDataFrame（数十〜数百行）
+    """
+    if _HAS_TURSO:
+        return query_municipality(prefecture, municipality)
+    else:
+        # SQLite/PostgreSQL用
+        sql = "SELECT * FROM mapcomplete_raw WHERE 1=1"
+        params = []
+
+        if prefecture:
+            sql += " AND prefecture = ?"
+            params.append(prefecture)
+
+        if municipality:
+            sql += " AND municipality = ?"
+            params.append(municipality)
+
+        return query_df(sql, tuple(params)) if params else query_df(sql)
+
+
+def get_row_count_by_location(prefecture: str, municipality: str = None) -> int:
+    """指定地域のデータ行数を取得（軽量クエリ）"""
+    if _HAS_TURSO:
+        if municipality:
+            sql = "SELECT COUNT(*) as cnt FROM job_seeker_data WHERE prefecture = ? AND municipality = ?"
+            df = query_df(sql, (prefecture, municipality))
+        else:
+            sql = "SELECT COUNT(*) as cnt FROM job_seeker_data WHERE prefecture = ?"
+            df = query_df(sql, (prefecture,))
+    else:
+        sql = "SELECT COUNT(*) as cnt FROM mapcomplete_raw WHERE 1=1"
+        params = []
+
+        if prefecture:
+            sql += " AND prefecture = ?"
+            params.append(prefecture)
+
+        if municipality:
+            sql += " AND municipality = ?"
+            params.append(municipality)
+
+        df = query_df(sql, tuple(params)) if params else query_df(sql)
+
+    if not df.empty and 'cnt' in df.columns:
+        return int(df['cnt'].iloc[0])
+    return 0
+
+
 def get_applicants(
     prefecture: Optional[str] = None, municipality: Optional[str] = None
 ) -> pd.DataFrame:

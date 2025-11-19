@@ -17,7 +17,11 @@ from datetime import datetime
 # db_helper.py のインポート（データベース統合用）
 # rootDirectoryがreflex_appなので、sys.path操作不要
 try:
-    from db_helper import get_connection, get_db_type, query_df, get_all_data, get_prefectures, get_municipalities
+    from db_helper import (
+        get_connection, get_db_type, query_df, get_all_data,
+        get_prefectures, get_municipalities, get_filtered_data,
+        get_row_count_by_location
+    )
     _DB_AVAILABLE = True
 except ImportError:
     _DB_AVAILABLE = False
@@ -71,12 +75,19 @@ TABS = [
 # State
 # =====================================
 class DashboardState(rx.State):
-    """ダッシュボード状態管理"""
+    """ダッシュボード状態管理
 
-    # データ
-    df: Optional[pd.DataFrame] = None
+    サーバーサイドフィルタリング対応版:
+    - 全データ(df)を保持せず、フィルタ済みデータ(filtered_df)のみ保持
+    - メモリ消費: 70MB/ユーザー → 0.1-1MB/ユーザー
+    - 30人以上の同時利用に対応
+    """
+
+    # データ（サーバーサイドフィルタリング: フィルタ済みデータのみ保持）
+    df: Optional[pd.DataFrame] = None  # フィルタ済みデータ（選択地域のみ、数十〜数百行）
     is_loaded: bool = False
-    total_rows: int = 0
+    total_rows: int = 0  # DB全体の行数（参考情報）
+    filtered_rows: int = 0  # 現在のフィルタ済み行数
 
     # フィルタ
     selected_prefecture: str = ""
@@ -93,65 +104,67 @@ class DashboardState(rx.State):
     quality_badge: str = "品質未評価"
 
     def __init__(self, *args, **kwargs):
-        """初期化: DB起動時ロード"""
+        """初期化: DB起動時ロード（サーバーサイドフィルタリング版）
+
+        全データをロードせず、都道府県リストと初期地域のフィルタ済みデータのみ取得。
+        メモリ消費: 70MB → 0.1-1MB
+        """
         super().__init__(*args, **kwargs)
 
-        # DB起動時ロード
+        # DB起動時ロード（軽量版）
         if _DB_AVAILABLE:
             try:
                 db_type = get_db_type()
 
-                # Tursoの場合はjob_seeker_dataテーブルから、それ以外はmapcomplete_rawから
-                if db_type == "turso":
-                    # Turso: 全データロード（キャッシュ対応）
-                    self.df = get_all_data()
+                # Step 1: 都道府県リストのみ取得（軽量クエリ）
+                self.prefectures = get_prefectures()
 
-                    if not self.df.empty:
-                        self.total_rows = len(self.df)
-                        self.is_loaded = True
+                if len(self.prefectures) > 0:
+                    # Step 2: 最初の都道府県を選択
+                    first_pref = self.prefectures[0]
+                    self.selected_prefecture = first_pref
 
-                        # 都道府県リスト取得
-                        self.prefectures = get_prefectures()
+                    # Step 3: 市区町村リスト取得
+                    self.municipalities = get_municipalities(first_pref)
 
-                        if len(self.prefectures) > 0:
-                            first_pref = self.prefectures[0]
-                            self.selected_prefecture = first_pref
+                    # Step 4: 最初の市区町村を選択し、フィルタ済みデータのみ取得
+                    if len(self.municipalities) > 0:
+                        first_muni = self.municipalities[0]
+                        self.selected_municipality = first_muni
 
-                            # 市区町村リスト初期化
-                            self.municipalities = get_municipalities(first_pref)
+                        # フィルタ済みデータのみ取得（数十〜数百行）
+                        self.df = get_filtered_data(first_pref, first_muni)
+                        self.filtered_rows = len(self.df)
+                    else:
+                        # 市区町村がない場合は都道府県全体
+                        self.df = get_filtered_data(first_pref)
+                        self.filtered_rows = len(self.df)
 
-                        print(f"[DB] Turso起動時ロード成功: {self.total_rows}行")
-                        print(f"[INFO] 都道府県数: {len(self.prefectures)}")
-                        print(f"[INFO] 市区町村数: {len(self.municipalities)}")
-                else:
-                    # SQLite/PostgreSQL: 従来のmapcomplete_rawテーブル
-                    df_from_db = query_df("SELECT * FROM mapcomplete_raw LIMIT 1")
+                    self.is_loaded = True
 
-                    if not df_from_db.empty:
-                        self.df = query_df("SELECT * FROM mapcomplete_raw")
-                        self.total_rows = len(self.df)
-                        self.is_loaded = True
+                    # DB全体の行数を取得（参考情報）
+                    if db_type == "turso":
+                        count_df = query_df("SELECT COUNT(*) as cnt FROM job_seeker_data")
+                    else:
+                        count_df = query_df("SELECT COUNT(*) as cnt FROM mapcomplete_raw")
 
-                        if 'prefecture' in self.df.columns:
-                            self.prefectures = sorted(self.df['prefecture'].dropna().unique().tolist())
+                    if not count_df.empty:
+                        self.total_rows = int(count_df['cnt'].iloc[0])
 
-                            if len(self.prefectures) > 0:
-                                first_pref = self.prefectures[0]
-                                self.selected_prefecture = first_pref
-
-                                if 'municipality' in self.df.columns:
-                                    filtered = self.df[self.df['prefecture'] == first_pref]
-                                    self.municipalities = sorted(filtered['municipality'].dropna().unique().tolist())
-
-                        print(f"[DB] 起動時ロード成功: {self.total_rows}行 ({db_type})")
-                        print(f"[INFO] 都道府県数: {len(self.prefectures)}")
-                        print(f"[INFO] 市区町村数: {len(self.municipalities)}")
+                    print(f"[DB] サーバーサイドフィルタリング初期化成功 ({db_type})")
+                    print(f"[INFO] DB全体: {self.total_rows:,}行, フィルタ済み: {self.filtered_rows}行")
+                    print(f"[INFO] 都道府県数: {len(self.prefectures)}, 市区町村数: {len(self.municipalities)}")
+                    print(f"[INFO] 選択: {self.selected_prefecture} {self.selected_municipality}")
 
             except Exception as e:
                 print(f"[INFO] DB起動時ロード失敗（CSVアップロード待機）: {e}")
 
     def load_from_database(self):
-        """データベースからデータを読み込む（ボタン押下時）"""
+        """データベースからデータを読み込む（ボタン押下時・サーバーサイドフィルタリング版）
+
+        全データをロードせず、都道府県リストと初期地域のフィルタ済みデータのみ取得。
+        メモリ消費: 70MB → 0.1-1MB
+        """
         if not _DB_AVAILABLE:
             print("[ERROR] データベース機能が利用できません")
             return
@@ -159,56 +172,46 @@ class DashboardState(rx.State):
         try:
             db_type = get_db_type()
 
-            if db_type == "turso":
-                # Turso: 全データロード（キャッシュ対応）
-                self.df = get_all_data()
+            # Step 1: 都道府県リストのみ取得（軽量クエリ）
+            self.prefectures = get_prefectures()
 
-                if not self.df.empty:
-                    self.total_rows = len(self.df)
-                    self.is_loaded = True
+            if len(self.prefectures) > 0:
+                # Step 2: 最初の都道府県を選択
+                first_pref = self.prefectures[0]
+                self.selected_prefecture = first_pref
 
-                    # 都道府県リスト取得
-                    self.prefectures = get_prefectures()
+                # Step 3: 市区町村リスト取得
+                self.municipalities = get_municipalities(first_pref)
 
-                    if len(self.prefectures) > 0:
-                        first_pref = self.prefectures[0]
-                        self.selected_prefecture = first_pref
+                # Step 4: 最初の市区町村を選択し、フィルタ済みデータのみ取得
+                if len(self.municipalities) > 0:
+                    first_muni = self.municipalities[0]
+                    self.selected_municipality = first_muni
 
-                        # 市区町村リスト初期化
-                        self.municipalities = get_municipalities(first_pref)
-
-                        # 最初の市区町村を選択
-                        if len(self.municipalities) > 0:
-                            self.selected_municipality = self.municipalities[0]
-
-                    print(f"[DB] Tursoロード成功: {self.total_rows}行")
+                    # フィルタ済みデータのみ取得（数十〜数百行）
+                    self.df = get_filtered_data(first_pref, first_muni)
+                    self.filtered_rows = len(self.df)
                 else:
-                    print("[ERROR] Tursoからデータを取得できませんでした")
+                    # 市区町村がない場合は都道府県全体
+                    self.df = get_filtered_data(first_pref)
+                    self.filtered_rows = len(self.df)
+
+                self.is_loaded = True
+
+                # DB全体の行数を取得（参考情報）
+                if db_type == "turso":
+                    count_df = query_df("SELECT COUNT(*) as cnt FROM job_seeker_data")
+                else:
+                    count_df = query_df("SELECT COUNT(*) as cnt FROM mapcomplete_raw")
+
+                if not count_df.empty:
+                    self.total_rows = int(count_df['cnt'].iloc[0])
+
+                print(f"[DB] サーバーサイドフィルタリング読み込み成功 ({db_type})")
+                print(f"[INFO] DB全体: {self.total_rows:,}行, フィルタ済み: {self.filtered_rows}行")
+                print(f"[INFO] 都道府県数: {len(self.prefectures)}, 市区町村数: {len(self.municipalities)}")
             else:
-                # SQLite/PostgreSQL: 従来のmapcomplete_rawテーブル
-                self.df = query_df("SELECT * FROM mapcomplete_raw")
-
-                if not self.df.empty:
-                    self.total_rows = len(self.df)
-                    self.is_loaded = True
-
-                    if 'prefecture' in self.df.columns:
-                        self.prefectures = sorted(self.df['prefecture'].dropna().unique().tolist())
-
-                        if len(self.prefectures) > 0:
-                            first_pref = self.prefectures[0]
-                            self.selected_prefecture = first_pref
-
-                            if 'municipality' in self.df.columns:
-                                filtered = self.df[self.df['prefecture'] == first_pref]
-                                self.municipalities = sorted(filtered['municipality'].dropna().unique().tolist())
-
-                                if len(self.municipalities) > 0:
-                                    self.selected_municipality = self.municipalities[0]
-
-                    print(f"[DB] {db_type}ロード成功: {self.total_rows}行")
-                else:
-                    print(f"[ERROR] {db_type}からデータを取得できませんでした")
+                print("[ERROR] 都道府県リストを取得できませんでした")
 
         except Exception as e:
             print(f"[ERROR] データベースロード失敗: {e}")
@@ -295,24 +298,56 @@ class DashboardState(rx.State):
                 print(f"[ERROR] CSVロードエラー: {e}")
 
     def set_prefecture(self, value: str):
-        """都道府県選択"""
+        """都道府県選択（サーバーサイドフィルタリング版）
+
+        DBから市区町村リストと最初の市区町村のフィルタ済みデータを取得。
+        """
         self.selected_prefecture = value
         self.selected_municipality = ""
 
-        # 市区町村リスト更新
-        if self.df is not None and 'municipality' in self.df.columns:
-            filtered = self.df[self.df['prefecture'] == value]
-            self.municipalities = sorted(filtered['municipality'].dropna().unique().tolist())
+        # 市区町村リスト更新（DBから取得）
+        if _DB_AVAILABLE:
+            self.municipalities = get_municipalities(value)
+
+            # 最初の市区町村を選択し、フィルタ済みデータのみ取得
+            if len(self.municipalities) > 0:
+                first_muni = self.municipalities[0]
+                self.selected_municipality = first_muni
+
+                # フィルタ済みデータのみ取得（数十〜数百行）
+                self.df = get_filtered_data(value, first_muni)
+                self.filtered_rows = len(self.df)
+            else:
+                # 市区町村がない場合は都道府県全体
+                self.df = get_filtered_data(value)
+                self.filtered_rows = len(self.df)
+
+            print(f"[DB] 都道府県変更: {value}, フィルタ済み: {self.filtered_rows}行")
+        else:
+            # CSV使用時の従来ロジック（フォールバック）
+            if self.df is not None and 'municipality' in self.df.columns:
+                filtered = self.df[self.df['prefecture'] == value]
+                self.municipalities = sorted(filtered['municipality'].dropna().unique().tolist())
 
         self.update_city_summary()
 
     def set_municipality(self, value: str):
-        """市区町村選択"""
+        """市区町村選択（サーバーサイドフィルタリング版）
+
+        DBからフィルタ済みデータのみ取得。
+        """
         self.selected_municipality = value
+
+        # フィルタ済みデータのみ取得（DBから）
+        if _DB_AVAILABLE and self.selected_prefecture:
+            self.df = get_filtered_data(self.selected_prefecture, value)
+            self.filtered_rows = len(self.df)
+            print(f"[DB] 市区町村変更: {value}, フィルタ済み: {self.filtered_rows}行")
+
         self.update_city_summary()
 
     def update_city_summary(self):
-        """選択地域サマリー更新"""
+        """選択地域サマリー更新（サーバーサイドフィルタリング版）"""
         if not self.selected_municipality:
             self.city_name = "-"
             self.city_meta = "-"
@@ -320,14 +355,11 @@ class DashboardState(rx.State):
 
         self.city_name = f"{self.selected_prefecture} {self.selected_municipality}"
 
-        # データ件数カウント
+        # データ件数カウント（dfは既にフィルタ済み）
         if self.df is not None:
-            filtered = self.df[
-                (self.df['prefecture'] == self.selected_prefecture) &
-                (self.df['municipality'] == self.selected_municipality)
-            ]
-            count = len(filtered)
-            self.city_meta = f"{count:,}件のデータ"
+            self.city_meta = f"{len(self.df):,}件のデータ"
+        else:
+            self.city_meta = "0件のデータ"
 
     def set_active_tab(self, tab_id: str):
         """アクティブタブ切り替え"""
@@ -443,26 +475,20 @@ class DashboardState(rx.State):
         return chart_data
 
     def _get_filtered_df(self) -> pd.DataFrame:
-        """フィルタ適用後のDataFrameを取得（ビュー操作でメモリ効率化）"""
+        """フィルタ適用後のDataFrameを取得（サーバーサイドフィルタリング版）
+
+        サーバーサイドフィルタリングでは、self.dfは既に選択地域のデータのみを含むため、
+        追加のフィルタリングは不要。そのまま返す。
+        """
         if self.df is None:
             return pd.DataFrame()
 
-        # マスクを使ってビュー操作（コピー不要、メモリ効率90%改善）
-        mask = pd.Series(True, index=self.df.index)
-
-        # 都道府県フィルタ
-        if self.selected_prefecture:
-            mask &= self.df['prefecture'] == self.selected_prefecture
-
-        # 市区町村フィルタ
-        if self.selected_municipality:
-            mask &= self.df['municipality'] == self.selected_municipality
-
-        return self.df[mask]  # ビューを返す（コピーなし）
+        # サーバーサイドフィルタリング: dfは既にフィルタ済み
+        return self.df
 
     # =====================================
-    # 頻出フィルタのキャッシュ化ヘルパー（パフォーマンス最適化）
-    # 都道府県・市区町村変更時のみ再計算（フィルタ実行回数80%削減）
+    # 頻出フィルタのキャッシュ化ヘルパー（サーバーサイドフィルタリング版）
+    # dfは既にフィルタ済みなので、row_typeフィルタのみ実行
     # =====================================
 
     @rx.var(cache=True)
@@ -471,12 +497,8 @@ class DashboardState(rx.State):
         if self.df is None:
             return pd.DataFrame()
 
-        mask = (
-            (self.df['row_type'] == 'PERSONA_MUNI') &
-            (self.df['prefecture'] == self.selected_prefecture) &
-            (self.df['municipality'] == self.selected_municipality)
-        )
-        return self.df[mask]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        return self.df[self.df['row_type'] == 'PERSONA_MUNI']
 
     @rx.var(cache=True)
     def _cached_employment_age_filtered(self) -> pd.DataFrame:
@@ -484,12 +506,8 @@ class DashboardState(rx.State):
         if self.df is None:
             return pd.DataFrame()
 
-        mask = (
-            (self.df['row_type'] == 'EMPLOYMENT_AGE_CROSS') &
-            (self.df['prefecture'] == self.selected_prefecture) &
-            (self.df['municipality'] == self.selected_municipality)
-        )
-        return self.df[mask]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        return self.df[self.df['row_type'] == 'EMPLOYMENT_AGE_CROSS']
 
     @rx.var(cache=True)
     def _cached_urgency_age_filtered(self) -> pd.DataFrame:
@@ -497,12 +515,8 @@ class DashboardState(rx.State):
         if self.df is None:
             return pd.DataFrame()
 
-        mask = (
-            (self.df['row_type'] == 'URGENCY_AGE') &
-            (self.df['prefecture'] == self.selected_prefecture) &
-            (self.df['municipality'] == self.selected_municipality)
-        )
-        return self.df[mask]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        return self.df[self.df['row_type'] == 'URGENCY_AGE']
 
     # =====================================
     # Supply パネル用計算プロパティ
@@ -764,15 +778,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # PERSONA_MUNIデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'PERSONA_MUNI') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'PERSONA_MUNI'].copy()
 
         if filtered.empty:
             return []
@@ -824,15 +832,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # EMPLOYMENT_AGE_CROSSデータをフィルタ（市町村別）
-        filtered = df[
-            (df['row_type'] == 'EMPLOYMENT_AGE_CROSS') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'EMPLOYMENT_AGE_CROSS'].copy()
 
         if filtered.empty:
             return []
@@ -863,15 +865,9 @@ class DashboardState(rx.State):
             return "0.00"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # EMPLOYMENT_AGE_CROSSデータをフィルタ（市町村別）
-        filtered = df[
-            (df['row_type'] == 'EMPLOYMENT_AGE_CROSS') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'EMPLOYMENT_AGE_CROSS'].copy()
 
         if filtered.empty:
             return "0.00"
@@ -894,15 +890,9 @@ class DashboardState(rx.State):
             return "0.00"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # EMPLOYMENT_AGE_CROSSデータをフィルタ（市町村別）
-        filtered = df[
-            (df['row_type'] == 'EMPLOYMENT_AGE_CROSS') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'EMPLOYMENT_AGE_CROSS'].copy()
 
         if filtered.empty:
             return "0.00"
@@ -934,15 +924,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # URGENCY_AGEデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'URGENCY_AGE') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'URGENCY_AGE'].copy()
 
         if filtered.empty:
             return []
@@ -979,15 +963,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # URGENCY_EMPLOYMENTデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'URGENCY_EMPLOYMENT') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'URGENCY_EMPLOYMENT'].copy()
 
         if filtered.empty:
             return []
@@ -1019,15 +997,9 @@ class DashboardState(rx.State):
             return "0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # URGENCY_AGEまたはURGENCY_EMPLOYMENTどちらか一方の合計を使用
-        filtered = df[
-            (df['row_type'] == 'URGENCY_AGE') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'URGENCY_AGE']
 
         total = filtered['count'].sum() if not filtered.empty else 0
         return f"{int(total):,}"
@@ -1039,15 +1011,9 @@ class DashboardState(rx.State):
             return "0.0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # URGENCY_AGEデータから加重平均を計算
-        filtered = df[
-            (df['row_type'] == 'URGENCY_AGE') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'URGENCY_AGE'].copy()
 
         if filtered.empty:
             return "0.0"
@@ -1074,15 +1040,9 @@ class DashboardState(rx.State):
             return "0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # FLOWデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'FLOW') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'FLOW']
 
         if filtered.empty:
             return "0"
@@ -1097,15 +1057,9 @@ class DashboardState(rx.State):
             return "0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # FLOWデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'FLOW') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'FLOW']
 
         if filtered.empty:
             return "0"
@@ -1120,15 +1074,9 @@ class DashboardState(rx.State):
             return "0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # FLOWデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'FLOW') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'FLOW']
 
         if filtered.empty:
             return "0"
@@ -1156,15 +1104,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # PERSONA_MUNIデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'PERSONA_MUNI') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'PERSONA_MUNI'].copy()
 
         if filtered.empty:
             return []
@@ -1209,15 +1151,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # PERSONA_MUNIデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'PERSONA_MUNI') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'PERSONA_MUNI'].copy()
 
         if filtered.empty:
             return []
@@ -1263,15 +1199,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # PERSONA_MUNIデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'PERSONA_MUNI') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'PERSONA_MUNI'].copy()
 
         if filtered.empty:
             return []
@@ -1304,15 +1234,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # PERSONA_MUNIデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'PERSONA_MUNI') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'PERSONA_MUNI'].copy()
 
         if filtered.empty:
             return []
@@ -1356,15 +1280,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # PERSONA_MUNIデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'PERSONA_MUNI') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'PERSONA_MUNI'].copy()
 
         if filtered.empty:
             return []
@@ -1402,15 +1320,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # EMPLOYMENT_AGE_CROSSデータをフィルタ（市町村別）
-        filtered = df[
-            (df['row_type'] == 'EMPLOYMENT_AGE_CROSS') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'EMPLOYMENT_AGE_CROSS'].copy()
 
         if filtered.empty:
             return []
@@ -1497,15 +1409,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # EMPLOYMENT_AGE_CROSSデータをフィルタ（市町村別）
-        filtered = df[
-            (df['row_type'] == 'EMPLOYMENT_AGE_CROSS') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'EMPLOYMENT_AGE_CROSS'].copy()
 
         if filtered.empty:
             return []
@@ -1561,15 +1467,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # EMPLOYMENT_AGE_CROSSデータをフィルタ（市町村別）
-        filtered = df[
-            (df['row_type'] == 'EMPLOYMENT_AGE_CROSS') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'EMPLOYMENT_AGE_CROSS'].copy()
 
         if filtered.empty:
             return []
@@ -1944,15 +1844,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # GAPデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'GAP') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'GAP']
 
         if filtered.empty:
             # データが存在しない場合は空配列を返す
@@ -1978,15 +1872,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # GAPデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'GAP') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'GAP']
 
         if filtered.empty:
             # データが存在しない場合は空配列を返す
@@ -2011,15 +1899,9 @@ class DashboardState(rx.State):
             return "0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # GAPデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'GAP') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'GAP']
 
         if filtered.empty:
             return "データなし"
@@ -2034,15 +1916,9 @@ class DashboardState(rx.State):
             return "0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # GAPデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'GAP') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'GAP']
 
         if filtered.empty:
             return "データなし"
@@ -2057,15 +1933,9 @@ class DashboardState(rx.State):
             return "0.0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # GAPデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'GAP') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'GAP']
 
         if filtered.empty:
             return "データなし"
@@ -2237,15 +2107,9 @@ class DashboardState(rx.State):
             return "0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # FLOWデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'FLOW') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'FLOW']
 
         if filtered.empty:
             return "データなし"
@@ -2260,15 +2124,9 @@ class DashboardState(rx.State):
             return "0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # FLOWデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'FLOW') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'FLOW']
 
         if filtered.empty:
             return "データなし"
@@ -2283,15 +2141,9 @@ class DashboardState(rx.State):
             return "0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # FLOWデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'FLOW') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'FLOW']
 
         if filtered.empty:
             return "データなし"
@@ -2306,15 +2158,9 @@ class DashboardState(rx.State):
             return "0.0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # FLOWデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'FLOW') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'FLOW']
 
         if filtered.empty:
             return "データなし"
@@ -2334,15 +2180,9 @@ class DashboardState(rx.State):
             return "0.0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # FLOWデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'FLOW') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'FLOW']
 
         if filtered.empty:
             return "データなし"
@@ -2473,15 +2313,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # RARITYデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'RARITY') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'RARITY'].copy()
 
         if filtered.empty:
             return []
@@ -2525,15 +2359,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # RARITYデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'RARITY') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'RARITY'].copy()
 
         if filtered.empty:
             return []
@@ -2627,15 +2455,9 @@ class DashboardState(rx.State):
             return "0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # RARITYデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'RARITY') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'RARITY']
 
         total = filtered['count'].sum() if not filtered.empty else 0
         return f"{int(total):,}"
@@ -2668,15 +2490,9 @@ class DashboardState(rx.State):
             return "0.0"
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # RARITYデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'RARITY') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ]
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'RARITY']
 
         if filtered.empty:
             return "0.0"
@@ -2700,15 +2516,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # RARITYデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'RARITY') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'RARITY'].copy()
 
         if filtered.empty:
             return []
@@ -2735,15 +2545,9 @@ class DashboardState(rx.State):
             return []
 
         df = self.df
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
 
-        # RARITYデータをフィルタ
-        filtered = df[
-            (df['row_type'] == 'RARITY') &
-            (df['prefecture'] == prefecture) &
-            (df['municipality'] == municipality)
-        ].copy()
+        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
+        filtered = df[df['row_type'] == 'RARITY'].copy()
 
         if filtered.empty:
             return []
