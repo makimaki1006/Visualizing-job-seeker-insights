@@ -1,19 +1,31 @@
+# -*- coding: utf-8 -*-
 """
-ハイブリッドデータベースアクセスヘルパー（SQLite + PostgreSQL対応）
+ハイブリッドデータベースアクセスヘルパー（Turso + SQLite + PostgreSQL対応）
 
 DashboardStateでのデータベースアクセスを簡潔にするヘルパー関数群。
-環境変数DATABASE_URLで自動切り替え：
+環境変数で自動切り替え：
+- TURSO_DATABASE_URL設定あり → Turso使用
 - DATABASE_URL設定あり → PostgreSQL使用
-- DATABASE_URL未設定 → SQLite使用
+- どちらも未設定 → SQLite使用
 """
 
 import os
 import sqlite3
+import asyncio
 import pandas as pd
 from pathlib import Path
 from typing import Optional, Union
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
-# 環境変数でデータベースを切り替え
+# .env ファイルを読み込み
+load_dotenv()
+
+# Turso環境変数
+TURSO_DATABASE_URL = os.getenv("TURSO_DATABASE_URL", "")
+TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN", "")
+
+# PostgreSQL環境変数
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 # SQLiteパス（ローカル開発用）
@@ -22,41 +34,56 @@ DB_PATH = Path(__file__).parent / "data" / "job_medley.db"
 # データディレクトリ自動作成（SQLiteフォールバック対策）
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
+# Turso libsql-clientインポート
+_HAS_TURSO = False
+if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
+    try:
+        import libsql_client
+        _HAS_TURSO = True
+        # libsql:// を https:// に変換
+        if TURSO_DATABASE_URL.startswith('libsql://'):
+            TURSO_DATABASE_URL = TURSO_DATABASE_URL.replace('libsql://', 'https://')
+    except ImportError:
+        print("WARNING: libsql-client not installed. Install with: pip install libsql-client")
+
 # PostgreSQL接続用（必要な場合のみimport）
-if DATABASE_URL:
+_HAS_POSTGRES = False
+if DATABASE_URL and not _HAS_TURSO:
     try:
         import psycopg2
         import psycopg2.extras
         _HAS_POSTGRES = True
     except ImportError:
         print("WARNING: psycopg2 not installed. Install with: pip install psycopg2-binary")
-        _HAS_POSTGRES = False
-else:
-    _HAS_POSTGRES = False
+
+# キャッシュ設定（Turso用）
+_cache: dict = {}
+_cache_time: dict = {}
+_max_cache_items = 50
+_ttl_minutes = 30
 
 
 def get_db_type() -> str:
-    """
-    使用中のデータベースタイプを取得
+    """使用中のデータベースタイプを取得"""
+    if _HAS_TURSO:
+        return "turso"
+    elif DATABASE_URL and _HAS_POSTGRES:
+        return "postgresql"
+    else:
+        return "sqlite"
 
-    Returns:
-        "postgresql" または "sqlite"
-    """
-    return "postgresql" if DATABASE_URL and _HAS_POSTGRES else "sqlite"
 
-
-def get_connection() -> Union[sqlite3.Connection, "psycopg2.extensions.connection"]:
-    """
-    データベース接続を取得（環境変数で自動切り替え）
-
-    Returns:
-        PostgreSQLまたはSQLite接続オブジェクト
-    """
-    if DATABASE_URL and _HAS_POSTGRES:
-        # PostgreSQL接続
+def get_connection() -> Union[sqlite3.Connection, "psycopg2.extensions.connection", object]:
+    """データベース接続を取得（環境変数で自動切り替え）"""
+    if _HAS_TURSO:
+        # Tursoはasyncベースなので、ダミー接続を返す
+        class TursoDummyConnection:
+            def close(self):
+                pass
+        return TursoDummyConnection()
+    elif DATABASE_URL and _HAS_POSTGRES:
         return psycopg2.connect(DATABASE_URL)
     else:
-        # SQLite接続
         if not DB_PATH.exists():
             raise FileNotFoundError(
                 f"データベースファイルが見つかりません: {DB_PATH}\n"
@@ -65,76 +92,176 @@ def get_connection() -> Union[sqlite3.Connection, "psycopg2.extensions.connectio
         return sqlite3.connect(str(DB_PATH))
 
 
+async def _turso_async_query(sql: str, params: list = None) -> tuple:
+    """Turso非同期クエリ実行"""
+    async with libsql_client.create_client(
+        url=TURSO_DATABASE_URL,
+        auth_token=TURSO_AUTH_TOKEN
+    ) as client:
+        if params:
+            result = await client.execute(sql, params)
+        else:
+            result = await client.execute(sql)
+        return result.rows, result.columns
+
+
 def _convert_sql_placeholders(sql: str, db_type: str) -> str:
-    """
-    SQLプレースホルダーをDB種別に応じて変換
-
-    Args:
-        sql: SQLクエリ文字列
-        db_type: "postgresql" または "sqlite"
-
-    Returns:
-        変換後のSQL文字列
-    """
+    """SQLプレースホルダーをDB種別に応じて変換"""
     if db_type == "postgresql":
-        # SQLiteの?をPostgreSQLの%sに変換
         return sql.replace("?", "%s")
     return sql
 
 
 def query_df(sql: str, params: Optional[tuple] = None) -> pd.DataFrame:
-    """
-    SQLクエリを実行してDataFrameとして取得（両DB対応）
-
-    Args:
-        sql: SQLクエリ文字列
-        params: パラメータタプル（オプション）
-
-    Returns:
-        クエリ結果のDataFrame
-    """
-    conn = get_connection()
+    """SQLクエリを実行してDataFrameとして取得（全DB対応）"""
     db_type = get_db_type()
 
-    try:
-        # SQLプレースホルダー変換
-        converted_sql = _convert_sql_placeholders(sql, db_type)
+    if db_type == "turso":
+        # Turso用非同期クエリ
+        try:
+            params_list = list(params) if params else None
 
-        if params:
-            df = pd.read_sql_query(converted_sql, conn, params=params)
-        else:
-            df = pd.read_sql_query(converted_sql, conn)
-        return df
-    finally:
-        conn.close()
+            # 既存のイベントループがあるかチェック（Reflex対応）
+            try:
+                loop = asyncio.get_running_loop()
+                # 既存ループがある場合は新しいスレッドで実行
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(
+                        lambda: asyncio.run(_turso_async_query(sql, params_list))
+                    )
+                    rows, columns = future.result(timeout=30)
+            except RuntimeError:
+                # 既存ループがない場合は直接実行
+                rows, columns = asyncio.run(_turso_async_query(sql, params_list))
+
+            if not rows:
+                return pd.DataFrame()
+
+            return pd.DataFrame(rows, columns=columns)
+
+        except Exception as e:
+            print(f"[ERROR] Turso query failed: {e}")
+            return pd.DataFrame()
+
+    else:
+        # SQLite/PostgreSQL用
+        conn = get_connection()
+        try:
+            converted_sql = _convert_sql_placeholders(sql, db_type)
+            if params:
+                df = pd.read_sql_query(converted_sql, conn, params=params)
+            else:
+                df = pd.read_sql_query(converted_sql, conn)
+            return df
+        finally:
+            conn.close()
+
+
+def _get_cached(key: str):
+    """キャッシュからデータを取得"""
+    if key not in _cache:
+        return None
+    elapsed = datetime.now() - _cache_time[key]
+    if elapsed > timedelta(minutes=_ttl_minutes):
+        del _cache[key]
+        del _cache_time[key]
+        return None
+    return _cache[key]
+
+
+def _set_cache(key: str, data):
+    """キャッシュにデータを保存"""
+    if len(_cache) >= _max_cache_items:
+        oldest = min(_cache_time, key=_cache_time.get)
+        del _cache[oldest]
+        del _cache_time[oldest]
+    _cache[key] = data
+    _cache_time[key] = datetime.now()
+
+
+def clear_cache():
+    """キャッシュをクリア"""
+    global _cache, _cache_time
+    _cache = {}
+    _cache_time = {}
 
 
 def get_table(table_name: str) -> pd.DataFrame:
-    """
-    テーブル全体をDataFrameとして取得
-
-    Args:
-        table_name: テーブル名
-
-    Returns:
-        テーブル全体のDataFrame
-    """
+    """テーブル全体をDataFrameとして取得"""
     return query_df(f"SELECT * FROM {table_name}")
+
+
+def get_all_data() -> pd.DataFrame:
+    """Turso job_seeker_data テーブルから全データを取得（キャッシュ対応）"""
+    cache_key = "ALL_DATA"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+
+    if _HAS_TURSO:
+        df = query_df("SELECT * FROM job_seeker_data")
+    else:
+        df = query_df("SELECT * FROM mapcomplete_raw")
+
+    _set_cache(cache_key, df)
+    return df
+
+
+def get_prefectures() -> list:
+    """都道府県一覧を取得"""
+    if _HAS_TURSO:
+        df = query_df("SELECT DISTINCT prefecture FROM job_seeker_data ORDER BY prefecture")
+        if df.empty:
+            return []
+        return df['prefecture'].tolist()
+    else:
+        return get_unique_values("applicants", "residence_prefecture")
+
+
+def get_municipalities(prefecture: str) -> list:
+    """指定都道府県の市区町村一覧を取得"""
+    if _HAS_TURSO:
+        df = query_df(
+            "SELECT DISTINCT municipality FROM job_seeker_data WHERE prefecture = ? AND municipality IS NOT NULL ORDER BY municipality",
+            (prefecture,)
+        )
+        if df.empty:
+            return []
+        return df['municipality'].tolist()
+    else:
+        sql = """
+            SELECT DISTINCT residence_municipality
+            FROM applicants
+            WHERE residence_prefecture = ?
+            ORDER BY residence_municipality
+        """
+        df = query_df(sql, (prefecture,))
+        return df["residence_municipality"].tolist()
+
+
+def query_municipality(prefecture: str, municipality: str = None) -> pd.DataFrame:
+    """市区町村単位でデータを取得（キャッシュ対応、Turso専用）"""
+    cache_key = f"{prefecture}_{municipality or 'ALL'}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+
+    if municipality:
+        sql = "SELECT * FROM job_seeker_data WHERE prefecture = ? AND municipality = ?"
+        df = query_df(sql, (prefecture, municipality))
+    else:
+        sql = "SELECT * FROM job_seeker_data WHERE prefecture = ?"
+        df = query_df(sql, (prefecture,))
+
+    _set_cache(cache_key, df)
+    return df
 
 
 def get_applicants(
     prefecture: Optional[str] = None, municipality: Optional[str] = None
 ) -> pd.DataFrame:
-    """
-    申請者データを取得（フィルタ可能）
-
-    Args:
-        prefecture: 都道府県（オプション）
-        municipality: 市区町村（オプション）
-
-    Returns:
-        申請者データのDataFrame
-    """
+    """申請者データを取得（フィルタ可能）"""
     sql = "SELECT * FROM applicants WHERE 1=1"
     params = []
 
@@ -154,17 +281,7 @@ def get_persona_summary(
     gender: Optional[str] = None,
     has_national_license: Optional[bool] = None,
 ) -> pd.DataFrame:
-    """
-    ペルソナサマリーを取得（フィルタ可能）
-
-    Args:
-        age_group: 年齢層（オプション）
-        gender: 性別（オプション）
-        has_national_license: 国家資格有無（オプション）
-
-    Returns:
-        ペルソナサマリーのDataFrame
-    """
+    """ペルソナサマリーを取得（フィルタ可能）"""
     sql = "SELECT * FROM persona_summary WHERE 1=1"
     params = []
 
@@ -186,15 +303,7 @@ def get_persona_summary(
 
 
 def get_supply_density_map(location: Optional[str] = None) -> pd.DataFrame:
-    """
-    人材供給密度マップデータを取得
-
-    Args:
-        location: 地域（オプション）
-
-    Returns:
-        人材供給密度マップのDataFrame
-    """
+    """人材供給密度マップデータを取得"""
     sql = "SELECT * FROM supply_density_map WHERE 1=1"
     params = []
 
@@ -213,18 +322,7 @@ def get_municipality_flow_edges(
     to_prefecture: Optional[str] = None,
     to_municipality: Optional[str] = None,
 ) -> pd.DataFrame:
-    """
-    自治体間フローエッジを取得
-
-    Args:
-        from_prefecture: 出発都道府県（オプション）
-        from_municipality: 出発市区町村（オプション）
-        to_prefecture: 到着都道府県（オプション）
-        to_municipality: 到着市区町村（オプション）
-
-    Returns:
-        自治体間フローエッジのDataFrame
-    """
+    """自治体間フローエッジを取得"""
     sql = "SELECT * FROM municipality_flow_edges WHERE 1=1"
     params = []
 
@@ -250,124 +348,40 @@ def get_municipality_flow_edges(
 
 
 def get_unique_values(table_name: str, column_name: str) -> list:
-    """
-    テーブルの指定カラムのユニーク値を取得
-
-    Args:
-        table_name: テーブル名
-        column_name: カラム名
-
-    Returns:
-        ユニーク値のリスト
-    """
+    """テーブルの指定カラムのユニーク値を取得"""
     sql = f"SELECT DISTINCT {column_name} FROM {table_name} WHERE {column_name} IS NOT NULL ORDER BY {column_name}"
     df = query_df(sql)
     return df[column_name].tolist()
 
 
-def get_prefectures() -> list:
-    """
-    都道府県一覧を取得
-
-    Returns:
-        都道府県のリスト
-    """
-    return get_unique_values("applicants", "residence_prefecture")
-
-
-def get_municipalities(prefecture: str) -> list:
-    """
-    指定都道府県の市区町村一覧を取得
-
-    Args:
-        prefecture: 都道府県
-
-    Returns:
-        市区町村のリスト
-    """
-    sql = """
-        SELECT DISTINCT residence_municipality
-        FROM applicants
-        WHERE residence_prefecture = ?
-        ORDER BY residence_municipality
-    """
-    df = query_df(sql, (prefecture,))
-    return df["residence_municipality"].tolist()
-
-
 def execute_custom_query(sql: str, params: Optional[tuple] = None) -> pd.DataFrame:
-    """
-    カスタムSQLクエリを実行
-
-    Args:
-        sql: SQLクエリ文字列
-        params: パラメータタプル（オプション）
-
-    Returns:
-        クエリ結果のDataFrame
-    """
+    """カスタムSQLクエリを実行"""
     return query_df(sql, params)
-
-
-# パフォーマンス比較用
-def benchmark_csv_vs_db():
-    """
-    CSV読み込みとDB読み込みのパフォーマンス比較
-    """
-    import time
-
-    # CSV読み込み（従来方式）
-    csv_path = Path(__file__).parent.parent / "python_scripts" / "data" / "output_v2" / "phase1" / "Phase1_Applicants.csv"
-
-    if csv_path.exists():
-        start = time.time()
-        df_csv = pd.read_csv(csv_path, encoding="utf-8-sig")
-        csv_time = time.time() - start
-        print(f"CSV読み込み: {csv_time:.3f}秒 ({len(df_csv)}行)")
-    else:
-        print(f"CSVファイルが見つかりません: {csv_path}")
-        csv_time = None
-
-    # DB読み込み（新方式）
-    start = time.time()
-    df_db = get_table("applicants")
-    db_time = time.time() - start
-    print(f"DB読み込み: {db_time:.3f}秒 ({len(df_db)}行)")
-
-    if csv_time:
-        speedup = csv_time / db_time
-        print(f"高速化: {speedup:.2f}倍")
 
 
 if __name__ == "__main__":
     print("=" * 60)
     print("データベースヘルパーテスト")
     print("=" * 60)
+    print(f"Database Type: {get_db_type()}")
 
-    # 都道府県一覧取得
-    print("\n都道府県一覧:")
-    prefectures = get_prefectures()
-    print(f"  {len(prefectures)}都道府県")
-    print(f"  例: {prefectures[:3]}")
+    if _HAS_TURSO:
+        print(f"Turso URL: {TURSO_DATABASE_URL}")
 
-    # 京都府の市区町村一覧
-    print("\n京都府の市区町村:")
-    municipalities = get_municipalities("京都府")
-    print(f"  {len(municipalities)}市区町村")
-    print(f"  例: {municipalities[:3]}")
+        # 都道府県一覧取得
+        print("\n都道府県一覧:")
+        prefectures = get_prefectures()
+        print(f"  {len(prefectures)}都道府県")
+        if prefectures:
+            print(f"  例: {prefectures[:3]}")
 
-    # 京都市の申請者データ
-    print("\n京都市の申請者データ:")
-    df_kyoto = get_applicants("京都府", "京都市")
-    print(f"  {len(df_kyoto)}件")
+            # 最初の都道府県の市区町村
+            first_pref = prefectures[0]
+            municipalities = get_municipalities(first_pref)
+            print(f"\n{first_pref}の市区町村: {len(municipalities)}")
 
-    # ペルソナサマリー（上位5件）
-    print("\nペルソナサマリー（上位5件）:")
-    df_persona = get_persona_summary()
-    print(df_persona.head()[["persona_name", "count"]])
-
-    # パフォーマンス比較
-    print("\n" + "=" * 60)
-    print("パフォーマンス比較")
-    print("=" * 60)
-    benchmark_csv_vs_db()
+            # データ取得テスト
+            df = query_municipality(first_pref)
+            print(f"{first_pref}のデータ: {len(df)}行")
+    else:
+        print("Turso未設定。SQLite/PostgreSQLモード。")

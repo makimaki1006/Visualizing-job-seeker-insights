@@ -17,7 +17,7 @@ from datetime import datetime
 # db_helper.py のインポート（データベース統合用）
 # rootDirectoryがreflex_appなので、sys.path操作不要
 try:
-    from db_helper import get_connection, get_db_type, query_df
+    from db_helper import get_connection, get_db_type, query_df, get_all_data, get_prefectures, get_municipalities
     _DB_AVAILABLE = True
 except ImportError:
     _DB_AVAILABLE = False
@@ -99,16 +99,99 @@ class DashboardState(rx.State):
         # DB起動時ロード
         if _DB_AVAILABLE:
             try:
-                # mapcomplete_rawテーブルが存在すればロード
-                df_from_db = query_df("SELECT * FROM mapcomplete_raw LIMIT 1")
+                db_type = get_db_type()
 
-                if not df_from_db.empty:
-                    # 全データロード
-                    self.df = query_df("SELECT * FROM mapcomplete_raw")
+                # Tursoの場合はjob_seeker_dataテーブルから、それ以外はmapcomplete_rawから
+                if db_type == "turso":
+                    # Turso: 全データロード（キャッシュ対応）
+                    self.df = get_all_data()
+
+                    if not self.df.empty:
+                        self.total_rows = len(self.df)
+                        self.is_loaded = True
+
+                        # 都道府県リスト取得
+                        self.prefectures = get_prefectures()
+
+                        if len(self.prefectures) > 0:
+                            first_pref = self.prefectures[0]
+                            self.selected_prefecture = first_pref
+
+                            # 市区町村リスト初期化
+                            self.municipalities = get_municipalities(first_pref)
+
+                        print(f"[DB] Turso起動時ロード成功: {self.total_rows}行")
+                        print(f"[INFO] 都道府県数: {len(self.prefectures)}")
+                        print(f"[INFO] 市区町村数: {len(self.municipalities)}")
+                else:
+                    # SQLite/PostgreSQL: 従来のmapcomplete_rawテーブル
+                    df_from_db = query_df("SELECT * FROM mapcomplete_raw LIMIT 1")
+
+                    if not df_from_db.empty:
+                        self.df = query_df("SELECT * FROM mapcomplete_raw")
+                        self.total_rows = len(self.df)
+                        self.is_loaded = True
+
+                        if 'prefecture' in self.df.columns:
+                            self.prefectures = sorted(self.df['prefecture'].dropna().unique().tolist())
+
+                            if len(self.prefectures) > 0:
+                                first_pref = self.prefectures[0]
+                                self.selected_prefecture = first_pref
+
+                                if 'municipality' in self.df.columns:
+                                    filtered = self.df[self.df['prefecture'] == first_pref]
+                                    self.municipalities = sorted(filtered['municipality'].dropna().unique().tolist())
+
+                        print(f"[DB] 起動時ロード成功: {self.total_rows}行 ({db_type})")
+                        print(f"[INFO] 都道府県数: {len(self.prefectures)}")
+                        print(f"[INFO] 市区町村数: {len(self.municipalities)}")
+
+            except Exception as e:
+                print(f"[INFO] DB起動時ロード失敗（CSVアップロード待機）: {e}")
+
+    def load_from_database(self):
+        """データベースからデータを読み込む（ボタン押下時）"""
+        if not _DB_AVAILABLE:
+            print("[ERROR] データベース機能が利用できません")
+            return
+
+        try:
+            db_type = get_db_type()
+
+            if db_type == "turso":
+                # Turso: 全データロード（キャッシュ対応）
+                self.df = get_all_data()
+
+                if not self.df.empty:
                     self.total_rows = len(self.df)
                     self.is_loaded = True
 
-                    # 都道府県・市区町村リスト初期化
+                    # 都道府県リスト取得
+                    self.prefectures = get_prefectures()
+
+                    if len(self.prefectures) > 0:
+                        first_pref = self.prefectures[0]
+                        self.selected_prefecture = first_pref
+
+                        # 市区町村リスト初期化
+                        self.municipalities = get_municipalities(first_pref)
+
+                        # 最初の市区町村を選択
+                        if len(self.municipalities) > 0:
+                            self.selected_municipality = self.municipalities[0]
+
+                    print(f"[DB] Tursoロード成功: {self.total_rows}行")
+                else:
+                    print("[ERROR] Tursoからデータを取得できませんでした")
+            else:
+                # SQLite/PostgreSQL: 従来のmapcomplete_rawテーブル
+                self.df = query_df("SELECT * FROM mapcomplete_raw")
+
+                if not self.df.empty:
+                    self.total_rows = len(self.df)
+                    self.is_loaded = True
+
                     if 'prefecture' in self.df.columns:
                         self.prefectures = sorted(self.df['prefecture'].dropna().unique().tolist())
 
@@ -116,18 +199,19 @@ class DashboardState(rx.State):
                             first_pref = self.prefectures[0]
                             self.selected_prefecture = first_pref
 
-                            # 市区町村リスト初期化
                             if 'municipality' in self.df.columns:
                                 filtered = self.df[self.df['prefecture'] == first_pref]
                                 self.municipalities = sorted(filtered['municipality'].dropna().unique().tolist())
 
-                    db_type = get_db_type()
-                    print(f"[DB] 起動時ロード成功: {self.total_rows}行 ({db_type})")
-                    print(f"[INFO] 都道府県数: {len(self.prefectures)}")
-                    print(f"[INFO] 市区町村数: {len(self.municipalities)}")
+                                if len(self.municipalities) > 0:
+                                    self.selected_municipality = self.municipalities[0]
 
-            except Exception as e:
-                print(f"[INFO] DB起動時ロード失敗（CSVアップロード待機）: {e}")
+                    print(f"[DB] {db_type}ロード成功: {self.total_rows}行")
+                else:
+                    print(f"[ERROR] {db_type}からデータを取得できませんでした")
+
+        except Exception as e:
+            print(f"[ERROR] データベースロード失敗: {e}")
 
     async def handle_upload(self, files: list[rx.UploadFile]):
         """CSVファイルアップロード処理"""
@@ -3047,10 +3131,43 @@ def sidebar_header() -> rx.Component:
 
 
 def csv_upload_section() -> rx.Component:
-    """CSVアップロードセクション"""
+    """CSVアップロード / データベース読み込みセクション"""
     return rx.vstack(
+        # データベースから読み込みボタン（優先表示）
         rx.text(
-            "CSVファイル",
+            "データ読み込み",
+            font_weight="600",
+            margin_bottom="0.5rem",
+            font_size="0.9rem",
+            color=MUTED_COLOR
+        ),
+        rx.button(
+            "データベースから読み込み",
+            on_click=DashboardState.load_from_database,
+            color=TEXT_COLOR,
+            bg=ACCENT_4,  # 青緑（成功色）
+            border_radius="8px",
+            padding="0.75rem 1.5rem",
+            font_size="0.9rem",
+            width="100%",
+            _hover={"bg": SUCCESS_COLOR}
+        ),
+        rx.text(
+            "Tursoクラウドから18,877行を読み込み",
+            font_size="0.7rem",
+            color=MUTED_COLOR,
+            margin_bottom="1rem"
+        ),
+
+        # 区切り線
+        rx.divider(
+            border_color=BORDER_COLOR,
+            margin_y="0.5rem"
+        ),
+
+        # CSVアップロード（従来機能）
+        rx.text(
+            "または CSVファイル",
             font_weight="600",
             margin_bottom="0.5rem",
             font_size="0.9rem",
@@ -3069,7 +3186,7 @@ def csv_upload_section() -> rx.Component:
                     _hover={"bg": SECONDARY_COLOR}
                 ),
                 rx.text(
-                    "または、ドラッグ&ドロップ",
+                    "ドラッグ&ドロップ",
                     font_size="0.75rem",
                     color=MUTED_COLOR,
                     margin_top="0.5rem"

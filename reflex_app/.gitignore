@@ -9,3 +9,8 @@ __pycache__/
 .pytest_cache/
 nul
 */nul
+
+# Environment variables (contains secrets)
+.env
+.env.local
+.env.*.local
