@@ -131,7 +131,14 @@ def generate_mobility_pattern():
         residence_full = f"{row['residence_prefecture']}{row['residence_municipality']}"
 
         # 希望地の都道府県・市区町村を分離
-        desired_pref, desired_muni = extract_prefecture_municipality(row['desired_municipality'])
+        # desired_prefectureカラム優先、欠損時はフォールバック
+        desired_pref = row.get('desired_prefecture')
+        if pd.isna(desired_pref) or not desired_pref:
+            # フォールバック: 正規表現で抽出
+            desired_pref, desired_muni = extract_prefecture_municipality(row['desired_municipality'])
+        else:
+            # prefectureカラムがある場合、市区町村部分のみ抽出
+            _, desired_muni = extract_prefecture_municipality(row['desired_municipality'])
 
         if not desired_pref or not desired_muni:
             continue
