@@ -11,8 +11,13 @@ GAS統合ダッシュボード（map_complete_integrated.html）の完全再現
 import reflex as rx
 import pandas as pd
 import json
+import unicodedata as ud
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+
+# 認証モジュールのインポート
+from .auth import AuthState, require_auth
+from .login import login_page
 
 # db_helper.py のインポート（データベース統合用）
 # rootDirectoryがreflex_appなので、sys.path操作不要
@@ -68,6 +73,7 @@ TABS = [
     {"id": "gap", "label": "需給バランス"},
     {"id": "rarity", "label": "希少人材分析"},
     {"id": "competition", "label": "人材プロファイル"},
+    {"id": "jobmap", "label": "🗺️ 求人地図"},  # 新規追加
 ]
 
 
@@ -85,9 +91,11 @@ class DashboardState(rx.State):
 
     # データ（サーバーサイドフィルタリング: フィルタ済みデータのみ保持）
     df: Optional[pd.DataFrame] = None  # フィルタ済みデータ（選択地域のみ、数十〜数百行）
+    df_full: Optional[pd.DataFrame] = None  # CSV全データ（CSVアップロード時のみ使用）
     is_loaded: bool = False
     total_rows: int = 0  # DB全体の行数（参考情報）
     filtered_rows: int = 0  # 現在のフィルタ済み行数
+    csv_uploaded: bool = False  # CSVアップロード済みフラグ（True時はDB使用しない）
 
     # フィルタ
     selected_prefecture: str = ""
@@ -102,6 +110,9 @@ class DashboardState(rx.State):
     city_name: str = "-"
     city_meta: str = "-"
     quality_badge: str = "品質未評価"
+
+    # 求人地図（職種選択）
+    selected_job_type: str = "介護職"  # デフォルト職種
 
     def __init__(self, *args, **kwargs):
         """初期化: DB起動時ロード（サーバーサイドフィルタリング版）
@@ -133,11 +144,11 @@ class DashboardState(rx.State):
                         self.selected_municipality = first_muni
 
                         # フィルタ済みデータのみ取得（数十〜数百行）
-                        self.df = get_filtered_data(first_pref, first_muni)
+                        self.df = self._normalize_df(get_filtered_data(first_pref, first_muni))
                         self.filtered_rows = len(self.df)
                     else:
                         # 市区町村がない場合は都道府県全体
-                        self.df = get_filtered_data(first_pref)
+                        self.df = self._normalize_df(get_filtered_data(first_pref))
                         self.filtered_rows = len(self.df)
 
                     self.is_loaded = True
@@ -189,11 +200,11 @@ class DashboardState(rx.State):
                     self.selected_municipality = first_muni
 
                     # フィルタ済みデータのみ取得（数十〜数百行）
-                    self.df = get_filtered_data(first_pref, first_muni)
+                    self.df = self._normalize_df(get_filtered_data(first_pref, first_muni))
                     self.filtered_rows = len(self.df)
                 else:
                     # 市区町村がない場合は都道府県全体
-                    self.df = get_filtered_data(first_pref)
+                    self.df = self._normalize_df(get_filtered_data(first_pref))
                     self.filtered_rows = len(self.df)
 
                 self.is_loaded = True
@@ -216,6 +227,105 @@ class DashboardState(rx.State):
         except Exception as e:
             print(f"[ERROR] データベースロード失敗: {e}")
 
+    def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
+        """基本的な正規化（Unicode正規化・前後空白除去・代表的な同義語置換・比率列の整形）。
+
+        目的: 個別最適のハードコーディングを避け、再利用可能な最小限の正規化を一箇所に集約する。
+        """
+        if df is None or df.empty:
+            return df
+
+        # 1) Unicode正規化 + 前後空白除去（キー列）
+        key_cols = [c for c in ['row_type', 'prefecture', 'municipality', 'category1', 'category2', 'category3'] if c in df.columns]
+        for c in key_cols:
+            try:
+                df[c] = (
+                    df[c]
+                    .astype(str)
+                    .map(lambda x: ud.normalize('NFKC', x))
+                    .str.replace('\u3000', ' ', regex=False)  # 全角空白→半角
+                    .str.strip()
+                )
+            except Exception:
+                pass
+
+        # 2) 区切り文字の統一（ペルソナ名等の中点・特殊記号のゆらぎ）
+        # 想定区切り: ・ ･ · ／ / | , など → 中点「・」に統一
+        sep_pattern = r"[\u00B7\u2027\u2219\u30FB\uFF65/\|,]"
+        for c in ['category1']:
+            if c in df.columns:
+                try:
+                    df[c] = df[c].str.replace(sep_pattern, '・', regex=True)
+                except Exception:
+                    pass
+
+        # 3) 代表的な同義語の標準化（ジェンダー・就業・row_type・真偽）
+        gender_map = {
+            '女': '女性', '女性': '女性', 'female': '女性', 'Ｆ': '女性', 'F': '女性',
+            '男': '男性', '男性': '男性', 'male': '男性', 'Ｍ': '男性', 'M': '男性',
+        }
+        employment_map = {
+            '有職': '有職', '就業': '有職', '在職': '有職', 'employed': '有職',
+            '無職': '無職', '非就業': '無職', 'unemployed': '無職',
+            '学生': '学生', '在学': '学生', 'student': '学生',
+        }
+        # category* に対して適用（存在する列のみ）
+        for c in ['category1', 'category2', 'category3']:
+            if c in df.columns:
+                try:
+                    df[c] = df[c].replace(gender_map)
+                    df[c] = df[c].replace(employment_map)
+                except Exception:
+                    pass
+
+        # row_type は大文字＋前後空白除去
+        if 'row_type' in df.columns:
+            try:
+                df['row_type'] = df['row_type'].astype(str).str.strip().str.upper()
+            except Exception:
+                pass
+
+        # 真偽（has_national_license）は 'True'/'False' に標準化（文字列運用のため）
+        if 'has_national_license' in df.columns:
+            def _to_bool_str(v):
+                s = str(v).strip().lower()
+                if s in ['1', 'true', 't', 'yes', 'y']:
+                    return 'True'
+                if s in ['0', 'false', 'f', 'no', 'n']:
+                    return 'False'
+                return s if s in ['true', 'false'] else 'False'
+            try:
+                df['has_national_license'] = df['has_national_license'].map(_to_bool_str)
+            except Exception:
+                pass
+
+        # 4) 比率列の整形（%や100ベース入力を0-1に正規化）
+        ratio_cols = [
+            'national_license_rate', 'female_ratio', 'top_age_ratio', 'top_employment_ratio'
+        ]
+        for c in ratio_cols:
+            if c in df.columns:
+                def _to_ratio(x):
+                    try:
+                        if isinstance(x, str):
+                            xs = x.strip().replace('%', '')
+                            if xs == '':
+                                return None
+                            val = float(xs)
+                            return val / 100.0 if val > 1.0 else val
+                        if pd.notna(x):
+                            x = float(x)
+                            return x / 100.0 if x > 1.0 else x
+                        return None
+                    except Exception:
+                        return None
+                try:
+                    df[c] = df[c].map(_to_ratio)
+                except Exception:
+                    pass
+
+        return df
+
     async def handle_upload(self, files: list[rx.UploadFile]):
         """CSVファイルアップロード処理"""
         if not files:
@@ -234,8 +344,12 @@ class DashboardState(rx.State):
                     low_memory=False,
                     dtype={'has_national_license': str}  # ブール型カラムを文字列として読み込む
                 )
+                # 正規化（前後空白など）
+                self.df = self._normalize_df(self.df)
+                self.df_full = self.df.copy()  # 全データを別変数に保存（市区町村リスト抽出用）
                 self.total_rows = len(self.df)
                 self.is_loaded = True
+                self.csv_uploaded = True  # CSVアップロード済みフラグをTrueに設定
 
                 # 都道府県リスト抽出
                 if 'prefecture' in self.df.columns:
@@ -250,7 +364,19 @@ class DashboardState(rx.State):
                             filtered = self.df[self.df['prefecture'] == first_pref]
                             self.municipalities = sorted(filtered['municipality'].dropna().unique().tolist())
 
+                # row_type件数の簡易ログ
+                try:
+                    rt_counts = self.df['row_type'].astype(str).str.strip().value_counts().to_dict() if 'row_type' in self.df.columns else {}
+                except Exception:
+                    rt_counts = {}
+                # row_type件数の簡易ログ
+                try:
+                    rt_counts = self.df['row_type'].astype(str).str.strip().value_counts().to_dict() if 'row_type' in self.df.columns else {}
+                except Exception:
+                    rt_counts = {}
                 print(f"[SUCCESS] CSVロード成功: {self.total_rows}行 x {len(self.df.columns)}列")
+                print(f"[DEBUG] row_type counts: {rt_counts}")
+                print(f"[DEBUG] row_type counts: {rt_counts}")
                 print(f"[INFO] 都道府県数: {len(self.prefectures)}")
                 print(f"[INFO] 初期選択: {self.selected_prefecture}")
                 print(f"[INFO] 市区町村数: {len(self.municipalities)}")
@@ -301,12 +427,36 @@ class DashboardState(rx.State):
         """都道府県選択（サーバーサイドフィルタリング版）
 
         DBから市区町村リストと最初の市区町村のフィルタ済みデータを取得。
+        CSVアップロード後はDB使用しない。
         """
         self.selected_prefecture = value
         self.selected_municipality = ""
 
+        # CSVアップロード済みの場合はCSVデータを使用（DB使用しない）
+        if self.csv_uploaded and self.df_full is not None:
+            # CSV全データから市区町村リストを抽出
+            if 'municipality' in self.df_full.columns:
+                filtered = self.df_full[self.df_full['prefecture'] == value]
+                self.municipalities = sorted(filtered['municipality'].dropna().unique().tolist())
+
+                # 最初の市区町村を自動選択してフィルタリング
+                if len(self.municipalities) > 0:
+                    first_muni = self.municipalities[0]
+                    self.selected_municipality = first_muni
+
+                    # CSV全体から都道府県＋市区町村でフィルタリング
+                    self.df = self.df_full[
+                        (self.df_full['prefecture'] == value) &
+                        (self.df_full['municipality'] == first_muni)
+                    ]
+                    self.filtered_rows = len(self.df)
+                    print(f"[CSV] 都道府県変更: {value}, 市区町村数: {len(self.municipalities)}, フィルタ済み: {self.filtered_rows}行")
+                else:
+                    print(f"[CSV] 都道府県変更: {value}, 市区町村数: 0")
+            else:
+                print(f"[CSV] 都道府県変更: {value}, municipality列が見つかりません")
         # 市区町村リスト更新（DBから取得）
-        if _DB_AVAILABLE:
+        elif _DB_AVAILABLE:
             self.municipalities = get_municipalities(value)
 
             # 最初の市区町村を選択し、フィルタ済みデータのみ取得
@@ -315,11 +465,11 @@ class DashboardState(rx.State):
                 self.selected_municipality = first_muni
 
                 # フィルタ済みデータのみ取得（数十〜数百行）
-                self.df = get_filtered_data(value, first_muni)
+                self.df = self._normalize_df(get_filtered_data(value, first_muni))
                 self.filtered_rows = len(self.df)
             else:
                 # 市区町村がない場合は都道府県全体
-                self.df = get_filtered_data(value)
+                self.df = self._normalize_df(get_filtered_data(value))
                 self.filtered_rows = len(self.df)
 
             print(f"[DB] 都道府県変更: {value}, フィルタ済み: {self.filtered_rows}行")
@@ -335,12 +485,23 @@ class DashboardState(rx.State):
         """市区町村選択（サーバーサイドフィルタリング版）
 
         DBからフィルタ済みデータのみ取得。
+        CSVアップロード後はCSVデータをそのまま使用（フィルタリングは_get_filtered_dfで実施）。
         """
         self.selected_municipality = value
 
+        # CSVアップロード済みの場合は、CSV全体から選択地域でフィルタリング
+        if self.csv_uploaded and self.df_full is not None:
+            # 都道府県と市区町村でフィルタリング
+            filtered = self.df_full[
+                (self.df_full['prefecture'] == self.selected_prefecture) &
+                (self.df_full['municipality'] == value)
+            ]
+            self.df = filtered
+            self.filtered_rows = len(self.df)
+            print(f"[CSV] 市区町村変更: {value}, フィルタ済み: {self.filtered_rows}行（CSV全体からフィルタリング）")
         # フィルタ済みデータのみ取得（DBから）
-        if _DB_AVAILABLE and self.selected_prefecture:
-            self.df = get_filtered_data(self.selected_prefecture, value)
+        elif _DB_AVAILABLE and self.selected_prefecture:
+            self.df = self._normalize_df(get_filtered_data(self.selected_prefecture, value))
             self.filtered_rows = len(self.df)
             print(f"[DB] 市区町村変更: {value}, フィルタ済み: {self.filtered_rows}行")
 
@@ -452,6 +613,92 @@ class DashboardState(rx.State):
         if filtered.empty:
             return []
 
+        # AGE_GENDERデータを使用
+        age_gender_rows = filtered[filtered['row_type'] == 'AGE_GENDER']
+        if not age_gender_rows.empty and 'category1' in age_gender_rows.columns and 'category2' in age_gender_rows.columns and 'count' in age_gender_rows.columns:
+            try:
+                # 年齢層×性別でグループ化（Recharts用リスト形式）
+                age_order = ['20代', '30代', '40代', '50代', '60代', '70歳以上']
+                chart_data = []
+
+                for age in age_order:
+                    age_rows = age_gender_rows[age_gender_rows['category1'] == age]
+                    if not age_rows.empty:
+                        male = int(age_rows[age_rows['category2'] == '男性']['count'].sum())
+                        female = int(age_rows[age_rows['category2'] == '女性']['count'].sum())
+                        chart_data.append({"name": age, "男性": male, "女性": female})
+                    else:
+                        chart_data.append({"name": age, "男性": 0, "女性": 0})
+
+                return chart_data
+            except Exception:
+                pass
+
+        # ラベルで集約（重複カテゴリ解消）
+        if 'avg_qualification_count' in filtered.columns:
+            try:
+                def _label(r):
+                    return f"{r.get('category1', '')}・{r.get('category2', '')}"
+                filtered = filtered.copy()  # 明示的にコピーを作成してSettingWithCopyWarningを回避
+                filtered['label'] = filtered.apply(_label, axis=1)
+                grouped = filtered.groupby('label')['avg_qualification_count'].mean().reset_index()
+                grouped = grouped.sort_values('avg_qualification_count', ascending=False).head(10)
+                result = [
+                    {"name": str(r['label']), "value": float(r['avg_qualification_count']) if pd.notna(r['avg_qualification_count']) else 0.0}
+                    for _, r in grouped.iterrows()
+                ]
+                return result
+            except Exception:
+                pass
+
+        # ラベルで集約（重複カテゴリ解消）
+        if 'national_license_rate' in filtered.columns:
+            try:
+                def _label(r):
+                    return f"{r.get('category1', '')}・{r.get('category2', '')}"
+                filtered = filtered.copy()  # 明示的にコピーを作成してSettingWithCopyWarningを回避
+                filtered['label'] = filtered.apply(_label, axis=1)
+                grouped = filtered.groupby('label')['national_license_rate'].mean().reset_index()
+                grouped['value'] = grouped['national_license_rate'] * 100.0
+                grouped = grouped.sort_values('value', ascending=False).head(10)
+                result = [{"name": str(r['label']), "value": float(r['value'])} for _, r in grouped.iterrows()]
+                return result
+            except Exception:
+                pass
+
+        # 自治体で集約して需給比率=需要/供給を計算（重複カテゴリ解消）
+        if all(c in filtered.columns for c in ['municipality', 'demand_count', 'supply_count']):
+            try:
+                grouped = filtered.groupby('municipality').agg({'demand_count': 'sum', 'supply_count': 'sum'}).reset_index()
+                def _ratio(row):
+                    s = row.get('supply_count', 0)
+                    d = row.get('demand_count', 0)
+                    return (d / s) if pd.notna(s) and s not in [0, 0.0] and pd.notna(d) else 0.0
+                grouped['ratio'] = grouped.apply(_ratio, axis=1)
+                grouped = grouped.sort_values('ratio', ascending=False).head(10)
+                result = [{"name": str(r['municipality']), "value": float(r['ratio'])} for _, r in grouped.iterrows()]
+                return result
+            except Exception:
+                pass
+
+        # 自治体で集約（重複カテゴリ解消）
+        if 'municipality' in filtered.columns and 'inflow' in filtered.columns:
+            try:
+                grouped = (
+                    filtered.groupby('municipality')['inflow']
+                    .sum()
+                    .reset_index()
+                    .sort_values('inflow', ascending=False)
+                    .head(10)
+                )
+                result = [
+                    {"name": str(r['municipality']), "value": int(r['inflow']) if pd.notna(r['inflow']) else 0}
+                    for _, r in grouped.iterrows()
+                ]
+                return result
+            except Exception:
+                pass
+
         # row_type='AGE_GENDER'のデータを抽出
         age_gender_rows = filtered[filtered['row_type'] == 'AGE_GENDER']
         if age_gender_rows.empty:
@@ -491,27 +738,27 @@ class DashboardState(rx.State):
     # dfは既にフィルタ済みなので、row_typeフィルタのみ実行
     # =====================================
 
-    @rx.var(cache=True)
+    @rx.var(cache=False)
     def _cached_persona_muni_filtered(self) -> pd.DataFrame:
-        """PERSONA_MUNIフィルタ結果をキャッシュ（9箇所で使用）"""
+        """PERSONA_MUNIフィルタ結果（キャッシュ無効化で常に最新データ）"""
         if self.df is None:
             return pd.DataFrame()
 
         # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
         return self.df[self.df['row_type'] == 'PERSONA_MUNI']
 
-    @rx.var(cache=True)
+    @rx.var(cache=False)
     def _cached_employment_age_filtered(self) -> pd.DataFrame:
-        """EMPLOYMENT_AGE_CROSSフィルタ結果をキャッシュ（10箇所で使用）"""
+        """EMPLOYMENT_AGE_CROSSフィルタ結果（キャッシュ無効化で常に最新データ）"""
         if self.df is None:
             return pd.DataFrame()
 
         # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
         return self.df[self.df['row_type'] == 'EMPLOYMENT_AGE_CROSS']
 
-    @rx.var(cache=True)
+    @rx.var(cache=False)
     def _cached_urgency_age_filtered(self) -> pd.DataFrame:
-        """URGENCY_AGEフィルタ結果をキャッシュ（6箇所で使用）"""
+        """URGENCY_AGEフィルタ結果（キャッシュ無効化で常に最新データ）"""
         if self.df is None:
             return pd.DataFrame()
 
@@ -675,7 +922,8 @@ class DashboardState(rx.State):
         """概要: 性別構成データ（ドーナツチャート用）
 
         GAS参照: map_complete_integrated.html Line 2497-2501
-        形式: [{"name": "男性", "value": 1500, "fill": "#38bdf8"}, {"name": "女性", "value": 2000, "fill": "#ec4899"}]
+        形式: [{"name": "男性", "value": 1500, "fill": "#648FFF"}, {"name": "女性", "value": 2000, "fill": "#FE6100"}]
+        データソース: row_type='SUMMARY', male_count, female_count
         """
         _ = self.selected_prefecture
         _ = self.selected_municipality
@@ -687,15 +935,16 @@ class DashboardState(rx.State):
         if filtered.empty:
             return []
 
-        # SUMMARYからmale_count, female_countを取得
+        # SUMMARYからmale_count, female_countを集計
         summary_rows = filtered[filtered['row_type'] == 'SUMMARY']
         if not summary_rows.empty and 'male_count' in summary_rows.columns and 'female_count' in summary_rows.columns:
             male = int(summary_rows['male_count'].sum())
             female = int(summary_rows['female_count'].sum())
-            # GAS Line 2499: backgroundColor:COLOR.slice(0,gl.length) に準拠
+
+            # 色盲対応パレット使用
             return [
-                {"name": "男性", "value": male, "fill": COLOR_PALETTE[0]},
-                {"name": "女性", "value": female, "fill": COLOR_PALETTE[1]}
+                {"name": "男性", "value": male, "fill": COLOR_PALETTE[0]},  # 青
+                {"name": "女性", "value": female, "fill": COLOR_PALETTE[1]}  # オレンジ
             ]
 
         return []
@@ -716,6 +965,24 @@ class DashboardState(rx.State):
         filtered = self._get_filtered_df()
         if filtered.empty:
             return []
+
+        # 自治体で集約（重複カテゴリ解消）
+        if 'municipality' in filtered.columns and 'net_flow' in filtered.columns:
+            try:
+                grouped = (
+                    filtered.groupby('municipality')['net_flow']
+                    .sum()
+                    .reset_index()
+                    .sort_values('net_flow', ascending=False)
+                    .head(10)
+                )
+                result = [
+                    {"name": str(r['municipality']), "value": int(r['net_flow']) if pd.notna(r['net_flow']) else 0}
+                    for _, r in grouped.iterrows()
+                ]
+                return result
+            except Exception:
+                pass
 
         # AGE_GENDERから年齢層ごとに男女合計
         age_gender_rows = filtered[filtered['row_type'] == 'AGE_GENDER']
@@ -785,6 +1052,24 @@ class DashboardState(rx.State):
         if filtered.empty:
             return []
 
+        # 自治体で集約（不足=gap>0の合計）
+        if 'municipality' in filtered.columns and 'gap' in filtered.columns:
+            try:
+                grouped = (
+                    filtered.groupby('municipality')['gap']
+                    .sum()
+                    .reset_index()
+                    .sort_values('gap', ascending=False)
+                    .head(10)
+                )
+                result = [
+                    {"name": str(r['municipality']), "value": int(r['gap']) if pd.notna(r['gap']) else 0}
+                    for _, r in grouped.iterrows()
+                ]
+                return result
+            except Exception:
+                pass
+
         # ペルソナ名でグループ化して加重平均を計算（ベクトル化で5-20倍高速化）
         filtered = filtered.copy()  # 一時的にコピー（weighted列追加のため）
         filtered['weighted'] = filtered['avg_qualifications'] * filtered['count']
@@ -838,6 +1123,24 @@ class DashboardState(rx.State):
 
         if filtered.empty:
             return []
+
+        # 自治体で集約（余剰=|sum(gap<0)|）
+        if 'municipality' in filtered.columns and 'gap' in filtered.columns:
+            try:
+                grouped = (
+                    filtered.groupby('municipality')['gap']
+                    .sum()
+                    .reset_index()
+                )
+                grouped['abs_surplus'] = grouped['gap'].abs()
+                grouped = grouped.sort_values('abs_surplus', ascending=False).head(10)
+                result = [
+                    {"name": str(r['municipality']), "value": int(r['abs_surplus']) if pd.notna(r['abs_surplus']) else 0}
+                    for _, r in grouped.iterrows()
+                ]
+                return result
+            except Exception:
+                pass
 
         # ピボットテーブル形式に変換: 年齢層 × 就業ステータス
         pivot_data = {}
@@ -2014,11 +2317,16 @@ class DashboardState(rx.State):
         if filtered.empty:
             return []
 
+        # 市区町村でgroupbyして集約（重複回避）
+        aggregated = filtered.groupby('municipality', as_index=False).agg({
+            'gap': 'sum'
+        })
+
         # gapでソート（降順）
-        filtered = filtered.sort_values('gap', ascending=False).head(10)
+        aggregated = aggregated.sort_values('gap', ascending=False).head(10)
 
         result = []
-        for _, row in filtered.iterrows():
+        for _, row in aggregated.iterrows():
             result.append({
                 "name": str(row.get('municipality', '不明')),
                 "value": int(row.get('gap', 0)) if pd.notna(row.get('gap')) else 0
@@ -2049,12 +2357,17 @@ class DashboardState(rx.State):
         if filtered.empty:
             return []
 
+        # 市区町村でgroupbyして集約（重複回避）
+        aggregated = filtered.groupby('municipality', as_index=False).agg({
+            'gap': 'sum'
+        })
+
         # gapの絶対値でソート（降順）
-        filtered['abs_gap'] = filtered['gap'].abs()
-        filtered = filtered.sort_values('abs_gap', ascending=False).head(10)
+        aggregated['abs_gap'] = aggregated['gap'].abs()
+        aggregated = aggregated.sort_values('abs_gap', ascending=False).head(10)
 
         result = []
-        for _, row in filtered.iterrows():
+        for _, row in aggregated.iterrows():
             result.append({
                 "name": str(row.get('municipality', '不明')),
                 "value": int(row.get('abs_gap', 0)) if pd.notna(row.get('abs_gap')) else 0
@@ -2084,11 +2397,16 @@ class DashboardState(rx.State):
         if filtered.empty:
             return []
 
+        # 市区町村でgroupbyして集約（重複回避、平均を使用）
+        aggregated = filtered.groupby('municipality', as_index=False).agg({
+            'demand_supply_ratio': 'mean'
+        })
+
         # demand_supply_ratioでソート（降順）
-        filtered = filtered.sort_values('demand_supply_ratio', ascending=False).head(10)
+        aggregated = aggregated.sort_values('demand_supply_ratio', ascending=False).head(10)
 
         result = []
-        for _, row in filtered.iterrows():
+        for _, row in aggregated.iterrows():
             result.append({
                 "name": str(row.get('municipality', '不明')),
                 "value": float(row.get('demand_supply_ratio', 0)) if pd.notna(row.get('demand_supply_ratio')) else 0.0
@@ -2217,11 +2535,16 @@ class DashboardState(rx.State):
         if filtered.empty:
             return []
 
+        # 市区町村でgroupbyして集約（重複回避）
+        aggregated = filtered.groupby('municipality', as_index=False).agg({
+            'inflow': 'sum'
+        })
+
         # 流入でソート
-        filtered = filtered.sort_values('inflow', ascending=False).head(10)
+        aggregated = aggregated.sort_values('inflow', ascending=False).head(10)
 
         result = []
-        for _, row in filtered.iterrows():
+        for _, row in aggregated.iterrows():
             result.append({
                 "name": str(row.get('municipality', '不明')),
                 "value": int(row.get('inflow', 0)) if pd.notna(row.get('inflow')) else 0
@@ -2251,11 +2574,16 @@ class DashboardState(rx.State):
         if filtered.empty:
             return []
 
+        # 市区町村でgroupbyして集約（重複回避）
+        aggregated = filtered.groupby('municipality', as_index=False).agg({
+            'outflow': 'sum'
+        })
+
         # 流出でソート
-        filtered = filtered.sort_values('outflow', ascending=False).head(10)
+        aggregated = aggregated.sort_values('outflow', ascending=False).head(10)
 
         result = []
-        for _, row in filtered.iterrows():
+        for _, row in aggregated.iterrows():
             result.append({
                 "name": str(row.get('municipality', '不明')),
                 "value": int(row.get('outflow', 0)) if pd.notna(row.get('outflow')) else 0
@@ -2285,11 +2613,16 @@ class DashboardState(rx.State):
         if filtered.empty:
             return []
 
+        # 市区町村でgroupbyして集約（重複回避）
+        aggregated = filtered.groupby('municipality', as_index=False).agg({
+            'net_flow': 'sum'
+        })
+
         # 純流入でソート
-        filtered = filtered.sort_values('net_flow', ascending=False).head(10)
+        aggregated = aggregated.sort_values('net_flow', ascending=False).head(10)
 
         result = []
-        for _, row in filtered.iterrows():
+        for _, row in aggregated.iterrows():
             result.append({
                 "name": str(row.get('municipality', '不明')),
                 "value": int(row.get('net_flow', 0)) if pd.notna(row.get('net_flow')) else 0
@@ -2539,7 +2872,7 @@ class DashboardState(rx.State):
     def rarity_gender_distribution(self) -> List[Dict[str, Any]]:
         """希少性: 性別分布（円グラフ用）
 
-        形式: [{"name": "男性", "value": 300}, {"name": "女性", "value": 250}]
+        形式: [{"name": "男性", "value": 300, "fill": "#0072B2"}, {"name": "女性", "value": 250, "fill": "#E69F00"}]
         """
         if not self.is_loaded or self.df is None:
             return []
@@ -2555,11 +2888,18 @@ class DashboardState(rx.State):
         # category2（性別）で集計
         gender_counts = filtered.groupby('category2')['count'].sum()
 
+        # 色盲対応パレット使用（男性=青、女性=オレンジ）
+        gender_colors = {
+            '男性': COLOR_PALETTE[0],  # 青 #0072B2
+            '女性': COLOR_PALETTE[1]   # オレンジ #E69F00
+        }
+
         result = []
         for gender, count in gender_counts.items():
             result.append({
                 "name": str(gender),
-                "value": int(count) if pd.notna(count) else 0
+                "value": int(count) if pd.notna(count) else 0,
+                "fill": gender_colors.get(str(gender), COLOR_PALETTE[2])  # デフォルトはピンク
             })
 
         return result
@@ -2652,7 +2992,7 @@ class DashboardState(rx.State):
     def competition_avg_female_ratio(self) -> str:
         """競合: 平均女性比率（選択都道府県内の平均）
 
-        データソース: row_type='SUMMARY', female_ratio
+        データソース: row_type='SUMMARY', female_count, male_count
         """
         if not self.is_loaded or self.df is None:
             return "0"
@@ -2669,11 +3009,13 @@ class DashboardState(rx.State):
         if filtered.empty:
             return "0"
 
-        # female_ratioの平均を計算（欠損値を除外）
-        avg_ratio = filtered['female_ratio'].mean()
+        # male_countとfemale_countから比率を計算
+        total_female = filtered['female_count'].sum()
+        total_male = filtered['male_count'].sum()
+        total = total_female + total_male
 
-        if pd.notna(avg_ratio):
-            return f"{avg_ratio * 100:.1f}"
+        if pd.notna(total) and total > 0:
+            return f"{(total_female / total) * 100:.1f}"
         else:
             return "0"
 
@@ -2704,10 +3046,10 @@ class DashboardState(rx.State):
         female_count = filtered['female_count'].sum()
         male_count = filtered['male_count'].sum()
 
-        # GAS COLOR配列を使用（性別2つ）
+        # 色盲対応パレット使用（overview_gender_dataと統一）
         return [
-            {"name": "女性", "value": int(female_count), "fill": COLOR_PALETTE[5]},  # ピンク
-            {"name": "男性", "value": int(male_count), "fill": COLOR_PALETTE[0]}   # 青
+            {"name": "男性", "value": int(male_count), "fill": COLOR_PALETTE[0]},   # 青
+            {"name": "女性", "value": int(female_count), "fill": COLOR_PALETTE[1]}  # オレンジ
         ]
 
     @rx.var(cache=False)
@@ -2797,17 +3139,24 @@ class DashboardState(rx.State):
         df = self.df
         prefecture = self.selected_prefecture
 
-        # COMPETITIONデータをフィルタ
+        # SUMMARYデータをフィルタ
         filtered = df[
-            (df['row_type'] == 'COMPETITION') &
+            (df['row_type'] == 'SUMMARY') &
             (df['prefecture'] == prefecture)
-        ]
+        ].copy()
 
-        if filtered.empty or 'male_ratio' not in filtered.columns:
+        if filtered.empty:
             return "0.0"
 
-        avg_ratio = filtered['male_ratio'].mean()
-        return f"{avg_ratio * 100:.1f}" if pd.notna(avg_ratio) else "0.0"
+        # male_countとfemale_countから比率を計算
+        total_male = filtered['male_count'].sum()
+        total_female = filtered['female_count'].sum()
+        total = total_male + total_female
+
+        if pd.notna(total) and total > 0:
+            return f"{(total_male / total) * 100:.1f}"
+        else:
+            return "0.0"
 
     @rx.var(cache=False)
     def competition_national_license_ranking(self) -> List[Dict[str, Any]]:
@@ -2891,25 +3240,36 @@ class DashboardState(rx.State):
         df = self.df
         prefecture = self.selected_prefecture
 
-        # COMPETITIONデータをフィルタ
+        # SUMMARYデータをフィルタ
         filtered = df[
-            (df['row_type'] == 'COMPETITION') &
+            (df['row_type'] == 'SUMMARY') &
             (df['prefecture'] == prefecture)
         ].copy()
 
         if filtered.empty:
             return []
 
-        # female_ratioでソート（降順）
-        filtered = filtered.sort_values('female_ratio', ascending=False).head(10)
+        # male_countとfemale_countから女性比率を計算
+        def _calc_female_ratio(row):
+            male = row.get('male_count', 0)
+            female = row.get('female_count', 0)
+            total = male + female
+            if pd.notna(total) and total > 0:
+                return (female / total) * 100
+            return 0.0
+
+        filtered['female_ratio_calc'] = filtered.apply(_calc_female_ratio, axis=1)
+
+        # 女性比率でソート（降順）
+        filtered = filtered.sort_values('female_ratio_calc', ascending=False).head(10)
 
         result = []
         for _, row in filtered.iterrows():
-            # category1のみ使用（年齢層）
-            label = str(row.get('category1', '不明'))
+            # municipalityを使用
+            name = str(row.get('municipality', '不明'))
             result.append({
-                "name": label,
-                "value": float(row.get('female_ratio', 0) * 100) if pd.notna(row.get('female_ratio')) else 0.0
+                "name": name,
+                "value": float(row['female_ratio_calc'])
             })
 
         return result
@@ -2920,15 +3280,55 @@ class DashboardState(rx.State):
 # =====================================
 
 def sidebar_header() -> rx.Component:
-    """サイドバーヘッダ"""
+    """サイドバーヘッダ（認証情報付き）"""
     return rx.vstack(
         rx.heading(
             "求職者分析ダッシュボード",
             size="5",
             color=TEXT_COLOR,
             letter_spacing="0.08em",
-            margin_bottom="1.5rem"
+            margin_bottom="0.5rem"
         ),
+
+        # ユーザー情報とログアウト
+        rx.hstack(
+            rx.hstack(
+                rx.text("👤", font_size="1.2rem"),
+                rx.vstack(
+                    rx.text(
+                        AuthState.user_email,
+                        font_size="0.75rem",
+                        color=TEXT_COLOR,
+                        font_weight="500"
+                    ),
+                    rx.text(
+                        AuthState.user_email,
+                        font_size="0.65rem",
+                        color=MUTED_COLOR
+                    ),
+                    spacing="0",
+                    align_items="flex-start"
+                ),
+                spacing="2",
+                align_items="center"
+            ),
+            rx.button(
+                "ログアウト",
+                on_click=AuthState.logout,
+                size="1",
+                variant="soft",
+                color_scheme="gray",
+                font_size="0.7rem"
+            ),
+            width="100%",
+            justify="between",
+            align_items="center",
+            padding="0.5rem",
+            border_radius="8px",
+            background="rgba(255, 255, 255, 0.03)",
+            margin_bottom="1rem"
+        ),
+
         width="100%",
         spacing="0"
     )
@@ -3286,23 +3686,35 @@ def cross_gender_employment_chart() -> rx.Component:
 
 
 def cross_age_qualification_chart() -> rx.Component:
-    """クロス: 年齢×資格保有グラフ（折れ線グラフ）"""
+    """クロス: 年齢×資格保有グラフ（複合: 折れ線2本、デュアルY軸）"""
     return rx.box(
-        rx.recharts.line_chart(
+        rx.recharts.composed_chart(
             rx.recharts.line(
                 data_key="avg_qual",
                 name="平均資格数",
+                y_axis_id="left",
                 stroke=PRIMARY_COLOR,
                 type_="monotone",
             ),
             rx.recharts.line(
                 data_key="national_rate",
-                name="国家資格保有率",
+                name="国家資格保有率(%)",
+                y_axis_id="right",
                 stroke=ACCENT_5,
                 type_="monotone",
             ),
             rx.recharts.x_axis(data_key="age", stroke="#94a3b8"),
-            rx.recharts.y_axis(stroke="#94a3b8"),
+            rx.recharts.y_axis(
+                y_axis_id="left",
+                stroke="#94a3b8",
+                label={"value": "平均資格数", "angle": -90, "position": "insideLeft", "style": {"fill": "#94a3b8", "fontSize": 12}}
+            ),
+            rx.recharts.y_axis(
+                y_axis_id="right",
+                orientation="right",
+                stroke="#94a3b8",
+                label={"value": "国家資格保有率(%)", "angle": 90, "position": "insideRight", "style": {"fill": "#94a3b8", "fontSize": 12}}
+            ),
             rx.recharts.legend(),
             rx.recharts.graphing_tooltip(),
             data=DashboardState.cross_age_qualification_data,
@@ -3318,23 +3730,35 @@ def cross_age_qualification_chart() -> rx.Component:
 
 
 def cross_employment_qualification_chart() -> rx.Component:
-    """クロス: 就業状態×資格保有グラフ（棒グラフ）"""
+    """クロス: 就業状態×資格保有グラフ（複合: 棒+折れ線、デュアルY軸）"""
     return rx.box(
-        rx.recharts.bar_chart(
+        rx.recharts.composed_chart(
             rx.recharts.bar(
                 data_key="avg_qual",
                 name="平均資格数",
+                y_axis_id="left",
                 stroke=PRIMARY_COLOR,
                 fill=PRIMARY_COLOR,
             ),
-            rx.recharts.bar(
+            rx.recharts.line(
                 data_key="national_rate",
-                name="国家資格保有率",
+                name="国家資格保有率(%)",
+                y_axis_id="right",
                 stroke=ACCENT_5,
-                fill=ACCENT_5,
+                type_="monotone",
             ),
             rx.recharts.x_axis(data_key="employment", stroke="#94a3b8"),
-            rx.recharts.y_axis(stroke="#94a3b8"),
+            rx.recharts.y_axis(
+                y_axis_id="left",
+                stroke="#94a3b8",
+                label={"value": "平均資格数", "angle": -90, "position": "insideLeft", "style": {"fill": "#94a3b8", "fontSize": 12}}
+            ),
+            rx.recharts.y_axis(
+                y_axis_id="right",
+                orientation="right",
+                stroke="#94a3b8",
+                label={"value": "国家資格保有率(%)", "angle": 90, "position": "insideRight", "style": {"fill": "#94a3b8", "fontSize": 12}}
+            ),
             rx.recharts.legend(),
             rx.recharts.graphing_tooltip(),
             data=DashboardState.cross_employment_qualification_data,
@@ -3692,7 +4116,7 @@ def supply_persona_qual_chart() -> rx.Component:
             ),
             rx.recharts.graphing_tooltip(),
             data=DashboardState.supply_persona_qual_data,
-            layout="horizontal",
+            layout="vertical",
             width="100%",
             height=400
         ),
@@ -3734,7 +4158,7 @@ def flow_inflow_ranking_chart() -> rx.Component:
                 ),
                 rx.recharts.graphing_tooltip(),
                 data=DashboardState.flow_inflow_ranking,
-                layout="horizontal",
+                layout="vertical",
                 width="100%",
                 height=400,
                 bar_size=25,
@@ -3778,7 +4202,7 @@ def flow_outflow_ranking_chart() -> rx.Component:
                 ),
                 rx.recharts.graphing_tooltip(),
                 data=DashboardState.flow_outflow_ranking,
-                layout="horizontal",
+                layout="vertical",
                 width="100%",
                 height=400,
                 bar_size=25,
@@ -3822,7 +4246,7 @@ def flow_netflow_ranking_chart() -> rx.Component:
                 ),
                 rx.recharts.graphing_tooltip(),
                 data=DashboardState.flow_netflow_ranking,
-                layout="horizontal",
+                layout="vertical",
                 width="100%",
                 height=400,
                 bar_size=25,
@@ -3868,7 +4292,7 @@ def gap_shortage_ranking_chart() -> rx.Component:
                 ),
                 rx.recharts.graphing_tooltip(),
                 data=DashboardState.gap_shortage_ranking,
-                layout="horizontal",
+                layout="vertical",
                 width="100%",
                 height=400,
                 bar_size=25,
@@ -3912,7 +4336,7 @@ def gap_surplus_ranking_chart() -> rx.Component:
                 ),
                 rx.recharts.graphing_tooltip(),
                 data=DashboardState.gap_surplus_ranking,
-                layout="horizontal",
+                layout="vertical",
                 width="100%",
                 height=400,
                 bar_size=25,
@@ -3956,7 +4380,7 @@ def gap_ratio_ranking_chart() -> rx.Component:
                 ),
                 rx.recharts.graphing_tooltip(),
                 data=DashboardState.gap_ratio_ranking,
-                layout="horizontal",
+                layout="vertical",
                 width="100%",
                 height=400,
                 bar_size=25,
@@ -4002,7 +4426,7 @@ def rarity_national_license_ranking_chart() -> rx.Component:
                 ),
                 rx.recharts.graphing_tooltip(),
                 data=DashboardState.rarity_national_license_ranking,
-                layout="horizontal",
+                layout="vertical",
                 width="100%",
                 height=400,
                 bar_size=25,
@@ -4039,10 +4463,16 @@ def competition_national_license_ranking_chart() -> rx.Component:
                     stroke="#94a3b8",
                     label={"value": "国家資格保有率（%）", "position": "insideBottom", "offset": -10, "style": {"fill": "#94a3b8", "fontSize": 12}}
                 ),
-                rx.recharts.y_axis(data_key="name", type_="category", width=150, stroke="#94a3b8"),
+                rx.recharts.y_axis(
+                    data_key="name",
+                    type_="category",
+                    width=150,
+                    stroke="#94a3b8",
+                    label={"value": "ペルソナ", "angle": -90, "position": "insideLeft", "style": {"fill": "#94a3b8", "fontSize": 12}}
+                ),
                 rx.recharts.graphing_tooltip(),
                 data=DashboardState.competition_national_license_ranking,
-                layout="horizontal",
+                layout="vertical",
                 width="100%",
                 height=400,
                 bar_size=25,
@@ -4077,10 +4507,16 @@ def competition_qualification_ranking_chart() -> rx.Component:
                     stroke="#94a3b8",
                     label={"value": "平均資格数", "position": "insideBottom", "offset": -10, "style": {"fill": "#94a3b8", "fontSize": 12}}
                 ),
-                rx.recharts.y_axis(data_key="name", type_="category", width=150, stroke="#94a3b8"),
+                rx.recharts.y_axis(
+                    data_key="name",
+                    type_="category",
+                    width=150,
+                    stroke="#94a3b8",
+                    label={"value": "ペルソナ", "angle": -90, "position": "insideLeft", "style": {"fill": "#94a3b8", "fontSize": 12}}
+                ),
                 rx.recharts.graphing_tooltip(),
                 data=DashboardState.competition_qualification_ranking,
-                layout="horizontal",
+                layout="vertical",
                 width="100%",
                 height=400,
                 bar_size=25,
@@ -4115,10 +4551,16 @@ def competition_female_ratio_ranking_chart() -> rx.Component:
                     stroke="#94a3b8",
                     label={"value": "女性比率（%）", "position": "insideBottom", "offset": -10, "style": {"fill": "#94a3b8", "fontSize": 12}}
                 ),
-                rx.recharts.y_axis(data_key="name", type_="category", width=150, stroke="#94a3b8"),
+                rx.recharts.y_axis(
+                    data_key="name",
+                    type_="category",
+                    width=150,
+                    stroke="#94a3b8",
+                    label={"value": "ペルソナ", "angle": -90, "position": "insideLeft", "style": {"fill": "#94a3b8", "fontSize": 12}}
+                ),
                 rx.recharts.graphing_tooltip(),
                 data=DashboardState.competition_female_ratio_ranking,
-                layout="horizontal",
+                layout="vertical",
                 width="100%",
                 height=400,
                 bar_size=25,
@@ -4313,7 +4755,7 @@ def persona_bar_chart() -> rx.Component:
             ),
             rx.recharts.graphing_tooltip(),
             data=DashboardState.persona_bar_data,
-            layout="horizontal",
+            layout="vertical",
             width="100%",
             height=500,
             bar_size=25,  # バーの太さを保証
@@ -4492,7 +4934,7 @@ def rarity_score_chart() -> rx.Component:
             ),
             rx.recharts.graphing_tooltip(),
             data=DashboardState.rarity_score_data,
-            layout="horizontal",
+            layout="vertical",
             width="100%",
             height=500
         ),
@@ -5249,8 +5691,94 @@ def panel_placeholder(panel_id: str, label: str) -> rx.Component:
     )
 
 
+def jobmap_panel() -> rx.Component:
+    """求人地図パネル（Panel 11）
+
+    GAS Webアプリを埋め込み（複数職種対応）
+    - 完全なLeaflet地図機能
+    - ピン止め + ドラッグ&ドロップ
+    - 点線接続表示
+    - 職種プルダウンで切り替え
+    """
+    # GAS WebアプリURL辞書（職種別）
+    # 新しい職種のURLを追加する場合は、ここに追加してください
+    GAS_WEBAPP_URLS = {
+        "介護職": "https://script.google.com/macros/s/AKfycbxd--YaAomrsCpqaLyB40XkTlVOt17bqulrddPVCoFBAOw1FDE7r8mYHMRSKT25D9t7/exec",
+        # 以下、他の職種のURLを追加
+        # "看護師": "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID_HERE/exec",
+        # "保育士": "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID_HERE/exec",
+        # "医療事務": "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID_HERE/exec",
+    }
+
+    # 現在選択されている職種のURLを取得（デフォルトは最初の職種）
+    current_url = GAS_WEBAPP_URLS.get(
+        DashboardState.selected_job_type,
+        list(GAS_WEBAPP_URLS.values())[0]
+    )
+
+    return rx.box(
+        # タイトルと職種選択プルダウン
+        rx.box(
+            rx.hstack(
+                rx.heading("🗺️ 求人地図", size="7", color=TEXT_COLOR),
+                rx.spacer(),
+                # 職種選択プルダウン
+                rx.select(
+                    list(GAS_WEBAPP_URLS.keys()),
+                    value=DashboardState.selected_job_type,
+                    on_change=DashboardState.set_selected_job_type,
+                    placeholder="職種を選択",
+                    size="3",
+                    color_scheme="blue",
+                ),
+                width="100%",
+                align_items="center",
+                margin_bottom="0.5rem"
+            ),
+            rx.text(
+                "GASの完全な地図機能（Leaflet + ピン止め + ドラッグ&ドロップ + 点線接続）",
+                color=MUTED_COLOR,
+                font_size="0.9rem",
+                margin_bottom="1rem"
+            ),
+            width="100%",
+            padding_x="1.5rem",
+            display=rx.cond(
+                DashboardState.active_tab == "jobmap",
+                "block",
+                "none"
+            )
+        ),
+        # GAS Webアプリをiframeで埋め込み（全幅）
+        # 重要: iframeは常に描画し、displayのみ切り替え（状態保持のため）
+        rx.html(
+            f"""
+            <iframe
+                id="jobmap-iframe"
+                src="{current_url}"
+                width="100%"
+                height="calc(100vh - 250px)"
+                frameborder="0"
+                style="border: 1px solid {BORDER_COLOR}; border-radius: 8px; background: white; display: block; min-height: 650px;"
+                allow="geolocation"
+            ></iframe>
+            """
+        ),
+        display=rx.cond(
+            DashboardState.active_tab == "jobmap",
+            "flex",
+            "none"
+        ),
+        flex_direction="column",
+        width="100%",
+        height="100%",
+        padding_top="1.5rem",
+        padding_bottom="1.5rem"
+    )
+
+
 def panels() -> rx.Component:
-    """10パネル表示エリア"""
+    """11パネル表示エリア（求人地図追加）"""
     return rx.vstack(
         overview_panel(),
         supply_panel(),
@@ -5262,6 +5790,7 @@ def panels() -> rx.Component:
         gap_panel(),
         rarity_panel(),
         competition_panel(),
+        jobmap_panel(),  # 新規追加
         width="100%",
         spacing="3",
         padding="1rem"
@@ -5283,8 +5812,8 @@ def main_content() -> rx.Component:
     )
 
 
-def index() -> rx.Component:
-    """メインページ"""
+def protected_dashboard() -> rx.Component:
+    """保護されたダッシュボード（認証必須）"""
     return rx.box(
         rx.hstack(
             main_content(),
@@ -5300,6 +5829,16 @@ def index() -> rx.Component:
     )
 
 
+def index() -> rx.Component:
+    """メインページ（認証保護）"""
+    return rx.cond(
+        AuthState.is_authenticated,
+        protected_dashboard(),
+        # 未認証時はログインページを表示
+        login_page()
+    )
+
+
 # =====================================
 # App
 # =====================================
@@ -5308,4 +5847,7 @@ app = rx.App(
         "font_family": "system-ui, -apple-system, sans-serif",
     }
 )
+
+# ルーティング設定
+app.add_page(login_page, route="/login")
 app.add_page(index, route="/")

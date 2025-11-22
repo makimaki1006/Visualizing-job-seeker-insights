@@ -1,6 +1,9 @@
 ﻿カラム名,有効データ数,ユニーク値数,最小グループサイズ,信頼性レベル,警告
-career,3323,1627,2,CRITICAL,推論用最小グループ不足（2件 < 30件）
-count,3323,26,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-avg_age,3323,159,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-avg_qualifications,3323,62,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-age_group,1696,6,88,HIGH,なし
+career,3732,1627,2,CRITICAL,推論用最小グループ不足（2件 < 30件）
+count,3732,15,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+avg_age,3732,154,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+avg_qualifications,3732,49,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+location,2105,194,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+prefecture,2105,36,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+municipality,2105,194,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+age_group,2105,6,94,HIGH,なし

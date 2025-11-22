@@ -1,44 +1,44 @@
 ﻿カラム名,有効データ数,ユニーク値数,最小グループサイズ,信頼性レベル,警告
-prefecture,9693,50,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-municipality,14072,1866,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+prefecture,12705,48,8,CRITICAL,推論用最小グループ不足（8件 < 30件）
+municipality,18048,1900,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 location_key,1888,944,2,CRITICAL,推論用最小グループ不足（2件 < 30件）
 applicant_count,18095,230,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 applicant_id,65071,7487,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 age,40661,72,3,CRITICAL,推論用最小グループ不足（3件 < 30件）
-gender,58565,2,24237,HIGH,なし
-age_group,25168,6,1875,HIGH,なし
+gender,60424,2,25283,HIGH,なし
+age_group,27436,6,2049,HIGH,なし
 residence_prefecture,15539,44,4,CRITICAL,推論用最小グループ不足（4件 < 30件）
 residence_municipality,7470,306,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 desired_area_count,7487,69,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 qualification_count,7487,16,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-has_national_license,25333,2,3382,HIGH,なし
+has_national_license,20448,2,2394,HIGH,なし
 qualifications,5212,724,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 desired_workstyle,7413,50,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 desired_start,2743,1934,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 desired_job,7487,2371,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-career,7213,1627,4,CRITICAL,推論用最小グループ不足（4件 < 30件）
-employment_status,9201,3,637,HIGH,なし
+career,7622,1627,4,CRITICAL,推論用最小グループ不足（4件 < 30件）
+employment_status,15050,3,1027,HIGH,なし
 status,312,2,2,CRITICAL,推論用最小グループ不足（2件 < 30件）
 member_id,7487,7484,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 desired_prefecture,24410,47,5,CRITICAL,推論用最小グループ不足（5件 < 30件）
 desired_municipality,23360,897,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 desired_location_full,24410,944,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-avg_age,41908,2251,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+avg_age,43281,2346,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 male_count,944,76,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 female_count,944,74,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-avg_qualifications,10178,616,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-latitude,7724,92,6,CRITICAL,推論用最小グループ不足（6件 < 30件）
-longitude,7724,92,6,CRITICAL,推論用最小グループ不足（6件 < 30件）
+avg_qualifications,12446,729,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+latitude,7725,92,6,CRITICAL,推論用最小グループ不足（6件 < 30件）
+longitude,7725,92,6,CRITICAL,推論用最小グループ不足（6件 < 30件）
 target_municipality,22784,944,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-count,27349,299,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-employment_rate,27705,472,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+count,29617,303,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+employment_rate,22820,364,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 top_qualifications,7659,462,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 municipality_count,44,16,1,CRITICAL,推論用サンプル数不足（44件 < 100件） / 推論用最小グループ不足（1件 < 30件）
 qualification_name,15194,462,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 is_national_license,462,2,11,LOW,推論用最小グループ不足（11件 < 30件）
 urgency_rank,48,4,12,CRITICAL,推論用サンプル数不足（48件 < 100件） / 推論用最小グループ不足（12件 < 30件）
 avg_urgency_score,5592,656,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-location,14257,966,2,CRITICAL,推論用最小グループ不足（2件 < 30件）
+location,17269,966,3,CRITICAL,推論用最小グループ不足（3件 < 30件）
 20代,1631,11,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 30代,1631,13,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 40代,1631,15,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
@@ -60,7 +60,7 @@ top_age_group,944,6,24,LOW,推論用最小グループ不足（24件 < 30件）
 top_age_ratio,944,124,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 female_ratio,944,148,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 male_ratio,944,148,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-national_license_rate,1002,151,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+national_license_rate,7746,238,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 top_employment_status,944,3,5,CRITICAL,推論用最小グループ不足（5件 < 30件）
 top_employment_ratio,944,137,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 avg_qualification_count,944,262,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
@@ -77,11 +77,11 @@ group1,4,3,1,CRITICAL,推論用サンプル数不足（4件 < 100件） / 推論
 group2,4,2,2,CRITICAL,推論用サンプル数不足（4件 < 100件） / 推論用最小グループ不足（2件 < 30件）
 chi_square,4,4,1,CRITICAL,推論用サンプル数不足（4件 < 100件） / 推論用最小グループ不足（1件 < 30件）
 df,4,3,1,CRITICAL,推論用サンプル数不足（4件 < 100件） / 推論用最小グループ不足（1件 < 30件）
-persona_name,4955,70,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-avg_desired_areas,4967,1001,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+persona_name,5919,70,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+avg_desired_areas,6826,1236,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 top_residence_pref,12,1,12,CRITICAL,推論用サンプル数不足（12件 < 100件） / 推論用最小グループ不足（12件 < 30件）
-total_in_municipality,4885,99,10,LOW,推論用最小グループ不足（10件 < 30件）
-market_share_pct,4885,716,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+total_in_municipality,5849,99,15,LOW,推論用最小グループ不足（15件 < 30件）
+market_share_pct,5849,795,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 origin,26290,305,2,CRITICAL,推論用最小グループ不足（2件 < 30件）
 destination,26290,936,2,CRITICAL,推論用最小グループ不足（2件 < 30件）
 origin_pref,26290,44,4,CRITICAL,推論用最小グループ不足（4件 < 30件）

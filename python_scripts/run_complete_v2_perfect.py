@@ -399,7 +399,8 @@ class PerfectJobSeekerAnalyzer:
                 location_stats[key]['count'] += 1
                 if row['age']:
                     location_stats[key]['ages'].append(row['age'])
-                location_stats[key]['genders'][row['gender']] += 1
+                if row['gender'] and row['gender'] in location_stats[key]['genders']:
+                    location_stats[key]['genders'][row['gender']] += 1
                 location_stats[key]['qualifications'] += row['qualification_count']
 
         for location, stats in location_stats.items():
@@ -1110,7 +1111,7 @@ class PerfectJobSeekerAnalyzer:
         print("  [INFO] 市町村別ペルソナ分析を開始...")
 
         # 1. DesiredWork.csvを読み込み
-        desired_work_path = Path(output_dir) / 'DesiredWork.csv'
+        desired_work_path = Path(output_dir) / 'Phase1_DesiredWork.csv'
         if not desired_work_path.exists():
             print(f"  [ERROR] DesiredWork.csvが見つかりません: {desired_work_path}")
             return pd.DataFrame()
@@ -1145,25 +1146,35 @@ class PerfectJobSeekerAnalyzer:
             # 市町村内の母数
             total_in_muni = len(muni_df)
 
-            # ペルソナ別集計（年齢層×性別×資格有無）
+            # ペルソナ別集計（年齢層×性別×就業状態）
             for age_group in muni_df['age_bucket'].dropna().unique():
                 for gender in muni_df['gender'].dropna().unique():
-                    for has_license in [True, False]:
+                    for employment_status in muni_df['employment_status'].dropna().unique():
                         persona_df = muni_df[
                             (muni_df['age_bucket'] == age_group) &
                             (muni_df['gender'] == gender) &
-                            (muni_df['has_national_license'] == has_license)
+                            (muni_df['employment_status'] == employment_status)
                         ]
 
                         if len(persona_df) == 0:
                             continue
 
-                        # ペルソナ名
-                        license_label = "国家資格あり" if has_license else "国家資格なし"
-                        persona_name = f"{age_group}・{gender}・{license_label}"
+                        # 就業状態を日本語に変換
+                        employment_label_map = {
+                            EmploymentStatus.EMPLOYED: "就業中",
+                            EmploymentStatus.UNEMPLOYED: "離職中",
+                            EmploymentStatus.ENROLLED: "在学中"
+                        }
+                        employment_label = employment_label_map.get(employment_status, str(employment_status))
+
+                        # ペルソナ名（就業状態を含む）
+                        persona_name = f"{age_group}・{gender}・{employment_label}"
 
                         # 市町村内シェア
                         market_share_pct = len(persona_df) / total_in_muni * 100
+
+                        # 資格保有率を計算
+                        has_license_rate = (persona_df['has_national_license'] == True).sum() / len(persona_df) if len(persona_df) > 0 else 0
 
                         # 統計情報
                         results.append({
@@ -1171,14 +1182,14 @@ class PerfectJobSeekerAnalyzer:
                             'persona_name': persona_name,
                             'age_group': age_group,
                             'gender': gender,
-                            'has_national_license': has_license,
+                            'employment_status': employment_label,
                             'count': len(persona_df),
                             'total_in_municipality': total_in_muni,
                             'market_share_pct': market_share_pct,
                             'avg_age': persona_df['age'].mean(),
                             'avg_desired_areas': persona_df['希望勤務地数'].mean(),
                             'avg_qualifications': persona_df['qualification_count'].mean(),
-                            'employment_rate': (persona_df['employment_status'] == EmploymentStatus.EMPLOYED).sum() / len(persona_df) if len(persona_df) > 0 else 0
+                            'national_license_rate': has_license_rate
                         })
 
         print(f"  [OK] 市町村別ペルソナ分析完了: {len(results)}件")
@@ -1491,24 +1502,36 @@ class PerfectJobSeekerAnalyzer:
         return qual_dist.sort_values('count', ascending=False)
 
     def _generate_age_gender_cross_analysis(self, df):
-        """年齢層×性別クロス分析を生成"""
+        """年齢層×性別クロス分析を生成（市区町村レベル）"""
         results = []
 
-        for age_group in df['age_bucket'].dropna().unique():
-            for gender in df['gender'].dropna().unique():
-                subset = df[(df['age_bucket'] == age_group) & (df['gender'] == gender)]
+        # 市区町村×年齢層×性別でグループ化
+        for (residence_pref, residence_muni) in df.groupby(['residence_pref', 'residence_muni']).groups.keys():
+            # 都道府県レベル集計（市区町村が空）をスキップ
+            if not residence_muni or pd.isna(residence_muni) or residence_muni == '' or residence_muni == residence_pref:
+                continue
 
-                if len(subset) > 0:
-                    results.append({
-                        'age_group': age_group,
-                        'gender': gender,
-                        'count': len(subset),
-                        'avg_desired_areas': subset['希望勤務地数'].mean(),
-                        'avg_qualifications': subset['qualification_count'].mean(),
-                        'national_license_rate': subset['has_national_license'].sum() / len(subset) if len(subset) > 0 else 0
-                    })
+            location_group = df[(df['residence_pref'] == residence_pref) & (df['residence_muni'] == residence_muni)]
+            location = f"{residence_pref}{residence_muni}"
 
-        return pd.DataFrame(results).sort_values(['age_group', 'gender'])
+            for age_group in ['20代', '30代', '40代', '50代', '60代', '70歳以上']:
+                for gender in ['男性', '女性']:
+                    subset = location_group[(location_group['age_bucket'] == age_group) & (location_group['gender'] == gender)]
+
+                    if len(subset) > 0:
+                        results.append({
+                            'location': location,
+                            'prefecture': residence_pref,
+                            'municipality': residence_muni,
+                            'age_group': age_group,
+                            'gender': gender,
+                            'count': len(subset),
+                            'avg_desired_areas': subset['希望勤務地数'].mean(),
+                            'avg_qualifications': subset['qualification_count'].mean(),
+                            'national_license_rate': subset['has_national_license'].sum() / len(subset) if len(subset) > 0 else 0
+                        })
+
+        return pd.DataFrame(results).sort_values(['prefecture', 'municipality', 'age_group', 'gender'])
 
     def _generate_mobility_score(self, df):
         """移動許容度スコアリングを生成"""
@@ -1692,7 +1715,7 @@ class PerfectJobSeekerAnalyzer:
         return career_dist.sort_values('count', ascending=False)
 
     def _generate_education_age_cross(self, df):
-        """キャリア（学歴）×年齢層クロス分析を生成"""
+        """キャリア（学歴）×年齢層クロス分析を生成（市区町村レベル）"""
         if 'career' not in self.df_normalized.columns:
             return pd.DataFrame()
 
@@ -1708,23 +1731,34 @@ class PerfectJobSeekerAnalyzer:
 
         results = []
 
-        for career in df_with_career['career'].dropna().unique():
-            for age_group in df_with_career['age_bucket'].dropna().unique():
-                subset = df_with_career[
-                    (df_with_career['career'] == career) &
-                    (df_with_career['age_bucket'] == age_group)
-                ]
+        # 市区町村×キャリア×年齢層でグループ化
+        for (residence_pref, residence_muni) in df_with_career.groupby(['residence_pref', 'residence_muni']).groups.keys():
+            location_group = df_with_career[(df_with_career['residence_pref'] == residence_pref) & (df_with_career['residence_muni'] == residence_muni)]
+            location = f"{residence_pref}{residence_muni}"
 
-                if len(subset) > 0:
-                    results.append({
-                        'career': career,
-                        'age_group': age_group,
-                        'count': len(subset),
-                        'avg_age': subset['age'].mean(),
-                        'avg_qualifications': subset['qualification_count'].mean()
-                    })
+            for career in location_group['career'].dropna().unique():
+                if not career or str(career).strip() == '':
+                    continue
 
-        return pd.DataFrame(results).sort_values(['career', 'age_group'])
+                for age_group in ['20代', '30代', '40代', '50代', '60代', '70歳以上']:
+                    subset = location_group[
+                        (location_group['career'] == career) &
+                        (location_group['age_bucket'] == age_group)
+                    ]
+
+                    if len(subset) > 0:
+                        results.append({
+                            'location': location,
+                            'prefecture': residence_pref,
+                            'municipality': residence_muni,
+                            'career': career,
+                            'age_group': age_group,
+                            'count': len(subset),
+                            'avg_age': subset['age'].mean(),
+                            'avg_qualifications': subset['qualification_count'].mean()
+                        })
+
+        return pd.DataFrame(results).sort_values(['prefecture', 'municipality', 'career', 'age_group'])
 
     def _generate_education_age_matrix(self, df):
         """キャリア（学歴）×年齢層クロス集計マトリックスを生成"""
@@ -2125,9 +2159,13 @@ class PerfectJobSeekerAnalyzer:
         gap['demand_supply_ratio'] = gap['demand_count'] / (gap['supply_count'] + 1)
         gap['gap'] = gap['demand_count'] - gap['supply_count']
 
-        # 都道府県・市町村に分割
-        gap[['prefecture', 'municipality']] = gap['location'].str.extract(r'^([\u4e00-\u9fff]{2,3}[都道府県])(.*)')
+        # 都道府県・市町村に分割（正規表現修正：都道府県名全体をキャプチャ）
+        gap[['prefecture', 'municipality']] = gap['location'].str.extract(r'^([^都道府県]+[都道府県])(.*)')
         gap['municipality'] = gap['municipality'].fillna('')
+
+        # prefecture列がNaNの場合、location全体を都道府県とする
+        gap.loc[gap['prefecture'].isna(), 'prefecture'] = gap.loc[gap['prefecture'].isna(), 'location']
+        gap.loc[gap['prefecture'].isna(), 'municipality'] = ''
 
         # 座標を追加（MAP統合用）
         gap['latitude'] = None
@@ -2468,6 +2506,20 @@ if __name__ == "__main__":
     # 統合品質レポート
     analyzer.generate_overall_quality_report()
 
+    # MapComplete統合CSV生成
+    print()
+    print("=" * 80)
+    print("MapComplete統合CSV生成（row_type形式、市町村レベル）")
+    print("=" * 80)
+    try:
+        from generate_mapcomplete_complete_sheets import MapCompleteCompleteSheetGenerator
+        generator = MapCompleteCompleteSheetGenerator()
+        generator.load_all_phases()
+        generator.generate_complete_sheets()
+        print("  [OK] MapComplete統合CSV生成完了")
+    except Exception as e:
+        print(f"  [ERROR] MapComplete統合CSV生成エラー: {e}")
+
     print()
     print("=" * 80)
     print("全フェーズ完了✅")
@@ -2484,6 +2536,7 @@ if __name__ == "__main__":
     print("  - data/output_v2/phase12/ (2ファイル) 🆕")
     print("  - data/output_v2/phase13/ (2ファイル) 🆕")
     print("  - data/output_v2/phase14/ (2ファイル) 🆕")
+    print("  - data/output_v2/mapcomplete_complete_sheets/ (MapComplete統合CSV) 🆕")
     print("  - data/output_v2/ (統合品質レポート2ファイル)")
     print()
-    print("合計: 46ファイル | Phase 12-14追加（MAP統合対応）")
+    print("合計: 46ファイル + MapComplete統合CSV | Phase 12-14追加（MAP統合対応）")

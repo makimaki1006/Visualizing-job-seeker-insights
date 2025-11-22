@@ -1,2 +1,0 @@
-﻿pattern,dependent_var,independent_var,f_statistic,p_value,df_between,df_within,effect_size,significant,interpretation
-年齢層×希望勤務地数,希望勤務地数,年齢層,0.0,1.0,5,7481,0.0,False,効果量が非常に小さい

@@ -1,15 +1,17 @@
 ﻿カラム名,有効データ数,ユニーク値数,最小グループサイズ,信頼性レベル,警告
-location,944,944,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+location,1851,966,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 supply_count,944,99,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 avg_age,1440,517,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 national_license_count,944,32,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-avg_qualifications,990,304,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+avg_qualifications,1885,447,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 qualification,462,462,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-count,508,79,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
-age_group,46,6,7,CRITICAL,推論用サンプル数不足（46件 < 100件） / 推論用最小グループ不足（7件 < 30件）
-gender,7463,2,2456,HIGH,なし
-avg_desired_areas,46,46,1,CRITICAL,推論用サンプル数不足（46件 < 100件） / 推論用最小グループ不足（1件 < 30件）
-national_license_rate,46,42,1,CRITICAL,推論用サンプル数不足（46件 < 100件） / 推論用最小グループ不足（1件 < 30件）
+count,1403,102,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+prefecture,907,44,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+municipality,907,306,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+age_group,941,6,92,MEDIUM,なし
+gender,8358,2,2868,HIGH,なし
+avg_desired_areas,941,320,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
+national_license_rate,941,86,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 applicant_id,7417,7417,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 age,7417,72,1,CRITICAL,推論用最小グループ不足（1件 < 30件）
 residence_pref,7417,44,1,CRITICAL,推論用最小グループ不足（1件 < 30件）

@@ -1,2 +1,0 @@
-﻿pattern,group1,group2,variable,chi_square,p_value,df,effect_size,significant,sample_size,interpretation
-性別×希望勤務地の有無,性別,希望勤務地の有無,希望勤務地数,0.0,1.0,1,0.0,False,7487,効果量が非常に小さい

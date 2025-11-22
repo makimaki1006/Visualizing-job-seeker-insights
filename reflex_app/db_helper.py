@@ -62,6 +62,25 @@ _cache_time: dict = {}
 _max_cache_items = 50
 _ttl_minutes = 30
 
+# 都道府県の標準順序（JISコード順：北から南）
+PREFECTURE_ORDER = [
+    "北海道",
+    "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
+    "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
+    "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県",
+    "岐阜県", "静岡県", "愛知県", "三重県",
+    "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県",
+    "鳥取県", "島根県", "岡山県", "広島県", "山口県",
+    "徳島県", "香川県", "愛媛県", "高知県",
+    "福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県"
+]
+
+def _sort_prefectures(prefectures: list) -> list:
+    """都道府県リストを標準順序（北から南）でソート"""
+    order_map = {pref: i for i, pref in enumerate(PREFECTURE_ORDER)}
+    # 標準リストにない都道府県は末尾に配置
+    return sorted(prefectures, key=lambda x: order_map.get(x, 999))
+
 
 def get_db_type() -> str:
     """使用中のデータベースタイプを取得"""
@@ -209,14 +228,16 @@ def get_all_data() -> pd.DataFrame:
 
 
 def get_prefectures() -> list:
-    """都道府県一覧を取得"""
+    """都道府県一覧を取得（北から南の標準順序）"""
     if _HAS_TURSO:
-        df = query_df("SELECT DISTINCT prefecture FROM job_seeker_data ORDER BY prefecture")
+        df = query_df("SELECT DISTINCT prefecture FROM job_seeker_data")
         if df.empty:
             return []
-        return df['prefecture'].tolist()
+        prefectures = df['prefecture'].tolist()
+        return _sort_prefectures(prefectures)
     else:
-        return get_unique_values("applicants", "residence_prefecture")
+        prefectures = get_unique_values("applicants", "residence_prefecture")
+        return _sort_prefectures(prefectures)
 
 
 def get_municipalities(prefecture: str) -> list:

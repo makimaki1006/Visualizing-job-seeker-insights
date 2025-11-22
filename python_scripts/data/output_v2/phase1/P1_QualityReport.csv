@@ -17,7 +17,7 @@ gender,7487,2,2455,DESCRIPTIVE,なし（観察的記述）
 residence_pref,7487,45,1,DESCRIPTIVE,なし（観察的記述）
 residence_muni,7470,306,1,DESCRIPTIVE,なし（観察的記述）
 urgency_score,7487,6,244,DESCRIPTIVE,なし（観察的記述）
-urgency_score_dynamic,7487,166,1,DESCRIPTIVE,なし（観察的記述）
+urgency_score_dynamic,7487,151,1,DESCRIPTIVE,なし（観察的記述）
 desired_start_text,2743,5,244,DESCRIPTIVE,なし（観察的記述）
 desired_start_date,2743,1010,1,DESCRIPTIVE,なし（観察的記述）
 days_elapsed,2743,1010,1,DESCRIPTIVE,なし（観察的記述）

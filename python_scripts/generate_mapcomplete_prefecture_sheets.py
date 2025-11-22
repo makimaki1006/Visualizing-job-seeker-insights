@@ -57,13 +57,18 @@ class MapCompletePrefectureSheetGenerator:
 
         # Phase 8
         self._load_phase('phase8', [
-            'Phase8_GraduationYearDistribution.csv'
+            'Phase8_GraduationYearDistribution.csv',
+            'Phase8_CareerDistribution.csv',
+            'Phase8_CareerAgeCross_Matrix.csv'
         ])
 
         # Phase 10
         self._load_phase('phase10', [
             'Phase10_UrgencyDistribution.csv',
             'Phase10_UrgencyAgeCross.csv',
+            'Phase10_UrgencyAgeCross_Matrix.csv',
+            'Phase10_UrgencyEmploymentCross.csv',
+            'Phase10_UrgencyEmploymentCross_Matrix.csv',
             'Phase10_UrgencyByMunicipality.csv'
         ])
 
