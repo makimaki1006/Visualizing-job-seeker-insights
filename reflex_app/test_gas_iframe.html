@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>GAS Webアプリ接続テスト</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #0d1525;
+            color: #f8fafc;
+        }
+        h1 {
+            color: #0072B2;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.82);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 8px;
+        }
+        iframe {
+            width: 100%;
+            height: 800px;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 8px;
+            background: white;
+        }
+        .url-info {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(12, 20, 37, 0.95);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .status.loading {
+            background: rgba(230, 159, 0, 0.2);
+            color: #E69F00;
+        }
+        .status.success {
+            background: rgba(0, 114, 178, 0.2);
+            color: #0072B2;
+        }
+        .status.error {
+            background: rgba(213, 94, 0, 0.2);
+            color: #D55E00;
+        }
+        button {
+            padding: 10px 20px;
+            background: #0072B2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #005a8e;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗺️ GAS Webアプリ接続テスト</h1>
+
+    <div class="test-section">
+        <h2>テスト対象URL</h2>
+        <div class="url-info" id="current-url"></div>
+
+        <h3>テスト方法</h3>
+        <button onclick="testURL1()">@HEAD URLをテスト</button>
+        <button onclick="testURL2()">@1 URLをテスト</button>
+        <button onclick="testURL3()">@2 URLをテスト（iframe対応版）</button>
+        <button onclick="testURL4()" style="background: #D55E00;">@3 URLをテスト（表示修正版）🔥</button>
+        <button onclick="openInNewTab()">新しいタブで開く</button>
+
+        <div id="status" class="status loading">読み込み準備中...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>iframe埋め込みテスト</h2>
+        <iframe id="gas-iframe" allow="geolocation"></iframe>
+    </div>
+
+    <script>
+        // デプロイメントURL
+        const URL_HEAD = "https://script.google.com/macros/s/AKfycbxBK5gRmDCuetK7bOp5IuLEFR1bnmsxPrIyYewgIYY/exec";
+        const URL_V1 = "https://script.google.com/macros/s/AKfycbwyUrJf_aJTN-UYj_CONbwXOB9fhp3Z7sb9X8Yt7UtwfOCuKf6avXoziE38OOkRryIQ/exec";
+        const URL_V2_IFRAME = "https://script.google.com/macros/s/AKfycbx6YxrvTDY0jxML3GfGigNj27Pcgr2cavyrKzEimWLBVjBMlZ2u1a0oVzvyz3o7U-yi/exec"; // iframe対応版
+        const URL_V3_FIXED = "https://script.google.com/macros/s/AKfycbw0zV33_fSV8NCqG1A2qXNqRATXC53YdSO7FZzUEcjLf5ycwf6PAH60RnGwEKHHvIUp/exec"; // 詳細パネル初期非表示版
+
+        let currentURL = URL_HEAD;
+
+        function updateStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+        }
+
+        function updateCurrentURL(url) {
+            currentURL = url;
+            document.getElementById('current-url').textContent = url;
+            document.getElementById('gas-iframe').src = url;
+        }
+
+        function testURL1() {
+            updateStatus('@HEAD URLをテスト中...', 'loading');
+            updateCurrentURL(URL_HEAD);
+            setTimeout(() => {
+                updateStatus('@HEAD URL設定完了。上記のiframeを確認してください。', 'success');
+            }, 1000);
+        }
+
+        function testURL2() {
+            updateStatus('@1 URLをテスト中...', 'loading');
+            updateCurrentURL(URL_V1);
+            setTimeout(() => {
+                updateStatus('@1 URL設定完了。上記のiframeを確認してください。', 'success');
+            }, 1000);
+        }
+
+        function testURL3() {
+            updateStatus('@2 URL（iframe対応版）をテスト中... ✨', 'loading');
+            updateCurrentURL(URL_V2_IFRAME);
+            setTimeout(() => {
+                updateStatus('✅ @2 URL（iframe対応版）設定完了。上記のiframeを確認してください。', 'success');
+            }, 1000);
+        }
+
+        function testURL4() {
+            updateStatus('@3 URL（表示修正版）をテスト中... 🔥', 'loading');
+            updateCurrentURL(URL_V3_FIXED);
+            setTimeout(() => {
+                updateStatus('✅ @3 URL（表示修正版）設定完了。地図が全幅表示されることを確認してください。', 'success');
+            }, 1000);
+        }
+
+        function openInNewTab() {
+            window.open(currentURL, '_blank');
+        }
+
+        // iframe読み込み検知
+        const iframe = document.getElementById('gas-iframe');
+        iframe.addEventListener('load', function() {
+            updateStatus('✅ iframeが正常に読み込まれました！', 'success');
+        });
+
+        iframe.addEventListener('error', function() {
+            updateStatus('❌ iframe読み込みエラー。接続が拒否されました。', 'error');
+        });
+
+        // 初期URL設定
+        window.addEventListener('load', function() {
+            testURL1();
+        });
+    </script>
+</body>
+</html>
