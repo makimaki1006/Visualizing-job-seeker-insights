@@ -1,0 +1,2162 @@
+[
+  {
+    "iteration": 1,
+    "category": "UNIT",
+    "test_name": "40+フィルター条件判定",
+    "status": "PASS",
+    "details": "40件 >= 40件",
+    "timestamp": "2025-11-22T09:40:13.257777"
+  },
+  {
+    "iteration": 1,
+    "category": "UNIT",
+    "test_name": "5都道府県フィルター条件判定",
+    "status": "PASS",
+    "details": "5都道府県 >= 5",
+    "timestamp": "2025-11-22T09:40:13.257802"
+  },
+  {
+    "iteration": 1,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（正常系）",
+    "status": "PASS",
+    "details": "4/4件",
+    "timestamp": "2025-11-22T09:40:13.257827"
+  },
+  {
+    "iteration": 1,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（異常系）",
+    "status": "PASS",
+    "details": "3/3件検出",
+    "timestamp": "2025-11-22T09:40:13.257835"
+  },
+  {
+    "iteration": 1,
+    "category": "UNIT",
+    "test_name": "ハッシュ一貫性検証",
+    "status": "PASS",
+    "details": "hash1=46d4ea31... == hash2=46d4ea31...",
+    "timestamp": "2025-11-22T09:40:13.301299"
+  },
+  {
+    "iteration": 1,
+    "category": "INTEGRATION",
+    "test_name": "run_complete_v2_perfect インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:14.343873"
+  },
+  {
+    "iteration": 1,
+    "category": "INTEGRATION",
+    "test_name": "generate_desired_area_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:14.344792"
+  },
+  {
+    "iteration": 1,
+    "category": "INTEGRATION",
+    "test_name": "generate_mobility_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:14.345693"
+  },
+  {
+    "iteration": 1,
+    "category": "INTEGRATION",
+    "test_name": "generate_residence_flow インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:14.346619"
+  },
+  {
+    "iteration": 1,
+    "category": "INTEGRATION",
+    "test_name": "generate_qualification_detail インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:14.369344"
+  },
+  {
+    "iteration": 1,
+    "category": "INTEGRATION",
+    "test_name": "必須カラム存在確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:14.584097"
+  },
+  {
+    "iteration": 1,
+    "category": "INTEGRATION",
+    "test_name": "row_type完全性確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:14.589376"
+  },
+  {
+    "iteration": 1,
+    "category": "INTEGRATION",
+    "test_name": "総行数一貫性",
+    "status": "PASS",
+    "details": "期待=53,000, 実際=53,000",
+    "timestamp": "2025-11-22T09:40:14.813482"
+  },
+  {
+    "iteration": 1,
+    "category": "INTEGRATION",
+    "test_name": "DESIRED_AREA_PATTERN行数一貫性",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:14.825464"
+  },
+  {
+    "iteration": 1,
+    "category": "E2E",
+    "test_name": "最終CSV生成確認",
+    "status": "PASS",
+    "details": "MapComplete_Complete_All_FIXED.csv",
+    "timestamp": "2025-11-22T09:40:14.828482"
+  },
+  {
+    "iteration": 1,
+    "category": "E2E",
+    "test_name": "CSV読み込み成功",
+    "status": "PASS",
+    "details": "53,000行読み込み",
+    "timestamp": "2025-11-22T09:40:15.008547"
+  },
+  {
+    "iteration": 1,
+    "category": "E2E",
+    "test_name": "データ整合性確認",
+    "status": "PASS",
+    "details": "行数=53,000, row_type存在=True, prefecture存在=True",
+    "timestamp": "2025-11-22T09:40:15.008656"
+  },
+  {
+    "iteration": 1,
+    "category": "E2E",
+    "test_name": "ハッシュ基準値設定",
+    "status": "PASS",
+    "details": "baseline=46d4ea31926881c0...",
+    "timestamp": "2025-11-22T09:40:15.032499"
+  },
+  {
+    "iteration": 1,
+    "category": "E2E",
+    "test_name": "重複行なし確認",
+    "status": "PASS",
+    "details": "重複行=0件",
+    "timestamp": "2025-11-22T09:40:15.341846"
+  },
+  {
+    "iteration": 1,
+    "category": "E2E",
+    "test_name": "都道府県カバレッジ",
+    "status": "PASS",
+    "details": "47/47都道府県",
+    "timestamp": "2025-11-22T09:40:15.349848"
+  },
+  {
+    "iteration": 1,
+    "category": "E2E",
+    "test_name": "count数値型確認",
+    "status": "PASS",
+    "details": "数値型=True",
+    "timestamp": "2025-11-22T09:40:15.349912"
+  },
+  {
+    "iteration": 1,
+    "category": "REGRESSION",
+    "test_name": "gender処理成功確認（AGE_GENDERデータ存在）",
+    "status": "PASS",
+    "details": "AGE_GENDER=907行",
+    "timestamp": "2025-11-22T09:40:15.568184"
+  },
+  {
+    "iteration": 1,
+    "category": "REGRESSION",
+    "test_name": "gender データ正常処理確認",
+    "status": "PASS",
+    "details": "性別カテゴリ数=2",
+    "timestamp": "2025-11-22T09:40:15.571450"
+  },
+  {
+    "iteration": 1,
+    "category": "REGRESSION",
+    "test_name": "sys.stdoutエラー回帰なし（インポート成功）",
+    "status": "PASS",
+    "details": "4モジュールすべてインポート成功",
+    "timestamp": "2025-11-22T09:40:15.573633"
+  },
+  {
+    "iteration": 1,
+    "category": "REGRESSION",
+    "test_name": "インポートパスエラー回帰なし",
+    "status": "PASS",
+    "details": "run_complete_v2_perfectインポート成功",
+    "timestamp": "2025-11-22T09:40:15.573728"
+  },
+  {
+    "iteration": 1,
+    "category": "REGRESSION",
+    "test_name": "外れ値フィルター動作確認（40+/5都道府県）",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:15.800469"
+  },
+  {
+    "iteration": 1,
+    "category": "REGRESSION",
+    "test_name": "外れ値除外確認",
+    "status": "PASS",
+    "details": "削減前=31,445 → 削減後=26,768 (削減率=14.9%)",
+    "timestamp": "2025-11-22T09:40:15.800512"
+  },
+  {
+    "iteration": 2,
+    "category": "UNIT",
+    "test_name": "40+フィルター条件判定",
+    "status": "PASS",
+    "details": "40件 >= 40件",
+    "timestamp": "2025-11-22T09:40:15.802323"
+  },
+  {
+    "iteration": 2,
+    "category": "UNIT",
+    "test_name": "5都道府県フィルター条件判定",
+    "status": "PASS",
+    "details": "5都道府県 >= 5",
+    "timestamp": "2025-11-22T09:40:15.802339"
+  },
+  {
+    "iteration": 2,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（正常系）",
+    "status": "PASS",
+    "details": "4/4件",
+    "timestamp": "2025-11-22T09:40:15.802354"
+  },
+  {
+    "iteration": 2,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（異常系）",
+    "status": "PASS",
+    "details": "3/3件検出",
+    "timestamp": "2025-11-22T09:40:15.802357"
+  },
+  {
+    "iteration": 2,
+    "category": "UNIT",
+    "test_name": "ハッシュ一貫性検証",
+    "status": "PASS",
+    "details": "hash1=46d4ea31... == hash2=46d4ea31...",
+    "timestamp": "2025-11-22T09:40:15.843791"
+  },
+  {
+    "iteration": 2,
+    "category": "INTEGRATION",
+    "test_name": "run_complete_v2_perfect インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:15.843997"
+  },
+  {
+    "iteration": 2,
+    "category": "INTEGRATION",
+    "test_name": "generate_desired_area_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:15.844020"
+  },
+  {
+    "iteration": 2,
+    "category": "INTEGRATION",
+    "test_name": "generate_mobility_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:15.844028"
+  },
+  {
+    "iteration": 2,
+    "category": "INTEGRATION",
+    "test_name": "generate_residence_flow インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:15.844035"
+  },
+  {
+    "iteration": 2,
+    "category": "INTEGRATION",
+    "test_name": "generate_qualification_detail インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:15.844042"
+  },
+  {
+    "iteration": 2,
+    "category": "INTEGRATION",
+    "test_name": "必須カラム存在確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:16.049251"
+  },
+  {
+    "iteration": 2,
+    "category": "INTEGRATION",
+    "test_name": "row_type完全性確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:16.053947"
+  },
+  {
+    "iteration": 2,
+    "category": "INTEGRATION",
+    "test_name": "総行数一貫性",
+    "status": "PASS",
+    "details": "期待=53,000, 実際=53,000",
+    "timestamp": "2025-11-22T09:40:16.274607"
+  },
+  {
+    "iteration": 2,
+    "category": "INTEGRATION",
+    "test_name": "DESIRED_AREA_PATTERN行数一貫性",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:16.288449"
+  },
+  {
+    "iteration": 2,
+    "category": "E2E",
+    "test_name": "最終CSV生成確認",
+    "status": "PASS",
+    "details": "MapComplete_Complete_All_FIXED.csv",
+    "timestamp": "2025-11-22T09:40:16.293004"
+  },
+  {
+    "iteration": 2,
+    "category": "E2E",
+    "test_name": "CSV読み込み成功",
+    "status": "PASS",
+    "details": "53,000行読み込み",
+    "timestamp": "2025-11-22T09:40:16.502691"
+  },
+  {
+    "iteration": 2,
+    "category": "E2E",
+    "test_name": "データ整合性確認",
+    "status": "PASS",
+    "details": "行数=53,000, row_type存在=True, prefecture存在=True",
+    "timestamp": "2025-11-22T09:40:16.502818"
+  },
+  {
+    "iteration": 2,
+    "category": "E2E",
+    "test_name": "ハッシュ一貫性（イテレーション2）",
+    "status": "PASS",
+    "details": "current=46d4ea31926881c0... vs baseline=46d4ea31926881c0...",
+    "timestamp": "2025-11-22T09:40:16.527265"
+  },
+  {
+    "iteration": 2,
+    "category": "E2E",
+    "test_name": "重複行なし確認",
+    "status": "PASS",
+    "details": "重複行=0件",
+    "timestamp": "2025-11-22T09:40:16.844306"
+  },
+  {
+    "iteration": 2,
+    "category": "E2E",
+    "test_name": "都道府県カバレッジ",
+    "status": "PASS",
+    "details": "47/47都道府県",
+    "timestamp": "2025-11-22T09:40:16.852677"
+  },
+  {
+    "iteration": 2,
+    "category": "E2E",
+    "test_name": "count数値型確認",
+    "status": "PASS",
+    "details": "数値型=True",
+    "timestamp": "2025-11-22T09:40:16.852779"
+  },
+  {
+    "iteration": 2,
+    "category": "REGRESSION",
+    "test_name": "gender処理成功確認（AGE_GENDERデータ存在）",
+    "status": "PASS",
+    "details": "AGE_GENDER=907行",
+    "timestamp": "2025-11-22T09:40:17.064441"
+  },
+  {
+    "iteration": 2,
+    "category": "REGRESSION",
+    "test_name": "gender データ正常処理確認",
+    "status": "PASS",
+    "details": "性別カテゴリ数=2",
+    "timestamp": "2025-11-22T09:40:17.069720"
+  },
+  {
+    "iteration": 2,
+    "category": "REGRESSION",
+    "test_name": "sys.stdoutエラー回帰なし（インポート成功）",
+    "status": "PASS",
+    "details": "4モジュールすべてインポート成功",
+    "timestamp": "2025-11-22T09:40:17.072624"
+  },
+  {
+    "iteration": 2,
+    "category": "REGRESSION",
+    "test_name": "インポートパスエラー回帰なし",
+    "status": "PASS",
+    "details": "run_complete_v2_perfectインポート成功",
+    "timestamp": "2025-11-22T09:40:17.072761"
+  },
+  {
+    "iteration": 2,
+    "category": "REGRESSION",
+    "test_name": "外れ値フィルター動作確認（40+/5都道府県）",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:17.295850"
+  },
+  {
+    "iteration": 2,
+    "category": "REGRESSION",
+    "test_name": "外れ値除外確認",
+    "status": "PASS",
+    "details": "削減前=31,445 → 削減後=26,768 (削減率=14.9%)",
+    "timestamp": "2025-11-22T09:40:17.295905"
+  },
+  {
+    "iteration": 3,
+    "category": "UNIT",
+    "test_name": "40+フィルター条件判定",
+    "status": "PASS",
+    "details": "40件 >= 40件",
+    "timestamp": "2025-11-22T09:40:17.297781"
+  },
+  {
+    "iteration": 3,
+    "category": "UNIT",
+    "test_name": "5都道府県フィルター条件判定",
+    "status": "PASS",
+    "details": "5都道府県 >= 5",
+    "timestamp": "2025-11-22T09:40:17.297810"
+  },
+  {
+    "iteration": 3,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（正常系）",
+    "status": "PASS",
+    "details": "4/4件",
+    "timestamp": "2025-11-22T09:40:17.297833"
+  },
+  {
+    "iteration": 3,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（異常系）",
+    "status": "PASS",
+    "details": "3/3件検出",
+    "timestamp": "2025-11-22T09:40:17.297841"
+  },
+  {
+    "iteration": 3,
+    "category": "UNIT",
+    "test_name": "ハッシュ一貫性検証",
+    "status": "PASS",
+    "details": "hash1=46d4ea31... == hash2=46d4ea31...",
+    "timestamp": "2025-11-22T09:40:17.338083"
+  },
+  {
+    "iteration": 3,
+    "category": "INTEGRATION",
+    "test_name": "run_complete_v2_perfect インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:17.338215"
+  },
+  {
+    "iteration": 3,
+    "category": "INTEGRATION",
+    "test_name": "generate_desired_area_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:17.338227"
+  },
+  {
+    "iteration": 3,
+    "category": "INTEGRATION",
+    "test_name": "generate_mobility_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:17.338234"
+  },
+  {
+    "iteration": 3,
+    "category": "INTEGRATION",
+    "test_name": "generate_residence_flow インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:17.338240"
+  },
+  {
+    "iteration": 3,
+    "category": "INTEGRATION",
+    "test_name": "generate_qualification_detail インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:17.338247"
+  },
+  {
+    "iteration": 3,
+    "category": "INTEGRATION",
+    "test_name": "必須カラム存在確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:17.545542"
+  },
+  {
+    "iteration": 3,
+    "category": "INTEGRATION",
+    "test_name": "row_type完全性確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:17.551344"
+  },
+  {
+    "iteration": 3,
+    "category": "INTEGRATION",
+    "test_name": "総行数一貫性",
+    "status": "PASS",
+    "details": "期待=53,000, 実際=53,000",
+    "timestamp": "2025-11-22T09:40:17.764719"
+  },
+  {
+    "iteration": 3,
+    "category": "INTEGRATION",
+    "test_name": "DESIRED_AREA_PATTERN行数一貫性",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:17.777633"
+  },
+  {
+    "iteration": 3,
+    "category": "E2E",
+    "test_name": "最終CSV生成確認",
+    "status": "PASS",
+    "details": "MapComplete_Complete_All_FIXED.csv",
+    "timestamp": "2025-11-22T09:40:17.779444"
+  },
+  {
+    "iteration": 3,
+    "category": "E2E",
+    "test_name": "CSV読み込み成功",
+    "status": "PASS",
+    "details": "53,000行読み込み",
+    "timestamp": "2025-11-22T09:40:18.005459"
+  },
+  {
+    "iteration": 3,
+    "category": "E2E",
+    "test_name": "データ整合性確認",
+    "status": "PASS",
+    "details": "行数=53,000, row_type存在=True, prefecture存在=True",
+    "timestamp": "2025-11-22T09:40:18.005582"
+  },
+  {
+    "iteration": 3,
+    "category": "E2E",
+    "test_name": "ハッシュ一貫性（イテレーション3）",
+    "status": "PASS",
+    "details": "current=46d4ea31926881c0... vs baseline=46d4ea31926881c0...",
+    "timestamp": "2025-11-22T09:40:18.029180"
+  },
+  {
+    "iteration": 3,
+    "category": "E2E",
+    "test_name": "重複行なし確認",
+    "status": "PASS",
+    "details": "重複行=0件",
+    "timestamp": "2025-11-22T09:40:18.334706"
+  },
+  {
+    "iteration": 3,
+    "category": "E2E",
+    "test_name": "都道府県カバレッジ",
+    "status": "PASS",
+    "details": "47/47都道府県",
+    "timestamp": "2025-11-22T09:40:18.342762"
+  },
+  {
+    "iteration": 3,
+    "category": "E2E",
+    "test_name": "count数値型確認",
+    "status": "PASS",
+    "details": "数値型=True",
+    "timestamp": "2025-11-22T09:40:18.342842"
+  },
+  {
+    "iteration": 3,
+    "category": "REGRESSION",
+    "test_name": "gender処理成功確認（AGE_GENDERデータ存在）",
+    "status": "PASS",
+    "details": "AGE_GENDER=907行",
+    "timestamp": "2025-11-22T09:40:18.538097"
+  },
+  {
+    "iteration": 3,
+    "category": "REGRESSION",
+    "test_name": "gender データ正常処理確認",
+    "status": "PASS",
+    "details": "性別カテゴリ数=2",
+    "timestamp": "2025-11-22T09:40:18.542996"
+  },
+  {
+    "iteration": 3,
+    "category": "REGRESSION",
+    "test_name": "sys.stdoutエラー回帰なし（インポート成功）",
+    "status": "PASS",
+    "details": "4モジュールすべてインポート成功",
+    "timestamp": "2025-11-22T09:40:18.545752"
+  },
+  {
+    "iteration": 3,
+    "category": "REGRESSION",
+    "test_name": "インポートパスエラー回帰なし",
+    "status": "PASS",
+    "details": "run_complete_v2_perfectインポート成功",
+    "timestamp": "2025-11-22T09:40:18.545858"
+  },
+  {
+    "iteration": 3,
+    "category": "REGRESSION",
+    "test_name": "外れ値フィルター動作確認（40+/5都道府県）",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:18.759583"
+  },
+  {
+    "iteration": 3,
+    "category": "REGRESSION",
+    "test_name": "外れ値除外確認",
+    "status": "PASS",
+    "details": "削減前=31,445 → 削減後=26,768 (削減率=14.9%)",
+    "timestamp": "2025-11-22T09:40:18.759637"
+  },
+  {
+    "iteration": 4,
+    "category": "UNIT",
+    "test_name": "40+フィルター条件判定",
+    "status": "PASS",
+    "details": "40件 >= 40件",
+    "timestamp": "2025-11-22T09:40:18.762396"
+  },
+  {
+    "iteration": 4,
+    "category": "UNIT",
+    "test_name": "5都道府県フィルター条件判定",
+    "status": "PASS",
+    "details": "5都道府県 >= 5",
+    "timestamp": "2025-11-22T09:40:18.762418"
+  },
+  {
+    "iteration": 4,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（正常系）",
+    "status": "PASS",
+    "details": "4/4件",
+    "timestamp": "2025-11-22T09:40:18.762438"
+  },
+  {
+    "iteration": 4,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（異常系）",
+    "status": "PASS",
+    "details": "3/3件検出",
+    "timestamp": "2025-11-22T09:40:18.762443"
+  },
+  {
+    "iteration": 4,
+    "category": "UNIT",
+    "test_name": "ハッシュ一貫性検証",
+    "status": "PASS",
+    "details": "hash1=46d4ea31... == hash2=46d4ea31...",
+    "timestamp": "2025-11-22T09:40:18.806142"
+  },
+  {
+    "iteration": 4,
+    "category": "INTEGRATION",
+    "test_name": "run_complete_v2_perfect インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:18.806272"
+  },
+  {
+    "iteration": 4,
+    "category": "INTEGRATION",
+    "test_name": "generate_desired_area_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:18.806283"
+  },
+  {
+    "iteration": 4,
+    "category": "INTEGRATION",
+    "test_name": "generate_mobility_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:18.806291"
+  },
+  {
+    "iteration": 4,
+    "category": "INTEGRATION",
+    "test_name": "generate_residence_flow インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:18.806299"
+  },
+  {
+    "iteration": 4,
+    "category": "INTEGRATION",
+    "test_name": "generate_qualification_detail インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:18.806305"
+  },
+  {
+    "iteration": 4,
+    "category": "INTEGRATION",
+    "test_name": "必須カラム存在確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:19.002101"
+  },
+  {
+    "iteration": 4,
+    "category": "INTEGRATION",
+    "test_name": "row_type完全性確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:19.007274"
+  },
+  {
+    "iteration": 4,
+    "category": "INTEGRATION",
+    "test_name": "総行数一貫性",
+    "status": "PASS",
+    "details": "期待=53,000, 実際=53,000",
+    "timestamp": "2025-11-22T09:40:19.199302"
+  },
+  {
+    "iteration": 4,
+    "category": "INTEGRATION",
+    "test_name": "DESIRED_AREA_PATTERN行数一貫性",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:19.212593"
+  },
+  {
+    "iteration": 4,
+    "category": "E2E",
+    "test_name": "最終CSV生成確認",
+    "status": "PASS",
+    "details": "MapComplete_Complete_All_FIXED.csv",
+    "timestamp": "2025-11-22T09:40:19.216008"
+  },
+  {
+    "iteration": 4,
+    "category": "E2E",
+    "test_name": "CSV読み込み成功",
+    "status": "PASS",
+    "details": "53,000行読み込み",
+    "timestamp": "2025-11-22T09:40:19.426807"
+  },
+  {
+    "iteration": 4,
+    "category": "E2E",
+    "test_name": "データ整合性確認",
+    "status": "PASS",
+    "details": "行数=53,000, row_type存在=True, prefecture存在=True",
+    "timestamp": "2025-11-22T09:40:19.426924"
+  },
+  {
+    "iteration": 4,
+    "category": "E2E",
+    "test_name": "ハッシュ一貫性（イテレーション4）",
+    "status": "PASS",
+    "details": "current=46d4ea31926881c0... vs baseline=46d4ea31926881c0...",
+    "timestamp": "2025-11-22T09:40:19.449178"
+  },
+  {
+    "iteration": 4,
+    "category": "E2E",
+    "test_name": "重複行なし確認",
+    "status": "PASS",
+    "details": "重複行=0件",
+    "timestamp": "2025-11-22T09:40:19.747318"
+  },
+  {
+    "iteration": 4,
+    "category": "E2E",
+    "test_name": "都道府県カバレッジ",
+    "status": "PASS",
+    "details": "47/47都道府県",
+    "timestamp": "2025-11-22T09:40:19.756471"
+  },
+  {
+    "iteration": 4,
+    "category": "E2E",
+    "test_name": "count数値型確認",
+    "status": "PASS",
+    "details": "数値型=True",
+    "timestamp": "2025-11-22T09:40:19.756552"
+  },
+  {
+    "iteration": 4,
+    "category": "REGRESSION",
+    "test_name": "gender処理成功確認（AGE_GENDERデータ存在）",
+    "status": "PASS",
+    "details": "AGE_GENDER=907行",
+    "timestamp": "2025-11-22T09:40:19.966879"
+  },
+  {
+    "iteration": 4,
+    "category": "REGRESSION",
+    "test_name": "gender データ正常処理確認",
+    "status": "PASS",
+    "details": "性別カテゴリ数=2",
+    "timestamp": "2025-11-22T09:40:19.972324"
+  },
+  {
+    "iteration": 4,
+    "category": "REGRESSION",
+    "test_name": "sys.stdoutエラー回帰なし（インポート成功）",
+    "status": "PASS",
+    "details": "4モジュールすべてインポート成功",
+    "timestamp": "2025-11-22T09:40:19.976272"
+  },
+  {
+    "iteration": 4,
+    "category": "REGRESSION",
+    "test_name": "インポートパスエラー回帰なし",
+    "status": "PASS",
+    "details": "run_complete_v2_perfectインポート成功",
+    "timestamp": "2025-11-22T09:40:19.976366"
+  },
+  {
+    "iteration": 4,
+    "category": "REGRESSION",
+    "test_name": "外れ値フィルター動作確認（40+/5都道府県）",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:20.235336"
+  },
+  {
+    "iteration": 4,
+    "category": "REGRESSION",
+    "test_name": "外れ値除外確認",
+    "status": "PASS",
+    "details": "削減前=31,445 → 削減後=26,768 (削減率=14.9%)",
+    "timestamp": "2025-11-22T09:40:20.235377"
+  },
+  {
+    "iteration": 5,
+    "category": "UNIT",
+    "test_name": "40+フィルター条件判定",
+    "status": "PASS",
+    "details": "40件 >= 40件",
+    "timestamp": "2025-11-22T09:40:20.238208"
+  },
+  {
+    "iteration": 5,
+    "category": "UNIT",
+    "test_name": "5都道府県フィルター条件判定",
+    "status": "PASS",
+    "details": "5都道府県 >= 5",
+    "timestamp": "2025-11-22T09:40:20.238271"
+  },
+  {
+    "iteration": 5,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（正常系）",
+    "status": "PASS",
+    "details": "4/4件",
+    "timestamp": "2025-11-22T09:40:20.238295"
+  },
+  {
+    "iteration": 5,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（異常系）",
+    "status": "PASS",
+    "details": "3/3件検出",
+    "timestamp": "2025-11-22T09:40:20.238299"
+  },
+  {
+    "iteration": 5,
+    "category": "UNIT",
+    "test_name": "ハッシュ一貫性検証",
+    "status": "PASS",
+    "details": "hash1=46d4ea31... == hash2=46d4ea31...",
+    "timestamp": "2025-11-22T09:40:20.281479"
+  },
+  {
+    "iteration": 5,
+    "category": "INTEGRATION",
+    "test_name": "run_complete_v2_perfect インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:20.281608"
+  },
+  {
+    "iteration": 5,
+    "category": "INTEGRATION",
+    "test_name": "generate_desired_area_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:20.281620"
+  },
+  {
+    "iteration": 5,
+    "category": "INTEGRATION",
+    "test_name": "generate_mobility_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:20.281627"
+  },
+  {
+    "iteration": 5,
+    "category": "INTEGRATION",
+    "test_name": "generate_residence_flow インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:20.281635"
+  },
+  {
+    "iteration": 5,
+    "category": "INTEGRATION",
+    "test_name": "generate_qualification_detail インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:20.281641"
+  },
+  {
+    "iteration": 5,
+    "category": "INTEGRATION",
+    "test_name": "必須カラム存在確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:20.480378"
+  },
+  {
+    "iteration": 5,
+    "category": "INTEGRATION",
+    "test_name": "row_type完全性確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:20.485505"
+  },
+  {
+    "iteration": 5,
+    "category": "INTEGRATION",
+    "test_name": "総行数一貫性",
+    "status": "PASS",
+    "details": "期待=53,000, 実際=53,000",
+    "timestamp": "2025-11-22T09:40:20.700615"
+  },
+  {
+    "iteration": 5,
+    "category": "INTEGRATION",
+    "test_name": "DESIRED_AREA_PATTERN行数一貫性",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:20.715634"
+  },
+  {
+    "iteration": 5,
+    "category": "E2E",
+    "test_name": "最終CSV生成確認",
+    "status": "PASS",
+    "details": "MapComplete_Complete_All_FIXED.csv",
+    "timestamp": "2025-11-22T09:40:20.719083"
+  },
+  {
+    "iteration": 5,
+    "category": "E2E",
+    "test_name": "CSV読み込み成功",
+    "status": "PASS",
+    "details": "53,000行読み込み",
+    "timestamp": "2025-11-22T09:40:20.924930"
+  },
+  {
+    "iteration": 5,
+    "category": "E2E",
+    "test_name": "データ整合性確認",
+    "status": "PASS",
+    "details": "行数=53,000, row_type存在=True, prefecture存在=True",
+    "timestamp": "2025-11-22T09:40:20.925042"
+  },
+  {
+    "iteration": 5,
+    "category": "E2E",
+    "test_name": "ハッシュ一貫性（イテレーション5）",
+    "status": "PASS",
+    "details": "current=46d4ea31926881c0... vs baseline=46d4ea31926881c0...",
+    "timestamp": "2025-11-22T09:40:20.948213"
+  },
+  {
+    "iteration": 5,
+    "category": "E2E",
+    "test_name": "重複行なし確認",
+    "status": "PASS",
+    "details": "重複行=0件",
+    "timestamp": "2025-11-22T09:40:21.259239"
+  },
+  {
+    "iteration": 5,
+    "category": "E2E",
+    "test_name": "都道府県カバレッジ",
+    "status": "PASS",
+    "details": "47/47都道府県",
+    "timestamp": "2025-11-22T09:40:21.266799"
+  },
+  {
+    "iteration": 5,
+    "category": "E2E",
+    "test_name": "count数値型確認",
+    "status": "PASS",
+    "details": "数値型=True",
+    "timestamp": "2025-11-22T09:40:21.266871"
+  },
+  {
+    "iteration": 5,
+    "category": "REGRESSION",
+    "test_name": "gender処理成功確認（AGE_GENDERデータ存在）",
+    "status": "PASS",
+    "details": "AGE_GENDER=907行",
+    "timestamp": "2025-11-22T09:40:21.484353"
+  },
+  {
+    "iteration": 5,
+    "category": "REGRESSION",
+    "test_name": "gender データ正常処理確認",
+    "status": "PASS",
+    "details": "性別カテゴリ数=2",
+    "timestamp": "2025-11-22T09:40:21.489183"
+  },
+  {
+    "iteration": 5,
+    "category": "REGRESSION",
+    "test_name": "sys.stdoutエラー回帰なし（インポート成功）",
+    "status": "PASS",
+    "details": "4モジュールすべてインポート成功",
+    "timestamp": "2025-11-22T09:40:21.491167"
+  },
+  {
+    "iteration": 5,
+    "category": "REGRESSION",
+    "test_name": "インポートパスエラー回帰なし",
+    "status": "PASS",
+    "details": "run_complete_v2_perfectインポート成功",
+    "timestamp": "2025-11-22T09:40:21.491260"
+  },
+  {
+    "iteration": 5,
+    "category": "REGRESSION",
+    "test_name": "外れ値フィルター動作確認（40+/5都道府県）",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:21.700523"
+  },
+  {
+    "iteration": 5,
+    "category": "REGRESSION",
+    "test_name": "外れ値除外確認",
+    "status": "PASS",
+    "details": "削減前=31,445 → 削減後=26,768 (削減率=14.9%)",
+    "timestamp": "2025-11-22T09:40:21.700592"
+  },
+  {
+    "iteration": 6,
+    "category": "UNIT",
+    "test_name": "40+フィルター条件判定",
+    "status": "PASS",
+    "details": "40件 >= 40件",
+    "timestamp": "2025-11-22T09:40:21.702513"
+  },
+  {
+    "iteration": 6,
+    "category": "UNIT",
+    "test_name": "5都道府県フィルター条件判定",
+    "status": "PASS",
+    "details": "5都道府県 >= 5",
+    "timestamp": "2025-11-22T09:40:21.702529"
+  },
+  {
+    "iteration": 6,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（正常系）",
+    "status": "PASS",
+    "details": "4/4件",
+    "timestamp": "2025-11-22T09:40:21.702542"
+  },
+  {
+    "iteration": 6,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（異常系）",
+    "status": "PASS",
+    "details": "3/3件検出",
+    "timestamp": "2025-11-22T09:40:21.702545"
+  },
+  {
+    "iteration": 6,
+    "category": "UNIT",
+    "test_name": "ハッシュ一貫性検証",
+    "status": "PASS",
+    "details": "hash1=46d4ea31... == hash2=46d4ea31...",
+    "timestamp": "2025-11-22T09:40:21.744401"
+  },
+  {
+    "iteration": 6,
+    "category": "INTEGRATION",
+    "test_name": "run_complete_v2_perfect インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:21.744538"
+  },
+  {
+    "iteration": 6,
+    "category": "INTEGRATION",
+    "test_name": "generate_desired_area_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:21.744552"
+  },
+  {
+    "iteration": 6,
+    "category": "INTEGRATION",
+    "test_name": "generate_mobility_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:21.744561"
+  },
+  {
+    "iteration": 6,
+    "category": "INTEGRATION",
+    "test_name": "generate_residence_flow インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:21.744568"
+  },
+  {
+    "iteration": 6,
+    "category": "INTEGRATION",
+    "test_name": "generate_qualification_detail インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:21.744575"
+  },
+  {
+    "iteration": 6,
+    "category": "INTEGRATION",
+    "test_name": "必須カラム存在確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:21.969188"
+  },
+  {
+    "iteration": 6,
+    "category": "INTEGRATION",
+    "test_name": "row_type完全性確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:21.974271"
+  },
+  {
+    "iteration": 6,
+    "category": "INTEGRATION",
+    "test_name": "総行数一貫性",
+    "status": "PASS",
+    "details": "期待=53,000, 実際=53,000",
+    "timestamp": "2025-11-22T09:40:22.176606"
+  },
+  {
+    "iteration": 6,
+    "category": "INTEGRATION",
+    "test_name": "DESIRED_AREA_PATTERN行数一貫性",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:22.190268"
+  },
+  {
+    "iteration": 6,
+    "category": "E2E",
+    "test_name": "最終CSV生成確認",
+    "status": "PASS",
+    "details": "MapComplete_Complete_All_FIXED.csv",
+    "timestamp": "2025-11-22T09:40:22.193129"
+  },
+  {
+    "iteration": 6,
+    "category": "E2E",
+    "test_name": "CSV読み込み成功",
+    "status": "PASS",
+    "details": "53,000行読み込み",
+    "timestamp": "2025-11-22T09:40:22.409481"
+  },
+  {
+    "iteration": 6,
+    "category": "E2E",
+    "test_name": "データ整合性確認",
+    "status": "PASS",
+    "details": "行数=53,000, row_type存在=True, prefecture存在=True",
+    "timestamp": "2025-11-22T09:40:22.409590"
+  },
+  {
+    "iteration": 6,
+    "category": "E2E",
+    "test_name": "ハッシュ一貫性（イテレーション6）",
+    "status": "PASS",
+    "details": "current=46d4ea31926881c0... vs baseline=46d4ea31926881c0...",
+    "timestamp": "2025-11-22T09:40:22.433370"
+  },
+  {
+    "iteration": 6,
+    "category": "E2E",
+    "test_name": "重複行なし確認",
+    "status": "PASS",
+    "details": "重複行=0件",
+    "timestamp": "2025-11-22T09:40:22.738324"
+  },
+  {
+    "iteration": 6,
+    "category": "E2E",
+    "test_name": "都道府県カバレッジ",
+    "status": "PASS",
+    "details": "47/47都道府県",
+    "timestamp": "2025-11-22T09:40:22.746321"
+  },
+  {
+    "iteration": 6,
+    "category": "E2E",
+    "test_name": "count数値型確認",
+    "status": "PASS",
+    "details": "数値型=True",
+    "timestamp": "2025-11-22T09:40:22.746424"
+  },
+  {
+    "iteration": 6,
+    "category": "REGRESSION",
+    "test_name": "gender処理成功確認（AGE_GENDERデータ存在）",
+    "status": "PASS",
+    "details": "AGE_GENDER=907行",
+    "timestamp": "2025-11-22T09:40:22.947256"
+  },
+  {
+    "iteration": 6,
+    "category": "REGRESSION",
+    "test_name": "gender データ正常処理確認",
+    "status": "PASS",
+    "details": "性別カテゴリ数=2",
+    "timestamp": "2025-11-22T09:40:22.953834"
+  },
+  {
+    "iteration": 6,
+    "category": "REGRESSION",
+    "test_name": "sys.stdoutエラー回帰なし（インポート成功）",
+    "status": "PASS",
+    "details": "4モジュールすべてインポート成功",
+    "timestamp": "2025-11-22T09:40:22.956955"
+  },
+  {
+    "iteration": 6,
+    "category": "REGRESSION",
+    "test_name": "インポートパスエラー回帰なし",
+    "status": "PASS",
+    "details": "run_complete_v2_perfectインポート成功",
+    "timestamp": "2025-11-22T09:40:22.957104"
+  },
+  {
+    "iteration": 6,
+    "category": "REGRESSION",
+    "test_name": "外れ値フィルター動作確認（40+/5都道府県）",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:23.189441"
+  },
+  {
+    "iteration": 6,
+    "category": "REGRESSION",
+    "test_name": "外れ値除外確認",
+    "status": "PASS",
+    "details": "削減前=31,445 → 削減後=26,768 (削減率=14.9%)",
+    "timestamp": "2025-11-22T09:40:23.189501"
+  },
+  {
+    "iteration": 7,
+    "category": "UNIT",
+    "test_name": "40+フィルター条件判定",
+    "status": "PASS",
+    "details": "40件 >= 40件",
+    "timestamp": "2025-11-22T09:40:23.192253"
+  },
+  {
+    "iteration": 7,
+    "category": "UNIT",
+    "test_name": "5都道府県フィルター条件判定",
+    "status": "PASS",
+    "details": "5都道府県 >= 5",
+    "timestamp": "2025-11-22T09:40:23.192274"
+  },
+  {
+    "iteration": 7,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（正常系）",
+    "status": "PASS",
+    "details": "4/4件",
+    "timestamp": "2025-11-22T09:40:23.192294"
+  },
+  {
+    "iteration": 7,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（異常系）",
+    "status": "PASS",
+    "details": "3/3件検出",
+    "timestamp": "2025-11-22T09:40:23.192299"
+  },
+  {
+    "iteration": 7,
+    "category": "UNIT",
+    "test_name": "ハッシュ一貫性検証",
+    "status": "PASS",
+    "details": "hash1=46d4ea31... == hash2=46d4ea31...",
+    "timestamp": "2025-11-22T09:40:23.233491"
+  },
+  {
+    "iteration": 7,
+    "category": "INTEGRATION",
+    "test_name": "run_complete_v2_perfect インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:23.233598"
+  },
+  {
+    "iteration": 7,
+    "category": "INTEGRATION",
+    "test_name": "generate_desired_area_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:23.233606"
+  },
+  {
+    "iteration": 7,
+    "category": "INTEGRATION",
+    "test_name": "generate_mobility_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:23.233611"
+  },
+  {
+    "iteration": 7,
+    "category": "INTEGRATION",
+    "test_name": "generate_residence_flow インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:23.233616"
+  },
+  {
+    "iteration": 7,
+    "category": "INTEGRATION",
+    "test_name": "generate_qualification_detail インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:23.233620"
+  },
+  {
+    "iteration": 7,
+    "category": "INTEGRATION",
+    "test_name": "必須カラム存在確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:23.428210"
+  },
+  {
+    "iteration": 7,
+    "category": "INTEGRATION",
+    "test_name": "row_type完全性確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:23.432460"
+  },
+  {
+    "iteration": 7,
+    "category": "INTEGRATION",
+    "test_name": "総行数一貫性",
+    "status": "PASS",
+    "details": "期待=53,000, 実際=53,000",
+    "timestamp": "2025-11-22T09:40:23.643654"
+  },
+  {
+    "iteration": 7,
+    "category": "INTEGRATION",
+    "test_name": "DESIRED_AREA_PATTERN行数一貫性",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:23.654129"
+  },
+  {
+    "iteration": 7,
+    "category": "E2E",
+    "test_name": "最終CSV生成確認",
+    "status": "PASS",
+    "details": "MapComplete_Complete_All_FIXED.csv",
+    "timestamp": "2025-11-22T09:40:23.657158"
+  },
+  {
+    "iteration": 7,
+    "category": "E2E",
+    "test_name": "CSV読み込み成功",
+    "status": "PASS",
+    "details": "53,000行読み込み",
+    "timestamp": "2025-11-22T09:40:23.870020"
+  },
+  {
+    "iteration": 7,
+    "category": "E2E",
+    "test_name": "データ整合性確認",
+    "status": "PASS",
+    "details": "行数=53,000, row_type存在=True, prefecture存在=True",
+    "timestamp": "2025-11-22T09:40:23.870176"
+  },
+  {
+    "iteration": 7,
+    "category": "E2E",
+    "test_name": "ハッシュ一貫性（イテレーション7）",
+    "status": "PASS",
+    "details": "current=46d4ea31926881c0... vs baseline=46d4ea31926881c0...",
+    "timestamp": "2025-11-22T09:40:23.896069"
+  },
+  {
+    "iteration": 7,
+    "category": "E2E",
+    "test_name": "重複行なし確認",
+    "status": "PASS",
+    "details": "重複行=0件",
+    "timestamp": "2025-11-22T09:40:24.209949"
+  },
+  {
+    "iteration": 7,
+    "category": "E2E",
+    "test_name": "都道府県カバレッジ",
+    "status": "PASS",
+    "details": "47/47都道府県",
+    "timestamp": "2025-11-22T09:40:24.218102"
+  },
+  {
+    "iteration": 7,
+    "category": "E2E",
+    "test_name": "count数値型確認",
+    "status": "PASS",
+    "details": "数値型=True",
+    "timestamp": "2025-11-22T09:40:24.218167"
+  },
+  {
+    "iteration": 7,
+    "category": "REGRESSION",
+    "test_name": "gender処理成功確認（AGE_GENDERデータ存在）",
+    "status": "PASS",
+    "details": "AGE_GENDER=907行",
+    "timestamp": "2025-11-22T09:40:24.437580"
+  },
+  {
+    "iteration": 7,
+    "category": "REGRESSION",
+    "test_name": "gender データ正常処理確認",
+    "status": "PASS",
+    "details": "性別カテゴリ数=2",
+    "timestamp": "2025-11-22T09:40:24.441710"
+  },
+  {
+    "iteration": 7,
+    "category": "REGRESSION",
+    "test_name": "sys.stdoutエラー回帰なし（インポート成功）",
+    "status": "PASS",
+    "details": "4モジュールすべてインポート成功",
+    "timestamp": "2025-11-22T09:40:24.444596"
+  },
+  {
+    "iteration": 7,
+    "category": "REGRESSION",
+    "test_name": "インポートパスエラー回帰なし",
+    "status": "PASS",
+    "details": "run_complete_v2_perfectインポート成功",
+    "timestamp": "2025-11-22T09:40:24.444688"
+  },
+  {
+    "iteration": 7,
+    "category": "REGRESSION",
+    "test_name": "外れ値フィルター動作確認（40+/5都道府県）",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:24.674917"
+  },
+  {
+    "iteration": 7,
+    "category": "REGRESSION",
+    "test_name": "外れ値除外確認",
+    "status": "PASS",
+    "details": "削減前=31,445 → 削減後=26,768 (削減率=14.9%)",
+    "timestamp": "2025-11-22T09:40:24.674960"
+  },
+  {
+    "iteration": 8,
+    "category": "UNIT",
+    "test_name": "40+フィルター条件判定",
+    "status": "PASS",
+    "details": "40件 >= 40件",
+    "timestamp": "2025-11-22T09:40:24.677862"
+  },
+  {
+    "iteration": 8,
+    "category": "UNIT",
+    "test_name": "5都道府県フィルター条件判定",
+    "status": "PASS",
+    "details": "5都道府県 >= 5",
+    "timestamp": "2025-11-22T09:40:24.677888"
+  },
+  {
+    "iteration": 8,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（正常系）",
+    "status": "PASS",
+    "details": "4/4件",
+    "timestamp": "2025-11-22T09:40:24.677907"
+  },
+  {
+    "iteration": 8,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（異常系）",
+    "status": "PASS",
+    "details": "3/3件検出",
+    "timestamp": "2025-11-22T09:40:24.677913"
+  },
+  {
+    "iteration": 8,
+    "category": "UNIT",
+    "test_name": "ハッシュ一貫性検証",
+    "status": "PASS",
+    "details": "hash1=46d4ea31... == hash2=46d4ea31...",
+    "timestamp": "2025-11-22T09:40:24.726855"
+  },
+  {
+    "iteration": 8,
+    "category": "INTEGRATION",
+    "test_name": "run_complete_v2_perfect インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:24.726987"
+  },
+  {
+    "iteration": 8,
+    "category": "INTEGRATION",
+    "test_name": "generate_desired_area_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:24.726999"
+  },
+  {
+    "iteration": 8,
+    "category": "INTEGRATION",
+    "test_name": "generate_mobility_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:24.727006"
+  },
+  {
+    "iteration": 8,
+    "category": "INTEGRATION",
+    "test_name": "generate_residence_flow インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:24.727012"
+  },
+  {
+    "iteration": 8,
+    "category": "INTEGRATION",
+    "test_name": "generate_qualification_detail インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:24.727018"
+  },
+  {
+    "iteration": 8,
+    "category": "INTEGRATION",
+    "test_name": "必須カラム存在確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:24.924717"
+  },
+  {
+    "iteration": 8,
+    "category": "INTEGRATION",
+    "test_name": "row_type完全性確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:24.929088"
+  },
+  {
+    "iteration": 8,
+    "category": "INTEGRATION",
+    "test_name": "総行数一貫性",
+    "status": "PASS",
+    "details": "期待=53,000, 実際=53,000",
+    "timestamp": "2025-11-22T09:40:25.119415"
+  },
+  {
+    "iteration": 8,
+    "category": "INTEGRATION",
+    "test_name": "DESIRED_AREA_PATTERN行数一貫性",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:25.133377"
+  },
+  {
+    "iteration": 8,
+    "category": "E2E",
+    "test_name": "最終CSV生成確認",
+    "status": "PASS",
+    "details": "MapComplete_Complete_All_FIXED.csv",
+    "timestamp": "2025-11-22T09:40:25.136424"
+  },
+  {
+    "iteration": 8,
+    "category": "E2E",
+    "test_name": "CSV読み込み成功",
+    "status": "PASS",
+    "details": "53,000行読み込み",
+    "timestamp": "2025-11-22T09:40:25.385688"
+  },
+  {
+    "iteration": 8,
+    "category": "E2E",
+    "test_name": "データ整合性確認",
+    "status": "PASS",
+    "details": "行数=53,000, row_type存在=True, prefecture存在=True",
+    "timestamp": "2025-11-22T09:40:25.385813"
+  },
+  {
+    "iteration": 8,
+    "category": "E2E",
+    "test_name": "ハッシュ一貫性（イテレーション8）",
+    "status": "PASS",
+    "details": "current=46d4ea31926881c0... vs baseline=46d4ea31926881c0...",
+    "timestamp": "2025-11-22T09:40:25.410483"
+  },
+  {
+    "iteration": 8,
+    "category": "E2E",
+    "test_name": "重複行なし確認",
+    "status": "PASS",
+    "details": "重複行=0件",
+    "timestamp": "2025-11-22T09:40:25.724274"
+  },
+  {
+    "iteration": 8,
+    "category": "E2E",
+    "test_name": "都道府県カバレッジ",
+    "status": "PASS",
+    "details": "47/47都道府県",
+    "timestamp": "2025-11-22T09:40:25.731783"
+  },
+  {
+    "iteration": 8,
+    "category": "E2E",
+    "test_name": "count数値型確認",
+    "status": "PASS",
+    "details": "数値型=True",
+    "timestamp": "2025-11-22T09:40:25.731873"
+  },
+  {
+    "iteration": 8,
+    "category": "REGRESSION",
+    "test_name": "gender処理成功確認（AGE_GENDERデータ存在）",
+    "status": "PASS",
+    "details": "AGE_GENDER=907行",
+    "timestamp": "2025-11-22T09:40:25.940171"
+  },
+  {
+    "iteration": 8,
+    "category": "REGRESSION",
+    "test_name": "gender データ正常処理確認",
+    "status": "PASS",
+    "details": "性別カテゴリ数=2",
+    "timestamp": "2025-11-22T09:40:25.945662"
+  },
+  {
+    "iteration": 8,
+    "category": "REGRESSION",
+    "test_name": "sys.stdoutエラー回帰なし（インポート成功）",
+    "status": "PASS",
+    "details": "4モジュールすべてインポート成功",
+    "timestamp": "2025-11-22T09:40:25.948561"
+  },
+  {
+    "iteration": 8,
+    "category": "REGRESSION",
+    "test_name": "インポートパスエラー回帰なし",
+    "status": "PASS",
+    "details": "run_complete_v2_perfectインポート成功",
+    "timestamp": "2025-11-22T09:40:25.948653"
+  },
+  {
+    "iteration": 8,
+    "category": "REGRESSION",
+    "test_name": "外れ値フィルター動作確認（40+/5都道府県）",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:26.173665"
+  },
+  {
+    "iteration": 8,
+    "category": "REGRESSION",
+    "test_name": "外れ値除外確認",
+    "status": "PASS",
+    "details": "削減前=31,445 → 削減後=26,768 (削減率=14.9%)",
+    "timestamp": "2025-11-22T09:40:26.173715"
+  },
+  {
+    "iteration": 9,
+    "category": "UNIT",
+    "test_name": "40+フィルター条件判定",
+    "status": "PASS",
+    "details": "40件 >= 40件",
+    "timestamp": "2025-11-22T09:40:26.176747"
+  },
+  {
+    "iteration": 9,
+    "category": "UNIT",
+    "test_name": "5都道府県フィルター条件判定",
+    "status": "PASS",
+    "details": "5都道府県 >= 5",
+    "timestamp": "2025-11-22T09:40:26.176768"
+  },
+  {
+    "iteration": 9,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（正常系）",
+    "status": "PASS",
+    "details": "4/4件",
+    "timestamp": "2025-11-22T09:40:26.176786"
+  },
+  {
+    "iteration": 9,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（異常系）",
+    "status": "PASS",
+    "details": "3/3件検出",
+    "timestamp": "2025-11-22T09:40:26.176791"
+  },
+  {
+    "iteration": 9,
+    "category": "UNIT",
+    "test_name": "ハッシュ一貫性検証",
+    "status": "PASS",
+    "details": "hash1=46d4ea31... == hash2=46d4ea31...",
+    "timestamp": "2025-11-22T09:40:26.216888"
+  },
+  {
+    "iteration": 9,
+    "category": "INTEGRATION",
+    "test_name": "run_complete_v2_perfect インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:26.217026"
+  },
+  {
+    "iteration": 9,
+    "category": "INTEGRATION",
+    "test_name": "generate_desired_area_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:26.217039"
+  },
+  {
+    "iteration": 9,
+    "category": "INTEGRATION",
+    "test_name": "generate_mobility_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:26.217048"
+  },
+  {
+    "iteration": 9,
+    "category": "INTEGRATION",
+    "test_name": "generate_residence_flow インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:26.217055"
+  },
+  {
+    "iteration": 9,
+    "category": "INTEGRATION",
+    "test_name": "generate_qualification_detail インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:26.217062"
+  },
+  {
+    "iteration": 9,
+    "category": "INTEGRATION",
+    "test_name": "必須カラム存在確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:26.411144"
+  },
+  {
+    "iteration": 9,
+    "category": "INTEGRATION",
+    "test_name": "row_type完全性確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:26.416212"
+  },
+  {
+    "iteration": 9,
+    "category": "INTEGRATION",
+    "test_name": "総行数一貫性",
+    "status": "PASS",
+    "details": "期待=53,000, 実際=53,000",
+    "timestamp": "2025-11-22T09:40:26.626813"
+  },
+  {
+    "iteration": 9,
+    "category": "INTEGRATION",
+    "test_name": "DESIRED_AREA_PATTERN行数一貫性",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:26.640142"
+  },
+  {
+    "iteration": 9,
+    "category": "E2E",
+    "test_name": "最終CSV生成確認",
+    "status": "PASS",
+    "details": "MapComplete_Complete_All_FIXED.csv",
+    "timestamp": "2025-11-22T09:40:26.643380"
+  },
+  {
+    "iteration": 9,
+    "category": "E2E",
+    "test_name": "CSV読み込み成功",
+    "status": "PASS",
+    "details": "53,000行読み込み",
+    "timestamp": "2025-11-22T09:40:26.842671"
+  },
+  {
+    "iteration": 9,
+    "category": "E2E",
+    "test_name": "データ整合性確認",
+    "status": "PASS",
+    "details": "行数=53,000, row_type存在=True, prefecture存在=True",
+    "timestamp": "2025-11-22T09:40:26.842786"
+  },
+  {
+    "iteration": 9,
+    "category": "E2E",
+    "test_name": "ハッシュ一貫性（イテレーション9）",
+    "status": "PASS",
+    "details": "current=46d4ea31926881c0... vs baseline=46d4ea31926881c0...",
+    "timestamp": "2025-11-22T09:40:26.866356"
+  },
+  {
+    "iteration": 9,
+    "category": "E2E",
+    "test_name": "重複行なし確認",
+    "status": "PASS",
+    "details": "重複行=0件",
+    "timestamp": "2025-11-22T09:40:27.160956"
+  },
+  {
+    "iteration": 9,
+    "category": "E2E",
+    "test_name": "都道府県カバレッジ",
+    "status": "PASS",
+    "details": "47/47都道府県",
+    "timestamp": "2025-11-22T09:40:27.169074"
+  },
+  {
+    "iteration": 9,
+    "category": "E2E",
+    "test_name": "count数値型確認",
+    "status": "PASS",
+    "details": "数値型=True",
+    "timestamp": "2025-11-22T09:40:27.169168"
+  },
+  {
+    "iteration": 9,
+    "category": "REGRESSION",
+    "test_name": "gender処理成功確認（AGE_GENDERデータ存在）",
+    "status": "PASS",
+    "details": "AGE_GENDER=907行",
+    "timestamp": "2025-11-22T09:40:27.368566"
+  },
+  {
+    "iteration": 9,
+    "category": "REGRESSION",
+    "test_name": "gender データ正常処理確認",
+    "status": "PASS",
+    "details": "性別カテゴリ数=2",
+    "timestamp": "2025-11-22T09:40:27.371953"
+  },
+  {
+    "iteration": 9,
+    "category": "REGRESSION",
+    "test_name": "sys.stdoutエラー回帰なし（インポート成功）",
+    "status": "PASS",
+    "details": "4モジュールすべてインポート成功",
+    "timestamp": "2025-11-22T09:40:27.374589"
+  },
+  {
+    "iteration": 9,
+    "category": "REGRESSION",
+    "test_name": "インポートパスエラー回帰なし",
+    "status": "PASS",
+    "details": "run_complete_v2_perfectインポート成功",
+    "timestamp": "2025-11-22T09:40:27.374689"
+  },
+  {
+    "iteration": 9,
+    "category": "REGRESSION",
+    "test_name": "外れ値フィルター動作確認（40+/5都道府県）",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:27.589658"
+  },
+  {
+    "iteration": 9,
+    "category": "REGRESSION",
+    "test_name": "外れ値除外確認",
+    "status": "PASS",
+    "details": "削減前=31,445 → 削減後=26,768 (削減率=14.9%)",
+    "timestamp": "2025-11-22T09:40:27.589693"
+  },
+  {
+    "iteration": 10,
+    "category": "UNIT",
+    "test_name": "40+フィルター条件判定",
+    "status": "PASS",
+    "details": "40件 >= 40件",
+    "timestamp": "2025-11-22T09:40:27.591433"
+  },
+  {
+    "iteration": 10,
+    "category": "UNIT",
+    "test_name": "5都道府県フィルター条件判定",
+    "status": "PASS",
+    "details": "5都道府県 >= 5",
+    "timestamp": "2025-11-22T09:40:27.591446"
+  },
+  {
+    "iteration": 10,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（正常系）",
+    "status": "PASS",
+    "details": "4/4件",
+    "timestamp": "2025-11-22T09:40:27.591458"
+  },
+  {
+    "iteration": 10,
+    "category": "UNIT",
+    "test_name": "都道府県形式検証（異常系）",
+    "status": "PASS",
+    "details": "3/3件検出",
+    "timestamp": "2025-11-22T09:40:27.591462"
+  },
+  {
+    "iteration": 10,
+    "category": "UNIT",
+    "test_name": "ハッシュ一貫性検証",
+    "status": "PASS",
+    "details": "hash1=46d4ea31... == hash2=46d4ea31...",
+    "timestamp": "2025-11-22T09:40:27.632925"
+  },
+  {
+    "iteration": 10,
+    "category": "INTEGRATION",
+    "test_name": "run_complete_v2_perfect インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:27.633122"
+  },
+  {
+    "iteration": 10,
+    "category": "INTEGRATION",
+    "test_name": "generate_desired_area_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:27.633137"
+  },
+  {
+    "iteration": 10,
+    "category": "INTEGRATION",
+    "test_name": "generate_mobility_pattern インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:27.633147"
+  },
+  {
+    "iteration": 10,
+    "category": "INTEGRATION",
+    "test_name": "generate_residence_flow インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:27.633156"
+  },
+  {
+    "iteration": 10,
+    "category": "INTEGRATION",
+    "test_name": "generate_qualification_detail インポート",
+    "status": "PASS",
+    "details": "",
+    "timestamp": "2025-11-22T09:40:27.633164"
+  },
+  {
+    "iteration": 10,
+    "category": "INTEGRATION",
+    "test_name": "必須カラム存在確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:27.822328"
+  },
+  {
+    "iteration": 10,
+    "category": "INTEGRATION",
+    "test_name": "row_type完全性確認",
+    "status": "PASS",
+    "details": "すべて存在",
+    "timestamp": "2025-11-22T09:40:27.827397"
+  },
+  {
+    "iteration": 10,
+    "category": "INTEGRATION",
+    "test_name": "総行数一貫性",
+    "status": "PASS",
+    "details": "期待=53,000, 実際=53,000",
+    "timestamp": "2025-11-22T09:40:28.038226"
+  },
+  {
+    "iteration": 10,
+    "category": "INTEGRATION",
+    "test_name": "DESIRED_AREA_PATTERN行数一貫性",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:28.051023"
+  },
+  {
+    "iteration": 10,
+    "category": "E2E",
+    "test_name": "最終CSV生成確認",
+    "status": "PASS",
+    "details": "MapComplete_Complete_All_FIXED.csv",
+    "timestamp": "2025-11-22T09:40:28.054228"
+  },
+  {
+    "iteration": 10,
+    "category": "E2E",
+    "test_name": "CSV読み込み成功",
+    "status": "PASS",
+    "details": "53,000行読み込み",
+    "timestamp": "2025-11-22T09:40:28.241198"
+  },
+  {
+    "iteration": 10,
+    "category": "E2E",
+    "test_name": "データ整合性確認",
+    "status": "PASS",
+    "details": "行数=53,000, row_type存在=True, prefecture存在=True",
+    "timestamp": "2025-11-22T09:40:28.241299"
+  },
+  {
+    "iteration": 10,
+    "category": "E2E",
+    "test_name": "ハッシュ一貫性（イテレーション10）",
+    "status": "PASS",
+    "details": "current=46d4ea31926881c0... vs baseline=46d4ea31926881c0...",
+    "timestamp": "2025-11-22T09:40:28.265906"
+  },
+  {
+    "iteration": 10,
+    "category": "E2E",
+    "test_name": "重複行なし確認",
+    "status": "PASS",
+    "details": "重複行=0件",
+    "timestamp": "2025-11-22T09:40:28.556787"
+  },
+  {
+    "iteration": 10,
+    "category": "E2E",
+    "test_name": "都道府県カバレッジ",
+    "status": "PASS",
+    "details": "47/47都道府県",
+    "timestamp": "2025-11-22T09:40:28.563144"
+  },
+  {
+    "iteration": 10,
+    "category": "E2E",
+    "test_name": "count数値型確認",
+    "status": "PASS",
+    "details": "数値型=True",
+    "timestamp": "2025-11-22T09:40:28.563202"
+  },
+  {
+    "iteration": 10,
+    "category": "REGRESSION",
+    "test_name": "gender処理成功確認（AGE_GENDERデータ存在）",
+    "status": "PASS",
+    "details": "AGE_GENDER=907行",
+    "timestamp": "2025-11-22T09:40:28.771082"
+  },
+  {
+    "iteration": 10,
+    "category": "REGRESSION",
+    "test_name": "gender データ正常処理確認",
+    "status": "PASS",
+    "details": "性別カテゴリ数=2",
+    "timestamp": "2025-11-22T09:40:28.776051"
+  },
+  {
+    "iteration": 10,
+    "category": "REGRESSION",
+    "test_name": "sys.stdoutエラー回帰なし（インポート成功）",
+    "status": "PASS",
+    "details": "4モジュールすべてインポート成功",
+    "timestamp": "2025-11-22T09:40:28.778858"
+  },
+  {
+    "iteration": 10,
+    "category": "REGRESSION",
+    "test_name": "インポートパスエラー回帰なし",
+    "status": "PASS",
+    "details": "run_complete_v2_perfectインポート成功",
+    "timestamp": "2025-11-22T09:40:28.778950"
+  },
+  {
+    "iteration": 10,
+    "category": "REGRESSION",
+    "test_name": "外れ値フィルター動作確認（40+/5都道府県）",
+    "status": "PASS",
+    "details": "期待=26,768, 実際=26,768",
+    "timestamp": "2025-11-22T09:40:28.997603"
+  },
+  {
+    "iteration": 10,
+    "category": "REGRESSION",
+    "test_name": "外れ値除外確認",
+    "status": "PASS",
+    "details": "削減前=31,445 → 削減後=26,768 (削減率=14.9%)",
+    "timestamp": "2025-11-22T09:40:28.997645"
+  }
+]
