@@ -27,6 +27,8 @@ wheels/
 data/output_v2/
 data/output/
 data/archive/
+python_scripts/data/output_v2/
+reflex_app/python_scripts/data/
 persona_level_sheets/
 mapcomplete_sheets/
 
@@ -69,6 +71,12 @@ secrets.json
 # バックアップファイル
 *.bak
 *.backup
+*コピー.py
+
+# Reflex一時データファイル
+reflex_app/v3_*.csv
+reflex_app/v3_*.txt
+reflex_app/**/callback_handler.html
 
 # エクセル一時ファイル
 ~$*.xlsx
