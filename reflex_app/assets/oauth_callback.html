@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>認証処理中...</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align_items: center;
+            min-height: 100vh;
+            background: #0a0f1e;
+            color: #f8fafc;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .container {
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 114, 178, 0.3);
+            border-top: 4px solid #0072B2;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            color: #D55E00;
+            background: rgba(213, 94, 0, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(213, 94, 0, 0.3);
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner"></div>
+        <h2>認証処理中...</h2>
+        <p>しばらくお待ちください</p>
+        <div id="error" class="error" style="display:none;"></div>
+    </div>
+    <script>
+        console.log('[DEBUG] OAuth callback page loaded');
+
+        // URLパラメータを取得
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        const state = params.get('state');
+        const error = params.get('error');
+
+        console.log('[DEBUG] Params:', {
+            code: code ? code.substring(0, 10) + '...' : 'none',
+            state: state ? state.substring(0, 10) + '...' : 'none',
+            error
+        });
+
+        if (error) {
+            document.getElementById('error').textContent = `認証エラー: ${error}`;
+            document.getElementById('error').style.display = 'block';
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 3000);
+        } else if (code && state) {
+            // バックエンドAPIにPOSTリクエスト
+            console.log('[DEBUG] Sending POST request to /api/auth/callback');
+
+            fetch('http://localhost:8003/api/auth/callback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ code, state })
+            })
+            .then(response => {
+                console.log('[DEBUG] Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('[DEBUG] Response data:', data);
+                if (data.success) {
+                    // 認証成功、トップページへリダイレクト
+                    window.location.href = '/';
+                } else {
+                    // 認証失敗
+                    const errorMsg = data.error || '認証に失敗しました';
+                    document.getElementById('error').textContent = errorMsg;
+                    document.getElementById('error').style.display = 'block';
+                    setTimeout(() => {
+                        window.location.href = `/login?error=${encodeURIComponent(errorMsg)}`;
+                    }, 3000);
+                }
+            })
+            .catch(err => {
+                console.error('[ERROR]', err);
+                const errorMsg = `認証エラー: ${err.message}`;
+                document.getElementById('error').textContent = errorMsg;
+                document.getElementById('error').style.display = 'block';
+                setTimeout(() => {
+                    window.location.href = `/login?error=${encodeURIComponent(errorMsg)}`;
+                }, 3000);
+            });
+        } else {
+            const errorMsg = 'パラメータが不足しています';
+            document.getElementById('error').textContent = errorMsg;
+            document.getElementById('error').style.display = 'block';
+            setTimeout(() => {
+                window.location.href = `/login?error=${encodeURIComponent(errorMsg)}`;
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
