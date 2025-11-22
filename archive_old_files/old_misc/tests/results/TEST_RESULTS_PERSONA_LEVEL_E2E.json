@@ -1,0 +1,318 @@
+{
+  "suiteName": "PersonaLevel統合シート E2Eテスト",
+  "timestamp": "2025-11-09T14:01:57.635Z",
+  "scenarios": [
+    {
+      "name": "シナリオ1: 初回セットアップ",
+      "description": "Python実行 → PersonaLevel_京都府.csv生成 → GASインポート → データ確認",
+      "startTime": "2025-11-09T14:01:57.643Z",
+      "endTime": "2025-11-09T14:01:57.645Z",
+      "duration": 0.002,
+      "status": "passed",
+      "assertions": [
+        {
+          "assertion": "CSV生成確認",
+          "passed": true,
+          "message": "PersonaLevel_京都府.csvが生成されること",
+          "actual": true,
+          "expected": true,
+          "timestamp": "2025-11-09T14:01:57.643Z"
+        },
+        {
+          "assertion": "CSV行数確認",
+          "passed": true,
+          "message": "CSV行数が602行（ヘッダー含む）であること",
+          "actual": 602,
+          "expected": 602,
+          "timestamp": "2025-11-09T14:01:57.643Z"
+        },
+        {
+          "assertion": "CSV列数確認",
+          "passed": true,
+          "message": "CSV列数が43列であること",
+          "actual": 43,
+          "expected": 43,
+          "timestamp": "2025-11-09T14:01:57.643Z"
+        },
+        {
+          "assertion": "ロード時間検証",
+          "passed": true,
+          "message": "データロード時間が3秒未満であること",
+          "actual": "0.001秒",
+          "expected": "< 3秒",
+          "timestamp": "2025-11-09T14:01:57.644Z"
+        },
+        {
+          "assertion": "データ件数検証",
+          "passed": true,
+          "message": "ペルソナデータが601件であること",
+          "actual": 601,
+          "expected": 601,
+          "timestamp": "2025-11-09T14:01:57.645Z"
+        },
+        {
+          "assertion": "列数検証",
+          "passed": true,
+          "message": "列数が10列以上であること",
+          "actual": 10,
+          "expected": ">= 10",
+          "timestamp": "2025-11-09T14:01:57.645Z"
+        }
+      ],
+      "passed": 6,
+      "failed": 0,
+      "performance": {
+        "データロード時間": "0.001秒"
+      }
+    },
+    {
+      "name": "シナリオ2: ペルソナ難易度分析",
+      "description": "ユーザー操作: フィルタ条件入力 → 難易度レベル表示 → レスポンス時間検証",
+      "startTime": "2025-11-09T14:01:57.645Z",
+      "endTime": "2025-11-09T14:01:57.647Z",
+      "duration": 0.002,
+      "status": "failed",
+      "assertions": [
+        {
+          "assertion": "フィルタリング時間検証",
+          "passed": true,
+          "message": "フィルタリング時間が1秒未満であること",
+          "actual": "0.001秒",
+          "expected": "< 1秒",
+          "timestamp": "2025-11-09T14:01:57.647Z"
+        },
+        {
+          "assertion": "難易度分析時間検証",
+          "passed": true,
+          "message": "難易度分析時間が1秒未満であること",
+          "actual": "0秒",
+          "expected": "< 1秒",
+          "timestamp": "2025-11-09T14:01:57.647Z"
+        },
+        {
+          "assertion": "難易度レベル取得確認",
+          "passed": false,
+          "message": "難易度レベルが適切に取得されること",
+          "actual": "データなし",
+          "expected": "妥当な難易度レベル",
+          "timestamp": "2025-11-09T14:01:57.647Z"
+        },
+        {
+          "assertion": "平均希少性スコア確認",
+          "passed": false,
+          "message": "平均希少性スコアが数値で取得されること",
+          "actual": null,
+          "expected": "数値（0-1の範囲）",
+          "timestamp": "2025-11-09T14:01:57.647Z"
+        },
+        {
+          "assertion": "マッチ件数確認",
+          "passed": false,
+          "message": "マッチ件数が1件以上であること",
+          "actual": 0,
+          "expected": "> 0",
+          "timestamp": "2025-11-09T14:01:57.647Z"
+        },
+        {
+          "assertion": "UI表示確認",
+          "passed": true,
+          "message": "難易度レベルがUIに表示されること",
+          "actual": true,
+          "expected": true,
+          "timestamp": "2025-11-09T14:01:57.647Z"
+        }
+      ],
+      "passed": 3,
+      "failed": 3,
+      "performance": {
+        "フィルタリング時間": "0.001秒",
+        "難易度分析時間": "0秒"
+      }
+    },
+    {
+      "name": "シナリオ3: 市区町村別ランキング",
+      "description": "ユーザー操作: ランキング表示ボタンクリック → トップ10取得 → 新シート作成",
+      "startTime": "2025-11-09T14:01:57.647Z",
+      "endTime": "2025-11-09T14:01:57.648Z",
+      "duration": 0.001,
+      "status": "passed",
+      "assertions": [
+        {
+          "assertion": "ランキング生成時間検証",
+          "passed": true,
+          "message": "ランキング生成時間が2秒未満であること",
+          "actual": "0秒",
+          "expected": "< 2秒",
+          "timestamp": "2025-11-09T14:01:57.648Z"
+        },
+        {
+          "assertion": "ランキング件数確認",
+          "passed": true,
+          "message": "ランキングが最大10件であること",
+          "actual": 10,
+          "expected": "<= 10",
+          "timestamp": "2025-11-09T14:01:57.648Z"
+        },
+        {
+          "assertion": "スコア降順確認",
+          "passed": true,
+          "message": "ランキングがスコア降順でソートされていること",
+          "actual": true,
+          "expected": true,
+          "timestamp": "2025-11-09T14:01:57.648Z"
+        },
+        {
+          "assertion": "シート作成確認",
+          "passed": true,
+          "message": "新シートが作成されること",
+          "actual": true,
+          "expected": true,
+          "timestamp": "2025-11-09T14:01:57.648Z"
+        }
+      ],
+      "passed": 4,
+      "failed": 0,
+      "performance": {
+        "ランキング生成時間": "0秒"
+      }
+    },
+    {
+      "name": "シナリオ4: 複数都道府県の切り替え",
+      "description": "京都府 → 大阪府 → 東京都の切り替え、各切り替え時のロード時間確認、データ混在なし",
+      "startTime": "2025-11-09T14:01:57.649Z",
+      "endTime": "2025-11-09T14:01:57.652Z",
+      "duration": 0.003,
+      "status": "failed",
+      "assertions": [
+        {
+          "assertion": "京都府ロード時間検証",
+          "passed": true,
+          "message": "京都府のロード時間が3秒未満であること",
+          "actual": "0.001秒",
+          "expected": "< 3秒",
+          "timestamp": "2025-11-09T14:01:57.650Z"
+        },
+        {
+          "assertion": "大阪府ロード時間検証",
+          "passed": true,
+          "message": "大阪府のロード時間が3秒未満であること",
+          "actual": "0秒",
+          "expected": "< 3秒",
+          "timestamp": "2025-11-09T14:01:57.650Z"
+        },
+        {
+          "assertion": "東京都ロード時間検証",
+          "passed": true,
+          "message": "東京都のロード時間が3秒未満であること",
+          "actual": "0.002秒",
+          "expected": "< 3秒",
+          "timestamp": "2025-11-09T14:01:57.652Z"
+        },
+        {
+          "assertion": "京都府データ混在なし（大阪府）",
+          "passed": true,
+          "message": "大阪府データに京都府のデータが混在していないこと",
+          "actual": true,
+          "expected": true,
+          "timestamp": "2025-11-09T14:01:57.652Z"
+        },
+        {
+          "assertion": "京都府データ混在なし（東京都）",
+          "passed": false,
+          "message": "東京都データに京都府のデータが混在していないこと",
+          "actual": false,
+          "expected": true,
+          "timestamp": "2025-11-09T14:01:57.652Z"
+        },
+        {
+          "assertion": "大阪府データ混在なし（東京都）",
+          "passed": true,
+          "message": "東京都データに大阪府のデータが混在していないこと",
+          "actual": true,
+          "expected": true,
+          "timestamp": "2025-11-09T14:01:57.652Z"
+        },
+        {
+          "assertion": "都道府県リスト確認",
+          "passed": true,
+          "message": "3つの都道府県が利用可能であること",
+          "actual": [
+            "京都府",
+            "大阪府",
+            "東京都"
+          ],
+          "expected": [
+            "京都府",
+            "大阪府",
+            "東京都"
+          ],
+          "timestamp": "2025-11-09T14:01:57.652Z"
+        }
+      ],
+      "passed": 6,
+      "failed": 1,
+      "performance": {
+        "京都府ロード時間": "0.001秒",
+        "大阪府ロード時間": "0秒",
+        "東京都ロード時間": "0.002秒"
+      }
+    },
+    {
+      "name": "シナリオ5: エラーハンドリング",
+      "description": "存在しない都道府県、シート削除、不正フィルタ条件のエラーハンドリング検証",
+      "startTime": "2025-11-09T14:01:57.652Z",
+      "endTime": "2025-11-09T14:01:57.653Z",
+      "duration": 0.001,
+      "status": "passed",
+      "assertions": [
+        {
+          "assertion": "存在しない都道府県エラー",
+          "passed": true,
+          "message": "存在しない都道府県を指定した場合、適切にエラーがスローされること",
+          "actual": true,
+          "expected": true,
+          "timestamp": "2025-11-09T14:01:57.653Z"
+        },
+        {
+          "assertion": "シート削除エラー",
+          "passed": true,
+          "message": "シートが存在しない場合、適切にエラーがスローされること",
+          "actual": true,
+          "expected": true,
+          "timestamp": "2025-11-09T14:01:57.653Z"
+        },
+        {
+          "assertion": "空フィルタ動作確認",
+          "passed": true,
+          "message": "空フィルタの場合、全データが返されること",
+          "actual": 601,
+          "expected": 601,
+          "timestamp": "2025-11-09T14:01:57.653Z"
+        },
+        {
+          "assertion": "エラーメッセージ適切性確認",
+          "passed": true,
+          "message": "エラーメッセージが分かりやすく、問題解決のヒントを含むこと",
+          "actual": true,
+          "expected": true,
+          "timestamp": "2025-11-09T14:01:57.653Z"
+        }
+      ],
+      "passed": 4,
+      "failed": 0,
+      "performance": {}
+    }
+  ],
+  "summary": {
+    "totalScenarios": 5,
+    "passed": 3,
+    "failed": 2,
+    "totalAssertions": 27,
+    "passedAssertions": 23,
+    "failedAssertions": 4
+  },
+  "performanceBaseline": {
+    "従来方式": "15シート読み込み: 21秒",
+    "改善目標": "1シート読み込み: 2-3秒（85-90%削減）"
+  }
+}

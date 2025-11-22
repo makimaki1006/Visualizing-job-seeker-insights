@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>希望勤務地ヒートマップ</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Chart.js v3 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Leaflet.heat Plugin -->
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+    .container { display: flex; height: 100vh; }
+    .sidebar { width: 350px; background: white; padding: 20px; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 2; }
+    .map-container { flex: 1; position: relative; }
+    #map { width: 100%; height: 100%; z-index: 1; }
+
+    h2 { color: #667eea; font-size: 20px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #667eea; }
+
+    .stats-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+    .stats-label { font-size: 12px; opacity: 0.9; margin-bottom: 5px; }
+    .stats-value { font-size: 28px; font-weight: bold; }
+
+    .controls { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; }
+    .control-label { font-size: 13px; font-weight: bold; color: #666; margin-bottom: 10px; display: block; }
+    .slider-container { margin-bottom: 15px; }
+    .slider { width: 100%; height: 6px; border-radius: 3px; background: #ddd; outline: none; -webkit-appearance: none; }
+    .slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #667eea; cursor: pointer; }
+    .slider-value { font-size: 12px; color: #667eea; font-weight: bold; margin-top: 5px; }
+
+    .top10-list { list-style: none; margin-top: 10px; }
+    .top10-item { display: flex; justify-content: space-between; padding: 10px; margin-bottom: 5px; background: #f8f9fa; border-radius: 4px; font-size: 13px; }
+    .top10-rank { font-weight: bold; color: #667eea; margin-right: 10px; }
+    .top10-prefecture { flex: 1; }
+    .top10-count { font-weight: bold; color: #333; }
+
+    .loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; font-size: 18px; color: #667eea; z-index: 1000; }
+    .error { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 400px; z-index: 1000; }
+    .error-icon { font-size: 48px; margin-bottom: 15px; }
+    .error-message { color: #721c24; font-size: 14px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <h2>📊 統計情報</h2>
+
+      <div class="stats-card">
+        <div class="stats-label">総求職者数</div>
+        <div class="stats-value" id="totalCount">-</div>
+      </div>
+
+      <div class="stats-card">
+        <div class="stats-label">平均年齢</div>
+        <div class="stats-value" id="avgAge">-</div>
+      </div>
+
+      <h2>⚙️ ヒートマップ設定</h2>
+      <div class="controls">
+        <div class="slider-container">
+          <label class="control-label">強度（Intensity）</label>
+          <input type="range" min="0.1" max="1.0" step="0.1" value="0.5" class="slider" id="intensitySlider">
+          <div class="slider-value" id="intensityValue">0.5</div>
+        </div>
+
+        <div class="slider-container">
+          <label class="control-label">半径（Radius）</label>
+          <input type="range" min="10" max="50" value="25" class="slider" id="radiusSlider">
+          <div class="slider-value" id="radiusValue">25 px</div>
+        </div>
+      </div>
+
+      <h2>📍 希望勤務地 TOP10</h2>
+      <ul class="top10-list" id="top10List"></ul>
+    </div>
+
+    <div class="map-container">
+      <div class="loading" id="loading">
+        🔄 データ読み込み中...
+      </div>
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <script>
+    var map;
+    var heatLayer;
+    var heatmapData = [];
+    var heatRadius = 25;
+    var heatIntensity = 0.5;
+
+    // 地図初期化
+    function initMap() {
+      map = L.map('map').setView([36.5, 138.0], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18
+      }).addTo(map);
+
+      // コントロール設定
+      setupControls();
+
+      // データ読み込み
+      loadData();
+    }
+
+    // コントロール設定
+    function setupControls() {
+      var intensitySlider = document.getElementById('intensitySlider');
+      var radiusSlider = document.getElementById('radiusSlider');
+
+      intensitySlider.addEventListener('input', function(e) {
+        heatIntensity = parseFloat(e.target.value);
+        document.getElementById('intensityValue').textContent = heatIntensity.toFixed(1);
+        updateHeatmap();
+      });
+
+      radiusSlider.addEventListener('input', function(e) {
+        heatRadius = parseInt(e.target.value);
+        document.getElementById('radiusValue').textContent = heatRadius + ' px';
+        updateHeatmap();
+      });
+    }
+
+    // データ読み込み
+    function loadData() {
+      document.getElementById('loading').style.display = 'block';
+
+      Promise.all([
+        callGAS('getMapMetricsData'),
+        callGAS('getApplicantsStats'),
+        callGAS('getDesiredWorkTop10')
+      ]).then(function(results) {
+        var mapData = results[0];
+        var stats = results[1];
+        var top10 = results[2];
+
+        document.getElementById('loading').style.display = 'none';
+
+        // 統計情報表示
+        displayStats(stats);
+
+        // TOP10表示
+        displayTop10(top10);
+
+        // ヒートマップデータ準備
+        prepareHeatmapData(mapData);
+
+        // ヒートマップ表示
+        displayHeatmap();
+
+      }).catch(function(error) {
+        document.getElementById('loading').innerHTML =
+          '<div class="error">' +
+            '<div class="error-icon">⚠️</div>' +
+            '<div class="error-message">' +
+              '<strong>データ読み込みエラー</strong><br><br>' +
+              error.message +
+            '</div>' +
+          '</div>';
+      });
+    }
+
+    // GAS関数呼び出しヘルパー
+    function callGAS(functionName) {
+      return new Promise(function(resolve, reject) {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          [functionName]();
+      });
+    }
+
+    // 統計情報表示
+    function displayStats(stats) {
+      document.getElementById('totalCount').textContent = stats.total.toLocaleString();
+      document.getElementById('avgAge').textContent = stats.avgAge + '歳';
+    }
+
+    // TOP10表示
+    function displayTop10(top10) {
+      var listEl = document.getElementById('top10List');
+      listEl.innerHTML = '';
+
+      top10.forEach(function(item, index) {
+        var li = document.createElement('li');
+        li.className = 'top10-item';
+        li.innerHTML =
+          '<span class="top10-rank">' + (index + 1) + '</span>' +
+          '<span class="top10-prefecture">' + item.prefecture + '</span>' +
+          '<span class="top10-count">' + item.count.toLocaleString() + '人</span>';
+        listEl.appendChild(li);
+      });
+    }
+
+    // ヒートマップデータ準備
+    function prepareHeatmapData(data) {
+      heatmapData = data
+        .filter(function(item) {
+          return item.lat && item.lng && item.count;
+        })
+        .map(function(item) {
+          return [item.lat, item.lng, item.count / 100];
+        });
+    }
+
+    // ヒートマップ表示
+    function displayHeatmap() {
+      if (heatLayer) {
+        map.removeLayer(heatLayer);
+      }
+
+      heatLayer = L.heatLayer(heatmapData, {
+        radius: heatRadius,
+        blur: 15,
+        maxZoom: 17,
+        max: heatIntensity,
+        gradient: {
+          0.0: 'blue',
+          0.2: 'cyan',
+          0.4: 'lime',
+          0.6: 'yellow',
+          0.8: 'orange',
+          1.0: 'red'
+        }
+      }).addTo(map);
+    }
+
+    // ヒートマップ更新
+    function updateHeatmap() {
+      if (!heatLayer) return;
+
+      map.removeLayer(heatLayer);
+
+      heatLayer = L.heatLayer(heatmapData, {
+        radius: heatRadius,
+        blur: 15,
+        maxZoom: 17,
+        max: heatIntensity,
+        gradient: {
+          0.0: 'blue',
+          0.2: 'cyan',
+          0.4: 'lime',
+          0.6: 'yellow',
+          0.8: 'orange',
+          1.0: 'red'
+        }
+      }).addTo(map);
+    }
+
+    // ページ読み込み時に実行
+    window.onload = function() {
+      initMap();
+    };
+  </script>
+</body>
+</html>

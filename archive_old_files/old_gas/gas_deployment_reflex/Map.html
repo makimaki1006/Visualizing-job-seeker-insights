@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>抽出マップ表示</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: sans-serif;
+      box-sizing: border-box;
+    }
+    *, *:before, *:after {
+      box-sizing: inherit;
+    }
+    body { display: flex; flex-direction: column; min-width: 0; }
+    #controls {
+      padding: 5px 10px;
+      background: #f2f2f2;
+      border-bottom: 1px solid #ccc;
+      flex-shrink: 0;
+      width: 100%;
+      overflow-x: auto; /* 横スクロール可能 */
+    }
+    #controls > div:first-child {
+      margin-bottom: 5px;
+      display: flex;
+      flex-wrap: wrap; /* 小さい画面で折り返し */
+      gap: 5px;
+    }
+    #pinnedStatsContainer { padding: 5px 10px; background: #eef; border-bottom: 1px solid #ccc; flex-shrink: 0; }
+    #progressContainer { padding: 10px; background: #e0e0e0; border-bottom: 1px solid #ccc; flex-shrink: 0; display: none; }
+    #progressBar { width: 100%; height: 20px; }
+    #container { display: flex; flex: 1; min-height: 0; width: 100%; min-width: 0; }
+    #map { flex: 1; height: 100%; width: 100%; min-width: 0; position: relative; }
+    #details {
+      flex: 0 0 auto;
+      border-left: 1px solid #ccc;
+      padding: 10px;
+      background: #fafafa;
+      overflow-x: auto;
+      display: none; /* 初期状態では非表示 */
+      max-width: 50%; /* 詳細パネルは最大50%幅 */
+    }
+    #detailsContainer { display: flex; flex-direction: row; gap: 10px; }
+    .detail-card { border: 1px solid #ccc; padding: 10px; width: 400px; background: #fff; position: relative; flex-shrink: 0; }
+    .close-btn { position: absolute; top: 5px; right: 5px; border: none; background: transparent; font-size: 16px; cursor: pointer; }
+    .pin-btn { position: absolute; top: 5px; left: 5px; border: none; background: #007bff; color: white; font-size: 12px; cursor: pointer; padding: 4px 8px; border-radius: 3px; }
+    .pinned-card { position: absolute; background: rgba(255, 255, 255, 0.95); border: 2px solid #007bff; border-radius: 6px; padding: 5px 7px; font-size: 12px; max-width: 200px; min-width: 120px; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.3); pointer-events: auto; cursor: move; user-select: none; }
+    .pinned-card .pinned-close-btn { position: absolute; top: 1px; right: 3px; border: none; background: transparent; font-size: 12px; cursor: pointer; color: #007bff; font-weight: bold; }
+    .pinned-card .pinned-content { margin-top: 8px; line-height: 1.2; font-size: 11px; font-weight: 500; }
+    /* ★ 点線修正: ご提示いただいた正常なコードからSVGスタイルを復元 */
+    .connection-line { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; }
+    .toggle-button { cursor: pointer; padding: 2px 8px; border: 1px solid #ccc; border-radius: 4px; user-select: none; font-size: 12px; }
+    label {
+      margin-right: 10px;
+      font-size: 14px;
+      vertical-align: middle;
+      white-space: nowrap; /* ラベルは折り返さない */
+      flex-shrink: 0;
+    }
+    input, select, button {
+      margin-right: 5px;
+      font-size: 14px;
+      padding: 2px;
+      vertical-align: middle;
+      max-width: 100%; /* 親要素を超えない */
+    }
+    input[type="text"], input[type="number"] {
+      min-width: 80px; /* 最小幅を確保 */
+      width: auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <div style="margin-bottom: 5px;">
+      <label>都道府県: <input type="text" id="prefecture" placeholder="例: 群馬県" /></label>
+      <label>市町村: <input type="text" id="municipality" placeholder="例: 高崎市" /></label>
+      <label>検索距離 (km): <input type="number" id="radius" placeholder="10" value="10" min="1" step="1" /></label>
+      <label>給与_雇用形態:
+        <select id="employmentType">
+          <option value="正職員">正職員</option> <option value="契約職員">契約職員</option> <option value="パート・アルバイト">パート・アルバイト</option> <option value="全て選択">全て選択</option>
+        </select>
+      </label>
+      <label>給与_区分:
+        <select id="salaryCategory">
+          <option value="どちらも">どちらも</option> <option value="月給">月給</option> <option value="時給">時給</option>
+        </select>
+      </label>
+      <button type="button" onclick="filterMarkers()">フィルタ実行</button>
+      <button type="button" onclick="openPopup()">別ウィンドウで開く</button>
+    </div>
+    <div id="pinnedOptionsContainer">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+        <strong>ピン止めカード表示項目:</strong>
+        <span id="toggleOptionsBtn" class="toggle-button">折りたたむ</span>
+      </div>
+      <div id="pinnedOptionsContent">
+        <div style="display: flex; flex-wrap: wrap; gap: 5px 10px; font-size: 12px;">
+          <label><input type="checkbox" id="show-facility" checked> 法人・施設名</label>
+          <label><input type="checkbox" id="show-service"> 診療科目</label>
+          <label><input type="checkbox" id="show-access" checked> アクセス</label>
+          <label><input type="checkbox" id="show-address-reliability"> 住所信頼度</label>
+          <label><input type="checkbox" id="show-employment"> 雇用形態</label>
+          <label><input type="checkbox" id="show-category"> 給与区分</label>
+          <label><input type="checkbox" id="show-salary" checked> 給与範囲</label>
+          <label><input type="checkbox" id="show-salary-note"> 給与備考</label>
+          <label><input type="checkbox" id="show-annual-income"> 想定年収</label>
+          <label><input type="checkbox" id="show-benefits"> 待遇</label>
+          <label><input type="checkbox" id="show-training"> 教育体制</label>
+          <label><input type="checkbox" id="show-worktime"> 勤務時間</label>
+          <label><input type="checkbox" id="show-holiday"> 休日</label>
+          <label><input type="checkbox" id="show-long-holiday"> 長期休暇</label>
+          <label><input type="checkbox" id="show-requirements"> 応募要件</label>
+          <label><input type="checkbox" id="show-bottom-text"> bottom_text</label>
+          <label><input type="checkbox" id="show-job-content"> 仕事内容</label>
+          <label><input type="checkbox" id="show-job-position"> 募集職種</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="pinnedStatsContainer" style="display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <strong id="statsHeaderTitle"></strong>
+      <span id="toggleStatsBtn" class="toggle-button">折りたたむ</span>
+    </div>
+    <div id="pinnedStatsContent" style="margin-top: 8px;"></div>
+  </div>
+
+  <div id="progressContainer">
+    <progress id="progressBar" value="0" max="100"></progress>
+    <span id="progressText">0%</span>
+  </div>
+
+  <div id="container">
+    <div id="map"></div>
+    <div id="details">
+      <div id="detailsContainer">
+        <p>マーカーをクリックすると、詳細カードが表示されます。</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    var map, progressInterval, connectionSvg, pinnedCards = [], allMarkers = [], activeDetailMarker = null;
+    var defaultIcon = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
+    var detailIcon = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
+    var pinnedIcon = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
+
+    // ★ 点線修正: ご提示いただいた正常なコードからSVG作成関数を完全に復元
+    function createConnectionSvg() {
+      var mapContainer = document.getElementById('map');
+      connectionSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      connectionSvg.className = 'connection-line';
+      connectionSvg.style.position = 'absolute';
+      connectionSvg.style.top = '0';
+      connectionSvg.style.left = '0';
+      connectionSvg.style.width = '100%';
+      connectionSvg.style.height = '100%';
+      connectionSvg.style.pointerEvents = 'none';
+      connectionSvg.style.zIndex = '999';
+      mapContainer.appendChild(connectionSvg);
+    }
+
+    function initMap() {
+      map = L.map('map').setView([35, 139], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+      createConnectionSvg(); // initMap内で呼び出し
+    }
+    
+    initMap(); // 最初に一度だけ実行
+
+    document.getElementById('toggleStatsBtn').addEventListener('click', function() {
+      var content = document.getElementById('pinnedStatsContent');
+      this.textContent = content.style.display === 'none' ? '折りたたむ' : '開く';
+      content.style.display = content.style.display === 'none' ? 'block' : 'none';
+    });
+
+    document.getElementById('toggleOptionsBtn').addEventListener('click', function() {
+      var content = document.getElementById('pinnedOptionsContent');
+      this.textContent = content.style.display === 'none' ? '折りたたむ' : '開く';
+      content.style.display = content.style.display === 'none' ? 'block' : 'none';
+    });
+    
+    function pollProgress() {
+      google.script.run.withSuccessHandler(function(status) {
+        if (!status) return;
+        var p = status.percentage;
+        document.getElementById('progressBar').value = p;
+        document.getElementById('progressText').innerText = p + "% (" + status.stage + ")";
+        if (p >= 100) clearInterval(progressInterval);
+      }).getProgress();
+    }
+    
+    function filterMarkers() {
+      var pref = document.getElementById('prefecture').value;
+      var mun = document.getElementById('municipality').value;
+      var radius = parseFloat(document.getElementById('radius').value);
+      if (!pref || !mun || isNaN(radius)) return alert("都道府県、市町村、有効な検索距離を入力してください。");
+      
+      clearPinnedCards();
+      document.getElementById('detailsContainer').innerHTML = '<p>マーカーをクリックで詳細表示</p>';
+      activeDetailMarker = null;
+      
+      var progressContainer = document.getElementById('progressContainer');
+      progressContainer.style.display = "block";
+      document.getElementById('progressBar').value = 0;
+      document.getElementById('progressText').innerText = "0% (未開始)";
+      progressInterval = setInterval(pollProgress, 500);
+      
+      google.script.run.withSuccessHandler(function(response) {
+        clearInterval(progressInterval);
+        if (response.error) {
+          alert(response.message);
+          progressContainer.style.display = "none"; return;
+        }
+        drawMap(response);
+        document.getElementById('progressBar').value = 100;
+        document.getElementById('progressText').innerText = "100% (完了)";
+        setTimeout(function() { progressContainer.style.display = 'none'; }, 1500);
+      }).withFailureHandler(function(error) {
+        clearInterval(progressInterval);
+        progressContainer.style.display = "none";
+        alert("サーバーとの通信に失敗しました: " + error.message);
+      }).getFilteredMarkers(pref, mun, radius, document.getElementById('employmentType').value, document.getElementById('salaryCategory').value);
+    }
+    
+    function drawMap(markers) {
+      map.eachLayer(function(layer) { if (layer instanceof L.Marker) map.removeLayer(layer); });
+      allMarkers = [];
+      markers.forEach(function(markerData) {
+        var marker = L.marker([markerData.lat, markerData.lng], {icon: defaultIcon}).addTo(map);
+        var markerInfo = { marker: marker, data: markerData, isPinned: false, isDetailActive: false };
+        allMarkers.push(markerInfo);
+        marker.on('click', function() {
+          if (activeDetailMarker) {
+            activeDetailMarker.marker.setIcon(activeDetailMarker.isPinned ? pinnedIcon : defaultIcon);
+            activeDetailMarker.isDetailActive = false;
+          }
+          markerInfo.marker.setIcon(detailIcon);
+          activeDetailMarker = markerInfo;
+          markerInfo.isDetailActive = true;
+          addDetailCard(markerData.info, markerData, markerInfo);
+        });
+      });
+      if (markers.length > 0) {
+        var group = new L.featureGroup(markers.map(m => L.marker([m.lat, m.lng])));
+        map.fitBounds(group.getBounds());
+      }
+      setTimeout(function() { map.invalidateSize(); }, 200);
+    }
+    
+    function addDetailCard(content, markerData, markerInfo) {
+      // 詳細パネルを表示
+      document.getElementById('details').style.display = 'block';
+
+      var container = document.getElementById('detailsContainer');
+      if (container.querySelector('p')) container.innerHTML = "";
+      if (container.childElementCount >= 4) container.removeChild(container.firstElementChild);
+      var card = document.createElement('div');
+      card.className = 'detail-card';
+      card.innerHTML = `<button class="pin-btn">PIN</button><button class="close-btn">×</button><div>${content}</div>`;
+      card.querySelector('.pin-btn').onclick = function() { pinCardToMap(content, markerData, markerInfo); };
+      card.querySelector('.close-btn').onclick = function() {
+        container.removeChild(card);
+        if (markerInfo.isDetailActive) {
+          markerInfo.marker.setIcon(markerInfo.isPinned ? pinnedIcon : defaultIcon);
+          markerInfo.isDetailActive = false;
+          if (activeDetailMarker === markerInfo) activeDetailMarker = null;
+        }
+        // すべてのカードがなくなったら詳細パネルを非表示
+        if (container.childElementCount === 0) {
+          document.getElementById('details').style.display = 'none';
+        }
+      };
+      container.appendChild(card);
+    }
+    
+    function pinCardToMap(content, markerData, markerInfo) {
+      var info = extractPinnedInfo(content);
+      var pinnedCard = document.createElement('div');
+      pinnedCard.className = 'pinned-card';
+      pinnedCard.innerHTML = `<button class="pinned-close-btn">×</button><div class="pinned-content">${info}</div>`;
+      var point = map.latLngToContainerPoint([markerData.lat, markerData.lng]);
+      pinnedCard.style.left = (point.x + 30) + 'px';
+      pinnedCard.style.top = (point.y - 30) + 'px';
+      document.getElementById('map').appendChild(pinnedCard);
+      pinnedCard.querySelector('.pinned-close-btn').onclick = function(e) { e.stopPropagation(); removePinnedCard(pinnedCard); };
+      var cardData = { element: pinnedCard, markerLat: markerData.lat, markerLng: markerData.lng, line: null, markerInfo: markerInfo };
+      pinnedCards.push(cardData);
+      markerInfo.isPinned = true;
+      markerInfo.marker.setIcon(pinnedIcon);
+      makeDraggable(pinnedCard, cardData);
+      updateConnectionLine(cardData);
+      if (pinnedCards.length === 1) map.on('move zoom', updateAllPinnedCards);
+      updatePinnedStats();
+    }
+    
+    function makeDraggable(element, cardData) {
+      var isDragging = false, dragOffset = {};
+      element.onmousedown = function(e) {
+        if (e.target.className.includes('pinned-close-btn')) return;
+        isDragging = true;
+        map.dragging.disable();
+        var rect = element.getBoundingClientRect();
+        dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        element.style.cursor = 'grabbing';
+        e.preventDefault();
+      };
+      document.onmousemove = function(e) {
+        if (!isDragging) return;
+        var mapRect = document.getElementById('map').getBoundingClientRect();
+        var x = e.clientX - mapRect.left - dragOffset.x;
+        var y = e.clientY - mapRect.top - dragOffset.y;
+        element.style.left = Math.max(0, Math.min(x, mapRect.width - element.offsetWidth)) + 'px';
+        element.style.top = Math.max(0, Math.min(y, mapRect.height - element.offsetHeight)) + 'px';
+        updateConnectionLine(cardData);
+      };
+      document.onmouseup = function() {
+        if (isDragging) {
+          isDragging = false;
+          element.style.cursor = 'move';
+          setTimeout(function() { map.dragging.enable(); }, 100);
+        }
+      };
+    }
+    
+    // ★ 点線修正: ご提示いただいた正常なコードから接続線更新関数を完全に復元
+    function updateConnectionLine(cardData) {
+      var markerPoint = map.latLngToContainerPoint([cardData.markerLat, cardData.markerLng]);
+      var element = cardData.element;
+      var cardCenterX = parseFloat(element.style.left) + element.offsetWidth / 2;
+      var cardCenterY = parseFloat(element.style.top) + element.offsetHeight / 2;
+      if (cardData.line) {
+        connectionSvg.removeChild(cardData.line);
+      }
+      var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', markerPoint.x);
+      line.setAttribute('y1', markerPoint.y);
+      line.setAttribute('x2', cardCenterX);
+      line.setAttribute('y2', cardCenterY);
+      line.setAttribute('stroke', '#007bff');
+      line.setAttribute('stroke-width', '2');
+      line.setAttribute('stroke-dasharray', '5,5');
+      line.setAttribute('opacity', '0.8');
+      connectionSvg.appendChild(line);
+      cardData.line = line;
+    }
+    
+    function updateAllPinnedCards() { pinnedCards.forEach(updateConnectionLine); }
+    
+    function removePinnedCard(pinnedCard) {
+      var idx = pinnedCards.findIndex(c => c.element === pinnedCard);
+      if (idx === -1) return;
+      var cardData = pinnedCards[idx];
+      if (cardData.element.parentNode) cardData.element.parentNode.removeChild(cardData.element);
+      if (cardData.line && connectionSvg.contains(cardData.line)) connectionSvg.removeChild(cardData.line);
+      var markerInfo = cardData.markerInfo;
+      markerInfo.isPinned = false;
+      markerInfo.marker.setIcon(markerInfo.isDetailActive ? detailIcon : defaultIcon);
+      pinnedCards.splice(idx, 1);
+      if (pinnedCards.length === 0) map.off('move zoom', updateAllPinnedCards);
+      updatePinnedStats();
+    }
+    
+    function clearPinnedCards() { while (pinnedCards.length > 0) removePinnedCard(pinnedCards[0].element); }
+    
+    function extractPinnedInfo(content) {
+      var lines = content.split('<br/>');
+      var result = [];
+      var showFields = {
+        '法人・施設名': document.getElementById('show-facility').checked, '診療科目・サービス形態': document.getElementById('show-service').checked, 'アクセス': document.getElementById('show-access').checked, '住所信頼度': document.getElementById('show-address-reliability').checked, '給与_雇用形態': document.getElementById('show-employment').checked, '給与_区分': document.getElementById('show-category').checked, '給与_範囲': document.getElementById('show-salary').checked, '給与の備考': document.getElementById('show-salary-note').checked, '想定年収': document.getElementById('show-annual-income').checked, '待遇': document.getElementById('show-benefits').checked, '教育体制・研修': document.getElementById('show-training').checked, '勤務時間': document.getElementById('show-worktime').checked, '休日': document.getElementById('show-holiday').checked, '長期休暇・特別休暇': document.getElementById('show-long-holiday').checked, '応募要件': document.getElementById('show-requirements').checked, 'bottom_text': document.getElementById('show-bottom-text').checked, '仕事内容': document.getElementById('show-job-content').checked, '募集職種': document.getElementById('show-job-position').checked
+      };
+      lines.forEach(function(line) {
+        for (var field in showFields) {
+          if (showFields[field] && line.startsWith(field + ':')) {
+            var value = line.substring(field.length + 1).trim();
+            if (value && value !== '' && value !== '-' && value !== 'なし') {
+              result.push(value.length > 45 ? value.substring(0, 42) + '...' : value);
+            }
+          }
+        }
+      });
+      return result.length > 0 ? result.join('<br>') : '表示項目が選択されていません';
+    }
+
+    function openPopup() {
+      var scriptUrl = "<?= ScriptApp.getService().getUrl() ?>";
+      var url = scriptUrl + "?mode=popup";
+      var popup = window.open(url, '_blank', 'width=1800,height=900');
+      if (!popup) alert("ポップアップがブロックされました。");
+    }
+
+    function computeClientStats(values) {
+      if (!values || values.length === 0) return { average: 0, median: 0, mode: 0 };
+      var sum = values.reduce((a, b) => a + b, 0);
+      var average = sum / values.length;
+      var sorted = values.slice().sort((a, b) => a - b);
+      var mid = Math.floor(sorted.length / 2);
+      var median = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+      var freq = {}, maxFreq = 0, mode = sorted[0];
+      sorted.forEach(v => {
+        freq[v] = (freq[v] || 0) + 1;
+        if (freq[v] > maxFreq) { maxFreq = freq[v]; mode = v; }
+      });
+      return { average, median, mode };
+    }
+
+    function formatCurrency(num) { return isNaN(num) ? "N/A" : Math.round(num).toLocaleString() + " 円"; }
+
+    function updatePinnedStats() {
+      var statsContainer = document.getElementById('pinnedStatsContainer');
+      if (pinnedCards.length === 0) {
+        statsContainer.style.display = 'none'; return;
+      }
+      var lower = [], upper = [];
+      pinnedCards.forEach(c => {
+        if (c.markerInfo.data.salaryLower !== undefined && c.markerInfo.data.salaryLower !== null) lower.push(c.markerInfo.data.salaryLower);
+        if (c.markerInfo.data.salaryUpper !== undefined && c.markerInfo.data.salaryUpper !== null) upper.push(c.markerInfo.data.salaryUpper);
+      });
+      var statsLower = computeClientStats(lower), statsUpper = computeClientStats(upper);
+      document.getElementById('statsHeaderTitle').textContent = `📍 ピン止め施設の給与統計(${pinnedCards.length}件)`;
+      var content = `給与下限 &nbsp; 平均: ${formatCurrency(statsLower.average)}, 中央値: ${formatCurrency(statsLower.median)}, 最頻値: ${formatCurrency(statsLower.mode)}<br/>`;
+      content += `給与上限 &nbsp; 平均: ${formatCurrency(statsUpper.average)}, 中央値: ${formatCurrency(statsUpper.median)}, 最頻値: ${formatCurrency(statsUpper.mode)}`;
+      document.getElementById('pinnedStatsContent').innerHTML = content;
+      statsContainer.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

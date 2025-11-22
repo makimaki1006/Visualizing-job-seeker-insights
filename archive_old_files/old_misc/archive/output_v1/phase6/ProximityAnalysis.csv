@@ -1,0 +1,6 @@
+﻿proximity_bucket,Count,Avg_Distance_km,Median_Distance_km
+0-10km,47,4.6,4.7
+10-20km,9,12.6,12.2
+20-50km,4,35.2,34.7
+50-100km,1,55.2,55.2
+over_100km,4,383.5,346.3

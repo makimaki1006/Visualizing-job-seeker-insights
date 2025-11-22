@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+      margin: 0;
+    }
+
+    h2 {
+      color: #1976d2;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .filter-panel {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-label {
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #333;
+      font-size: 14px;
+    }
+
+    select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      background: white;
+    }
+
+    select[multiple] {
+      min-height: 120px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: #1976d2;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1565c0;
+    }
+
+    .btn-secondary {
+      background: #757575;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #616161;
+    }
+
+    .stats-panel {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+    }
+
+    .stat-card {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: #1976d2;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .persona-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    .persona-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      position: relative;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .persona-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .difficulty-badge {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      color: white;
+    }
+
+    .difficulty-S { background: #d32f2f; }
+    .difficulty-A { background: #f57c00; }
+    .difficulty-B { background: #fbc02d; }
+    .difficulty-C { background: #7cb342; }
+    .difficulty-D { background: #66bb6a; }
+    .difficulty-E { background: #81c784; }
+
+    .persona-header {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .persona-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .persona-subtitle {
+      font-size: 14px;
+      color: #666;
+    }
+
+    .persona-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .metric-item {
+      padding: 10px;
+      background: #f5f5f5;
+      border-radius: 4px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 3px;
+    }
+
+    .metric-value {
+      font-size: 16px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .persona-categories {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .category-tag {
+      padding: 4px 10px;
+      background: #e0e0e0;
+      border-radius: 12px;
+      font-size: 11px;
+      color: #333;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 60px;
+      color: #999;
+      font-size: 18px;
+    }
+
+    .help-text {
+      font-size: 12px;
+      color: #666;
+      font-style: italic;
+      margin-top: 5px;
+    }
+
+    .score-bar {
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .score-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #81c784 0%, #fbc02d 50%, #d32f2f 100%);
+      transition: width 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <h2>🎯 ペルソナ難易度確認</h2>
+
+  <!-- フィルターパネル -->
+  <div class="filter-panel">
+    <h3 style="margin-top: 0; color: #1976d2;">フィルター設定（複数選択可）</h3>
+
+    <!-- 市町村選択（最優先） -->
+    <div style="margin-bottom: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px; border: 2px solid #1976d2;">
+      <div class="filter-label" style="font-size: 16px; margin-bottom: 10px;">📍 市町村選択（必須）</div>
+      <select id="municipalityFilter" style="width: 100%; min-height: 40px;">
+        <option value="">--- 市町村を選択してください ---</option>
+      </select>
+      <div class="help-text">希望勤務地として登録している求職者を分析します</div>
+    </div>
+
+    <div class="filter-grid">
+      <!-- 難易度レベル -->
+      <div class="filter-group">
+        <div class="filter-label">難易度レベル</div>
+        <select id="difficultyFilter" multiple>
+          <option value="S級（最難）">S級（最難）</option>
+          <option value="A級（難）">A級（難）</option>
+          <option value="B級（やや難）">B級（やや難）</option>
+          <option value="C級（普通）">C級（普通）</option>
+          <option value="D級（やや易）">D級（やや易）</option>
+          <option value="E級（易）">E級（易）</option>
+        </select>
+        <div class="help-text">採用難易度ランク</div>
+      </div>
+
+      <!-- 年齢グループ -->
+      <div class="filter-group">
+        <div class="filter-label">年齢層</div>
+        <select id="ageGroupFilter" multiple>
+          <option value="新卒層（～24歳）">新卒層（～24歳）</option>
+          <option value="若手層（25～29歳）">若手層（25～29歳）</option>
+          <option value="若手中堅層（30～34歳）">若手中堅層（30～34歳）</option>
+          <option value="中堅層（35～39歳）">中堅層（35～39歳）</option>
+          <option value="ミドル層（40～44歳）">ミドル層（40～44歳）</option>
+          <option value="シニアミドル層（45～49歳）">シニアミドル層（45～49歳）</option>
+          <option value="プレシニア層（50～54歳）">プレシニア層（50～54歳）</option>
+          <option value="シニア層（55～59歳）">シニア層（55～59歳）</option>
+          <option value="アクティブシニア層（60～64歳）">アクティブシニア層（60～64歳）</option>
+          <option value="高齢層（65歳～）">高齢層（65歳～）</option>
+        </select>
+        <div class="help-text">平均年齢によるグループ分類</div>
+      </div>
+
+      <!-- 資格レベル -->
+      <div class="filter-group">
+        <div class="filter-label">資格保有レベル</div>
+        <select id="qualificationFilter" multiple>
+          <option value="超高資格層（5個以上）">超高資格層（5個以上）</option>
+          <option value="高資格層（3～4個）">高資格層（3～4個）</option>
+          <option value="中資格層（2～3個）">中資格層（2～3個）</option>
+          <option value="低資格層（1～2個）">低資格層（1～2個）</option>
+          <option value="微資格層（0.5～1個）">微資格層（0.5～1個）</option>
+          <option value="無資格層（0.5個未満）">無資格層（0.5個未満）</option>
+        </select>
+        <div class="help-text">平均資格保有数</div>
+      </div>
+
+      <!-- 移動性レベル -->
+      <div class="filter-group">
+        <div class="filter-label">希望勤務地の広さ</div>
+        <select id="mobilityFilter" multiple>
+          <option value="超広域希望（10箇所以上）">超広域希望（10箇所以上）</option>
+          <option value="広域希望（6～9箇所）">広域希望（6～9箇所）</option>
+          <option value="中域希望（4～5箇所）">中域希望（4～5箇所）</option>
+          <option value="狭域希望（2.5～3.5箇所）">狭域希望（2.5～3.5箇所）</option>
+          <option value="限定希望（1.5～2.5箇所）">限定希望（1.5～2.5箇所）</option>
+          <option value="固定希望（1.5箇所未満）">固定希望（1.5箇所未満）</option>
+        </select>
+        <div class="help-text">希望勤務地数による柔軟性</div>
+      </div>
+
+      <!-- 性別カテゴリ -->
+      <div class="filter-group">
+        <div class="filter-label">性別構成</div>
+        <select id="genderFilter" multiple>
+          <option value="女性特化層（90%以上）">女性特化層（90%以上）</option>
+          <option value="女性優勢層（70～89%）">女性優勢層（70～89%）</option>
+          <option value="女性やや多層（55～69%）">女性やや多層（55～69%）</option>
+          <option value="男女均衡層（45～54%）">男女均衡層（45～54%）</option>
+          <option value="男性やや多層（31～44%）">男性やや多層（31～44%）</option>
+          <option value="男性優勢層（11～30%）">男性優勢層（11～30%）</option>
+          <option value="男性特化層（10%以下）">男性特化層（10%以下）</option>
+        </select>
+        <div class="help-text">女性比率による分類</div>
+      </div>
+
+      <!-- 市場規模 -->
+      <div class="filter-group">
+        <div class="filter-label">市場規模</div>
+        <select id="marketSizeFilter" multiple>
+          <option value="超大規模（20%以上）">超大規模（20%以上）</option>
+          <option value="大規模（15～19%）">大規模（15～19%）</option>
+          <option value="中規模（10～14%）">中規模（10～14%）</option>
+          <option value="やや小規模（7～9%）">やや小規模（7～9%）</option>
+          <option value="小規模（4～6%）">小規模（4～6%）</option>
+          <option value="超小規模（2～3%）">超小規模（2～3%）</option>
+          <option value="ニッチ（2%未満）">ニッチ（2%未満）</option>
+        </select>
+        <div class="help-text">全体に占める割合</div>
+      </div>
+    </div>
+
+    <div class="button-group">
+      <button class="btn-primary" onclick="applyFilters()">絞り込み実行</button>
+      <button class="btn-secondary" onclick="resetFilters()">フィルタークリア</button>
+    </div>
+  </div>
+
+  <!-- 統計パネル -->
+  <div class="stats-panel" id="statsPanel" style="display: none;">
+    <h3 style="margin-top: 0; color: #1976d2;">統計サマリー</h3>
+    <div class="stats-grid" id="statsGrid"></div>
+  </div>
+
+  <!-- ペルソナ表示エリア -->
+  <div id="personaContainer" class="loading">データ読み込み中...</div>
+
+  <script>
+    let allPersonas = [];
+    let selectedMunicipality = '';
+
+    // 初期ロード：市町村リストを取得
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (result.success) {
+          const municipalityFilter = document.getElementById('municipalityFilter');
+          result.municipalities.forEach(function(municipality) {
+            const option = document.createElement('option');
+            option.value = municipality;
+            option.text = municipality;
+            municipalityFilter.appendChild(option);
+          });
+
+          // 市町村選択イベント
+          municipalityFilter.addEventListener('change', function() {
+            selectedMunicipality = this.value;
+            if (selectedMunicipality) {
+              loadPersonaDataByMunicipality(selectedMunicipality);
+            } else {
+              document.getElementById('personaContainer').innerHTML =
+                '<div class="no-results">市町村を選択してください</div>';
+              document.getElementById('statsPanel').style.display = 'none';
+            }
+          });
+
+          // 初期メッセージ
+          document.getElementById('personaContainer').innerHTML =
+            '<div class="no-results">📍 市町村を選択してください</div>';
+        } else {
+          document.getElementById('personaContainer').innerHTML =
+            '<div class="no-results">エラー: ' + result.message + '</div>';
+        }
+      })
+      .withFailureHandler(function(error) {
+        document.getElementById('personaContainer').innerHTML =
+          '<div class="no-results">エラー: ' + error + '</div>';
+      })
+      .getMunicipalityList();
+
+    // 市町村別ペルソナデータロード
+    function loadPersonaDataByMunicipality(municipality) {
+      document.getElementById('personaContainer').innerHTML =
+        '<div class="loading">データ読み込み中...</div>';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            allPersonas = result.personas;
+            displayPersonas(allPersonas);
+            loadStatisticsMunicipality(result.municipality, result.totalInMunicipality);
+          } else {
+            document.getElementById('personaContainer').innerHTML =
+              '<div class="no-results">エラー: ' + result.message + '</div>';
+          }
+        })
+        .withFailureHandler(function(error) {
+          document.getElementById('personaContainer').innerHTML =
+            '<div class="no-results">エラー: ' + error + '</div>';
+        })
+        .getPersonaDataByMunicipality(municipality);
+    }
+
+    // 統計データロード（市町村別）
+    function loadStatisticsMunicipality(municipality, totalInMunicipality) {
+      const statsGrid = document.getElementById('statsGrid');
+      const totalPersonas = allPersonas.length;
+      const avgDifficultyScore = allPersonas.reduce((sum, p) => sum + p.difficultyScore, 0) / totalPersonas;
+      const difficultyLevels = {};
+      allPersonas.forEach(p => {
+        difficultyLevels[p.difficultyLevel] = (difficultyLevels[p.difficultyLevel] || 0) + 1;
+      });
+
+      statsGrid.innerHTML = `
+        <div class="stat-card">
+          <div class="stat-value">${municipality}</div>
+          <div class="stat-label">選択中の市町村</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${totalInMunicipality.toLocaleString()}人</div>
+          <div class="stat-label">市町村内の総希望者数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${totalPersonas}</div>
+          <div class="stat-label">ペルソナ種類数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${avgDifficultyScore.toFixed(1)}</div>
+          <div class="stat-label">平均難易度スコア</div>
+        </div>
+      `;
+      document.getElementById('statsPanel').style.display = 'block';
+    }
+
+    // 統計データロード
+    function loadStatistics() {
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = `
+              <div class="stat-card">
+                <div class="stat-value">${result.totalPersonas}</div>
+                <div class="stat-label">ペルソナ数</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${result.totalCount.toLocaleString()}</div>
+                <div class="stat-label">総求職者数</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${result.avgDifficultyScore.toFixed(1)}</div>
+                <div class="stat-label">平均難易度</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${Object.keys(result.difficultyDistribution).length}</div>
+                <div class="stat-label">難易度種類</div>
+              </div>
+            `;
+            document.getElementById('statsPanel').style.display = 'block';
+          }
+        })
+        .getPersonaDifficultyStatistics();
+    }
+
+    // フィルター適用
+    function applyFilters() {
+      const filters = {
+        difficultyLevels: getSelectedValues('difficultyFilter'),
+        ageGroups: getSelectedValues('ageGroupFilter'),
+        qualificationLevels: getSelectedValues('qualificationFilter'),
+        mobilityLevels: getSelectedValues('mobilityFilter'),
+        genderCategories: getSelectedValues('genderFilter'),
+        marketSizeCategories: getSelectedValues('marketSizeFilter')
+      };
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            displayPersonas(result.personas);
+          }
+        })
+        .filterPersonasByConditions(filters);
+    }
+
+    // フィルターリセット
+    function resetFilters() {
+      document.querySelectorAll('select[multiple]').forEach(select => {
+        select.selectedIndex = -1;
+      });
+      displayPersonas(allPersonas);
+    }
+
+    // 選択値取得
+    function getSelectedValues(selectId) {
+      const select = document.getElementById(selectId);
+      return Array.from(select.selectedOptions).map(opt => opt.value);
+    }
+
+    // ペルソナ表示
+    function displayPersonas(personas) {
+      const container = document.getElementById('personaContainer');
+
+      if (personas.length === 0) {
+        container.innerHTML = '<div class="no-results">該当するペルソナが見つかりませんでした</div>';
+        return;
+      }
+
+      container.innerHTML = '';
+      container.className = 'persona-grid';
+
+      personas.forEach(function(p) {
+        const difficultyClass = 'difficulty-' + p.difficultyLevel.charAt(0);
+        const scorePercent = p.difficultyScore;
+
+        const card = document.createElement('div');
+        card.className = 'persona-card';
+        card.innerHTML = `
+          <div class="difficulty-badge ${difficultyClass}">
+            ${p.difficultyLevel} (${p.difficultyScore}点)
+          </div>
+
+          <div class="persona-header">
+            <div class="persona-title">${p.segmentName}</div>
+            <div class="persona-subtitle">
+              セグメントID: ${p.segmentId} | ${p.count.toLocaleString()}人 (${p.percentage.toFixed(1)}%)
+            </div>
+          </div>
+
+          <div class="persona-metrics">
+            <div class="metric-item">
+              <div class="metric-label">平均年齢</div>
+              <div class="metric-value">${p.avgAge.toFixed(1)}歳</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">女性比率</div>
+              <div class="metric-value">${(p.femaleRatio * 100).toFixed(1)}%</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">平均資格数</div>
+              <div class="metric-value">${p.avgQualifications.toFixed(2)}個</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">希望勤務地数</div>
+              <div class="metric-value">${p.avgDesiredLocations.toFixed(1)}箇所</div>
+            </div>
+          </div>
+
+          <div class="score-bar">
+            <div class="score-fill" style="width: ${scorePercent}%"></div>
+          </div>
+
+          <div class="persona-categories" style="margin-top: 15px;">
+            <div class="category-tag">${p.ageGroup}</div>
+            <div class="category-tag">${p.qualificationLevel}</div>
+            <div class="category-tag">${p.mobilityLevel}</div>
+            <div class="category-tag">${p.genderCategory}</div>
+            <div class="category-tag">${p.marketSizeCategory}</div>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+  </script>
+</body>
+</html>

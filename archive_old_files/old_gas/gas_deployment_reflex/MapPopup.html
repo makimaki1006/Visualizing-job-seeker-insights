@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>抽出結果地図操作（ポップアップ）</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+      html, body { height: 100%; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+      #progressContainer { padding: 10px; background: #e0e0e0; border-bottom: 1px solid #ccc; }
+      #progressBar { width: 100%; height: 20px; }
+      #container { display: flex; height: calc(100% - 50px); }
+      #map { flex: 1; height: 100%; }
+      /* 詳細表示領域：自動拡大 */
+      #details { flex: 0 0 auto; border-left: 1px solid #ccc; padding: 10px; background: #fafafa; overflow-x: auto; }
+      /* 詳細カードコンテナ：横並び */
+      #detailsContainer { display: flex; flex-direction: row; gap: 10px; }
+      .detail-card { border: 1px solid #ccc; padding: 10px; width: 400px; background: #fff; position: relative; }
+      .close-btn { position: absolute; top: 5px; right: 5px; border: none; background: transparent; font-size: 16px; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <div id="progressContainer">
+      <progress id="progressBar" value="100" max="100"></progress>
+      <span id="progressText">100% (完了)</span>
+    </div>
+    <div id="container">
+      <div id="map"></div>
+      <div id="details">
+        <div id="detailsContainer">
+          <p>マーカーをクリックすると、詳細カードが表示されます。</p>
+        </div>
+      </div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+      var map;
+      
+      function initMap() {
+        console.log("MapPopup: initMap() 開始");
+        map = L.map('map').setView([35, 139], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        console.log("MapPopup: initMap() 完了");
+      }
+      
+      function loadMarkers() {
+        console.log("MapPopup: loadMarkers() 開始");
+        google.script.run.withSuccessHandler(function(markers) {
+          console.log("MapPopup: 取得されたマーカー:", markers);
+          if (!markers || markers.length === 0) {
+            console.log("MapPopup: マーカーが取得できませんでした。");
+            return;
+          }
+          markers.forEach(function(markerData) {
+            var marker = L.marker([markerData.lat, markerData.lng]).addTo(map);
+            marker.on('click', function() {
+              addDetailCard(markerData.info || "情報なし");
+            });
+          });
+          if (markers.length > 0) {
+            var group = new L.featureGroup(markers.map(function(m) {
+              return L.marker([m.lat, m.lng]);
+            }));
+            map.fitBounds(group.getBounds());
+          }
+          console.log("MapPopup: マーカー描画完了");
+        }).withFailureHandler(function(error) {
+          console.error("MapPopup: getExtractedMarkers() のエラー:", error);
+        }).getExtractedMarkers();
+      }
+      
+      function addDetailCard(content) {
+        var container = document.getElementById('detailsContainer');
+        if (container.childElementCount === 1 && container.firstElementChild.tagName.toLowerCase() === 'p') {
+          container.innerHTML = "";
+        }
+        if (container.childElementCount >= 4) {
+          container.removeChild(container.firstElementChild);
+        }
+        var card = document.createElement('div');
+        card.className = 'detail-card';
+        var closeBtn = document.createElement('button');
+        closeBtn.className = 'close-btn';
+        closeBtn.textContent = '×';
+        closeBtn.onclick = function() { container.removeChild(card); };
+        card.appendChild(closeBtn);
+        var contentDiv = document.createElement('div');
+        contentDiv.innerHTML = content;
+        card.appendChild(contentDiv);
+        container.appendChild(card);
+      }
+      
+      initMap();
+      loadMarkers();
+    </script>
+  </body>
+</html>

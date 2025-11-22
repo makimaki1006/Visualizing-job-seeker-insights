@@ -1,0 +1,36 @@
+{
+  "total_tests": 4,
+  "passed": 4,
+  "failed": 0,
+  "success_rate": 100,
+  "test_results": [
+    {
+      "test": "京都市伏見区: 50代・男性・国家資格あり（超レア）",
+      "status": "PASS",
+      "score": 97,
+      "level": "S級（最難）",
+      "marketCategory": "ニッチ（2%未満）"
+    },
+    {
+      "test": "京都市伏見区: 50代・女性・国家資格なし（最多）",
+      "status": "PASS",
+      "score": 63,
+      "level": "B級（やや難）",
+      "marketCategory": "大規模（15～19%）"
+    },
+    {
+      "test": "中規模市町村: 40代・男性・国家資格なし（中程度）",
+      "status": "PASS",
+      "score": 64,
+      "level": "B級（やや難）",
+      "marketCategory": "中規模（10～14%）"
+    },
+    {
+      "test": "小規模市町村: 20代・女性・国家資格あり（若手・高資格）",
+      "status": "PASS",
+      "score": 81,
+      "level": "S級（最難）",
+      "marketCategory": "小規模（4～6%）"
+    }
+  ]
+}

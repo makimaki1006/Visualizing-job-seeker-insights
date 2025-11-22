@@ -1,0 +1,50 @@
+{
+  "test_date": "2025-10-26 22:34:10",
+  "summary": {
+    "total_tests": 4,
+    "passed": 4,
+    "failed": 0,
+    "pass_rate": 100.0
+  },
+  "unit_tests": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "test": "モジュールインポート",
+        "status": "PASS",
+        "message": "Phase7AdvancedAnalyzer, run_phase7_analysis インポート成功"
+      },
+      {
+        "test": "空データフレームハンドリング",
+        "status": "PASS",
+        "message": "空データでの初期化成功"
+      },
+      {
+        "test": "ダミーデータでの実行",
+        "status": "PASS",
+        "message": "0個の分析結果を生成"
+      }
+    ]
+  },
+  "integration_tests": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "details": [
+      {
+        "test": "run_phase7_analysis実行",
+        "status": "PASS",
+        "message": "5/5ファイル生成成功",
+        "created_files": [
+          "SupplyDensityMap.csv",
+          "QualificationDistribution.csv",
+          "AgeGenderCrossAnalysis.csv",
+          "MobilityScore.csv",
+          "DetailedPersonaProfile.csv"
+        ]
+      }
+    ]
+  }
+}

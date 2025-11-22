@@ -1,0 +1,163 @@
+{
+  "test_results": [
+    {
+      "test_name": "integration_test_1_menu_to_upload",
+      "status": "PASS",
+      "details": {
+        "flow": "MinimalMenuIntegration → UniversalPhaseUploader → PhaseUpload.html",
+        "verification": {
+          "menu_function_exists": true,
+          "upload_dialog_callable": true,
+          "html_template_loadable": true,
+          "phase_config_accessible": true
+        }
+      },
+      "score": 100,
+      "timestamp": "2025-10-27T23:55:43.699745"
+    },
+    {
+      "test_name": "integration_test_2_data_provider",
+      "status": "PASS",
+      "details": {
+        "flow": "MapDataProvider.gs → MapComplete.html",
+        "verification": {
+          "data_provider_exists": true,
+          "get_all_data_function": true,
+          "html_map_loadable": true,
+          "leaflet_integration": true
+        }
+      },
+      "score": 100,
+      "timestamp": "2025-10-27T23:55:43.701669"
+    },
+    {
+      "test_name": "integration_test_3_phase2_3_visualization",
+      "status": "PASS",
+      "details": {
+        "flow": "MinimalMenuIntegration → Phase2Phase3Visualizations.gs",
+        "verification": {
+          "chi_square_function": true,
+          "anova_function": true,
+          "persona_summary_function": true,
+          "persona_details_function": true
+        }
+      },
+      "score": 100,
+      "timestamp": "2025-10-27T23:55:43.703078"
+    },
+    {
+      "test_name": "integration_test_4_api_config",
+      "status": "PASS",
+      "details": {
+        "flow": "GoogleMapsAPIConfig.gs ↔ 各可視化機能",
+        "verification": {
+          "api_config_exists": true,
+          "get_api_key_function": true,
+          "optional_support": true,
+          "security_implementation": true
+        }
+      },
+      "score": 100,
+      "timestamp": "2025-10-27T23:55:43.703566"
+    },
+    {
+      "test_name": "integration_test_5_data_flow",
+      "status": "PASS",
+      "details": {
+        "flow": "Python CSV → GAS取り込み → 可視化",
+        "verification": {
+          "phase1_data_exists": true,
+          "phase2_data_exists": true,
+          "phase3_data_exists": true,
+          "data_quality_ok": false
+        },
+        "phase1_total_rows": 4399
+      },
+      "score": 75,
+      "timestamp": "2025-10-27T23:55:43.707445"
+    },
+    {
+      "test_name": "integration_test_6_error_propagation",
+      "status": "PASS",
+      "details": {
+        "flow": "下位レイヤーエラー → 上位伝播",
+        "verification": {
+          "try_catch_in_uploader": true,
+          "error_throw_in_import": true,
+          "ui_alert_on_error": true,
+          "logger_usage": true
+        }
+      },
+      "score": 100,
+      "timestamp": "2025-10-27T23:55:43.708315"
+    },
+    {
+      "test_name": "integration_test_7_state_management",
+      "status": "PASS",
+      "details": {
+        "flow": "アップロード状態 → 状態確認 → UI表示",
+        "verification": {
+          "upload_status_function": true,
+          "all_phases_status_function": true,
+          "state_persistence": true,
+          "sheet_existence_check": true
+        }
+      },
+      "score": 100,
+      "timestamp": "2025-10-27T23:55:43.709035"
+    },
+    {
+      "test_name": "integration_test_8_ui_ux_integration",
+      "status": "PASS",
+      "details": {
+        "flow": "HTML UI → google.script.run → GAS関数 → 結果表示",
+        "verification": {
+          "google_script_run_usage": true,
+          "success_handler": true,
+          "failure_handler": true,
+          "progress_indicator": true
+        }
+      },
+      "score": 100,
+      "timestamp": "2025-10-27T23:55:43.709613"
+    },
+    {
+      "test_name": "integration_test_9_performance",
+      "status": "PASS",
+      "details": {
+        "flow": "大量データ → 効率的処理 → 高速レンダリング",
+        "verification": {
+          "data_volume_adequate": true,
+          "batch_processing": true,
+          "async_loading": false,
+          "lazy_loading": true
+        }
+      },
+      "score": 75,
+      "timestamp": "2025-10-27T23:55:43.710481"
+    },
+    {
+      "test_name": "integration_test_10_recovery",
+      "status": "PASS",
+      "details": {
+        "flow": "エラー発生 → リカバリ → ユーザー通知",
+        "verification": {
+          "graceful_degradation": true,
+          "user_notification": true,
+          "fallback_mechanism": true,
+          "data_integrity_protection": true
+        }
+      },
+      "score": 100,
+      "timestamp": "2025-10-27T23:55:43.711508"
+    }
+  ],
+  "summary": {
+    "total_tests": 10,
+    "passed": 10,
+    "failed": 0,
+    "overall_score": 95.0,
+    "critical_integration_issues": [],
+    "data_flow_integrity": "100.0%"
+  }
+}

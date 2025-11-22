@@ -1,0 +1,84 @@
+{
+  "test_date": "2025-10-26 22:34:58",
+  "test_type": "E2E",
+  "input_file": "C:\\Users\\fuji1\\OneDrive\\Pythonスクリプト保管\\ai_enhanced_data_with_evidence.csv",
+  "input_records": 7390,
+  "processed_records": 7390,
+  "geocache_entries": 1917,
+  "expected_files": 5,
+  "created_files": 5,
+  "file_details": {
+    "SupplyDensityMap.csv": {
+      "exists": true,
+      "rows": 42,
+      "columns": 7,
+      "column_names": [
+        "市区町村",
+        "求職者数",
+        "資格保有率",
+        "平均年齢",
+        "緊急度",
+        "総合スコア",
+        "ランク"
+      ]
+    },
+    "QualificationDistribution.csv": {
+      "exists": true,
+      "rows": 14,
+      "columns": 4,
+      "column_names": [
+        "資格カテゴリ",
+        "総保有者数",
+        "分布TOP3",
+        "希少地域TOP3"
+      ]
+    },
+    "AgeGenderCrossAnalysis.csv": {
+      "exists": true,
+      "rows": 42,
+      "columns": 6,
+      "column_names": [
+        "市区町村",
+        "総求職者数",
+        "支配的セグメント",
+        "若年女性比率",
+        "中年女性比率",
+        "ダイバーシティスコア"
+      ]
+    },
+    "MobilityScore.csv": {
+      "exists": true,
+      "rows": 7390,
+      "columns": 7,
+      "column_names": [
+        "申請者ID",
+        "希望地数",
+        "最大移動距離km",
+        "移動許容度スコア",
+        "移動許容度レベル",
+        "移動許容度",
+        "居住地"
+      ]
+    },
+    "DetailedPersonaProfile.csv": {
+      "exists": true,
+      "rows": 10,
+      "columns": 12,
+      "column_names": [
+        "セグメントID",
+        "ペルソナ名",
+        "人数",
+        "構成比",
+        "平均年齢",
+        "女性比率",
+        "資格保有率",
+        "平均資格数",
+        "平均希望地数",
+        "緊急度",
+        "主要居住地TOP3",
+        "特徴"
+      ]
+    }
+  },
+  "test_status": "PASS"
+}

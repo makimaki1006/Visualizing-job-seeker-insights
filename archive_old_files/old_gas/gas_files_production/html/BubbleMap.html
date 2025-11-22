@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>希望勤務地バブルマップ</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Chart.js v3 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+    #map-container { display: flex; height: 100vh; position: relative; }
+    #map { flex: 1; height: 100%; z-index: 1; }
+    #sidebar { width: 600px; background: white; box-shadow: -2px 0 5px rgba(0,0,0,0.1); overflow-y: auto; padding: 20px; display: none; z-index: 2; }
+    #sidebar.active { display: block; }
+    .close-btn { position: absolute; right: 10px; top: 10px; cursor: pointer; font-size: 24px; color: #666; z-index: 10; }
+    .close-btn:hover { color: #000; }
+    .stats-header { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #667eea; }
+    .stats-header h2 { color: #333; font-size: 20px; margin-bottom: 5px; }
+    .stats-header .total { font-size: 28px; color: #667eea; font-weight: bold; }
+    .chart-container { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; }
+    .chart-title { font-weight: bold; margin-bottom: 10px; color: #555; }
+    .chart-wrapper { position: relative; height: 200px; }
+    .loading { text-align: center; padding: 50px; color: #999; }
+    .error { background: #fee; color: #c00; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    .legend { position: absolute; bottom: 30px; right: 10px; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; }
+    .legend-item { display: flex; align-items: center; margin: 5px 0; }
+    .legend-color { width: 20px; height: 20px; border-radius: 50%; margin-right: 8px; border: 1px solid #333; }
+
+    /* Controls */
+    #controls { position: absolute; top: 10px; left: 10px; background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000; }
+    #controls label { font-weight: bold; margin-right: 10px; }
+    #controls select, #controls input { padding: 5px; }
+  </style>
+</head>
+<body>
+  <div id="map-container">
+    <div id="map"></div>
+    <div id="sidebar">
+      <span class="close-btn" onclick="closeSidebar()">×</span>
+      <div id="sidebar-content">
+        <div class="loading">データを読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div id="controls">
+    <div style="margin-bottom: 10px;">
+      <label>バブルサイズ:</label>
+      <input type="range" id="sizeSlider" min="0.5" max="2" step="0.1" value="1" onchange="updateBubbleSize()">
+      <span id="sizeValue">1.0</span>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="chart-title">希望者数</div>
+    <div class="legend-item"><div class="legend-color" style="background: #ff0000;"></div><span>100人以上</span></div>
+    <div class="legend-item"><div class="legend-color" style="background: #ff6600;"></div><span>50-99人</span></div>
+    <div class="legend-item"><div class="legend-color" style="background: #ffaa00;"></div><span>20-49人</span></div>
+    <div class="legend-item"><div class="legend-color" style="background: #00aa00;"></div><span>10-19人</span></div>
+    <div class="legend-item"><div class="legend-color" style="background: #0066ff;"></div><span>1-9人</span></div>
+  </div>
+
+  <script>
+    var map;
+    var markers = [];
+    var charts = {};
+    var bubbleSizeMultiplier = 1.0;
+
+    // 地図初期化
+    function initMap() {
+      map = L.map('map').setView([36.5, 138.0], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18
+      }).addTo(map);
+      loadMapData();
+    }
+
+    // データ読み込み
+    function loadMapData() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          displayMarkers(data);
+        })
+        .withFailureHandler(function(error) {
+          alert('データの読み込みに失敗しました: ' + error);
+        })
+        .getMapMetricsData();
+    }
+
+    // マーカー表示
+    function displayMarkers(points) {
+      window.lastPointsData = points;
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+
+      points.forEach(function(point) {
+        if (!point.lat || !point.lng) return;
+
+        var color = getColorByCount(point.count);
+        var radius = Math.min(Math.max(point.count / 5, 5), 30);
+
+        var marker = L.circleMarker([point.lat, point.lng], {
+          radius: radius,
+          fillColor: color,
+          color: '#333',
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.7,
+          originalRadius: radius
+        });
+
+        marker.bindPopup('<b>' + point.prefecture + '</b><br>希望者数: ' + point.count + '人');
+
+        marker.on('click', (function(p) {
+          return function() {
+            showDetailedInfo(p.prefecture, p.key, p.count);
+          };
+        })(point));
+
+        marker.addTo(map);
+        markers.push(marker);
+      });
+    }
+
+    // 詳細情報表示
+    function showDetailedInfo(prefecture, key, count) {
+      document.getElementById('sidebar').classList.add('active');
+      document.getElementById('sidebar-content').innerHTML = '<div class="loading">詳細データを読み込み中...</div>';
+
+      google.script.run
+        .withSuccessHandler(function(detail) {
+          displayDetailedStats(prefecture, key, detail);
+        })
+        .withFailureHandler(function(error) {
+          document.getElementById('sidebar-content').innerHTML =
+            '<div class="error">データの取得に失敗しました: ' + error + '</div>';
+        })
+        .getApplicantsStats();
+    }
+
+    // 詳細統計表示
+    function displayDetailedStats(prefecture, key, detail) {
+      var html = `
+        <div class="stats-header">
+          <h2>${prefecture}</h2>
+          <div class="total">希望者数: ${detail.total}人</div>
+        </div>
+      `;
+
+      // 性別分布
+      if (detail.byGender) {
+        html += `
+          <div class="chart-container">
+            <div class="chart-title">性別分布</div>
+            <div class="chart-wrapper"><canvas id="genderChart"></canvas></div>
+          </div>`;
+      }
+
+      // 年齢分布
+      if (detail.byAge) {
+        html += `
+          <div class="chart-container">
+            <div class="chart-title">年齢分布</div>
+            <div class="chart-wrapper"><canvas id="ageChart"></canvas></div>
+          </div>`;
+      }
+
+      document.getElementById('sidebar-content').innerHTML = html;
+
+      // グラフ描画
+      setTimeout(function() {
+        drawCharts(detail);
+      }, 100);
+    }
+
+    // グラフ描画
+    function drawCharts(detail) {
+      // 既存のチャートを破棄
+      Object.values(charts).forEach(function(chart) {
+        if (chart) {
+          try { chart.destroy(); } catch(e) {}
+        }
+      });
+      charts = {};
+
+      // 性別グラフ
+      if (detail.byGender && document.getElementById('genderChart')) {
+        var genderCanvas = document.getElementById('genderChart');
+        var genderData = detail.byGender;
+        charts.gender = new Chart(genderCanvas, {
+          type: 'pie',
+          data: {
+            labels: Object.keys(genderData),
+            datasets: [{
+              data: Object.values(genderData),
+              backgroundColor: ['#667eea', '#764ba2', '#f4b400'],
+              borderWidth: 2,
+              borderColor: '#fff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  padding: 15,
+                  font: { size: 12 }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // 年齢グラフ
+      if (detail.byAge && document.getElementById('ageChart')) {
+        var ageCanvas = document.getElementById('ageChart');
+        var ageLabels = Object.keys(detail.byAge);
+        var ageData = Object.values(detail.byAge);
+
+        charts.age = new Chart(ageCanvas, {
+          type: 'bar',
+          data: {
+            labels: ageLabels,
+            datasets: [{
+              label: '人数',
+              data: ageData,
+              backgroundColor: '#667eea',
+              borderColor: '#5568d3',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              y: { beginAtZero: true }
+            }
+          }
+        });
+      }
+    }
+
+    // UI操作
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('active');
+      Object.values(charts).forEach(function(chart) {
+        if (chart) {
+          try { chart.destroy(); } catch(e) {}
+        }
+      });
+      charts = {};
+    }
+
+    function getColorByCount(count) {
+      if (count >= 100) return '#ff0000';
+      if (count >= 50) return '#ff6600';
+      if (count >= 20) return '#ffaa00';
+      if (count >= 10) return '#00aa00';
+      return '#0066ff';
+    }
+
+    function updateBubbleSize() {
+      bubbleSizeMultiplier = parseFloat(document.getElementById('sizeSlider').value);
+      document.getElementById('sizeValue').textContent = bubbleSizeMultiplier.toFixed(1);
+
+      markers.forEach(function(marker) {
+        var originalRadius = marker.options.originalRadius || marker.getRadius();
+        marker.setRadius(originalRadius * bubbleSizeMultiplier);
+      });
+    }
+
+    window.onload = function() {
+      initMap();
+    };
+  </script>
+</body>
+</html>
