@@ -1,0 +1,271 @@
+[INFO] コマンドライン引数からファイル読み込み: ../../out/results_20251028_112441.csv
+
+============================================================
+  ジョブメドレー求職者データ分析（シンプル版）
+============================================================
+
+[LOAD] データ読み込み: results_20251028_112441.csv
+  [OK] 14592行 x 13列
+
+[PROCESS] データ処理中...
+  [OK] 14592件処理完了
+
+[PHASE1] Phase 1: 基礎集計
+  [OK] Phase1_MapMetrics.csv: 1032件
+  [OK] Phase1_Applicants.csv: 14592件
+  [OK] Phase1_DesiredWork.csv: 41446件
+  [DIR] 出力先: data\output_v2\phase1
+
+[PHASE2] Phase 2: 統計分析
+  [OK] Phase2_ChiSquareTests.csv: 1件
+  [OK] Phase2_ANOVATests.csv: 1件
+  [DIR] 出力先: data\output_v2\phase2
+
+[PHASE3] Phase 3: ペルソナ分析
+  [OK] Phase3_PersonaSummary.csv: 6件
+  [OK] Phase3_PersonaDetails.csv: 6件
+  [DIR] 出力先: data\output_v2\phase3
+
+[PHASE6] Phase 6: フロー分析
+  [OK] Phase6_MunicipalityFlowEdges.csv: 10616件
+  [OK] Phase6_MunicipalityFlowNodes.csv: 1070件
+  [OK] Phase6_ProximityAnalysis.csv: 14550件
+  [DIR] 出力先: data\output_v2\phase6
+
+[PHASE7] Phase 7: 高度分析
+  [OK] Phase7_SupplyDensityMap.csv: 1032件
+  [OK] QualificationDistribution.csv: 701件
+  [OK] Phase7_AgeGenderCrossAnalysis.csv: 1831件（市区町村レベル）
+  [OK] Phase7_MobilityScore.csv: 14550件
+  [OK] Phase7_DetailedPersonaProfile.csv: 2854件（市区町村レベル）
+  [OK] PersonaMapData.csv: 2986件
+  [OK] PersonaMobilityCross.csv: 6件
+  [DIR] 出力先: data\output_v2\phase7
+
+[PHASE8] Phase 8: キャリア・学歴分析（市区町村レベル）
+  [OK] CareerAgeCross_Matrix.csv: 4235件（市区町村レベル）
+  [DIR] 出力先: data\output_v2\phase8
+
+[PHASE10] Phase 10: 転職意欲・緊急度分析（市区町村レベル）
+  [WARN] urgency_scoreカラムが存在しません。Phase 10データ生成をスキップします。
+
+============================================================
+  [OK] 全Phase完了（Phase 1-10）
+============================================================
+
+
+============================================================
+  MapComplete統合CSV生成（row_type形式、市区町村レベル）
+============================================================
+
+[LOAD] 全Phaseデータ読み込み開始...
+  [OK] phase1/Phase1_MapMetrics.csv: 1032行
+  [OK] phase1/Phase1_Applicants.csv: 14592行
+  [OK] phase1/Phase1_DesiredWork.csv: 41446行
+  [OK] phase3/Phase3_PersonaSummary.csv: 6行
+  [OK] phase3/Phase3_PersonaDetails.csv: 6行
+  [OK] phase3/Phase3_PersonaSummaryByMunicipality.csv: 4885行
+  [OK] phase6/Phase6_MunicipalityFlowEdges.csv: 10616行
+  [OK] phase6/Phase6_MunicipalityFlowNodes.csv: 1070行
+  [OK] phase6/Phase6_ProximityAnalysis.csv: 14550行
+  [OK] phase7/Phase7_SupplyDensityMap.csv: 1032行
+  [OK] phase7/Phase7_AgeGenderCrossAnalysis.csv: 1831行
+  [OK] phase7/Phase7_DetailedPersonaProfile.csv: 2854行
+  [OK] phase7/Phase7_MobilityScore.csv: 14550行
+  [OK] phase8/Phase8_GraduationYearDistribution.csv: 68行
+  [OK] phase8/Phase8_CareerDistribution.csv: 1627行
+  [OK] phase8/Phase8_CareerAgeCross_Matrix.csv: 4235行
+  [OK] phase10/Phase10_UrgencyDistribution.csv: 4行
+  [OK] phase10/Phase10_UrgencyAgeCross.csv: 24行
+  [OK] phase10/Phase10_UrgencyAgeCross_Matrix.csv: 4行
+  [OK] phase10/Phase10_UrgencyEmploymentCross.csv: 12行
+  [OK] phase10/Phase10_UrgencyEmploymentCross_Matrix.csv: 4行
+  [OK] phase10/Phase10_UrgencyByMunicipality.csv: 944行
+  [OK] phase12/Phase12_SupplyDemandGap.csv: 966行
+  [OK] phase13/Phase13_RarityScore.csv: 4885行
+  [OK] phase14/Phase14_CompetitionProfile.csv: 944行
+  [OK] 全Phaseデータ読み込み完了
+
+
+[GENERATE] 都道府県別完全統合シート生成開始...
+  [INFO] 都道府県数: 47件
+
+  [GENERATE] 東京都 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_東京都.csv (12277行 × 36列)
+
+  [GENERATE] 千葉県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_千葉県.csv (7768行 × 36列)
+
+  [GENERATE] 埼玉県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_埼玉県.csv (8378行 × 36列)
+
+  [GENERATE] 神奈川県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_神奈川県.csv (8475行 × 36列)
+
+  [GENERATE] 茨城県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_茨城県.csv (7112行 × 36列)
+
+  [GENERATE] 大阪府 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_大阪府.csv (7966行 × 36列)
+
+  [GENERATE] 愛知県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_愛知県.csv (7323行 × 36列)
+
+  [GENERATE] 群馬県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_群馬県.csv (6970行 × 36列)
+
+  [GENERATE] 静岡県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_静岡県.csv (7052行 × 36列)
+
+  [GENERATE] 栃木県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_栃木県.csv (6943行 × 36列)
+
+  [GENERATE] 兵庫県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_兵庫県.csv (7232行 × 36列)
+
+  [GENERATE] 北海道 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_北海道.csv (6976行 × 36列)
+
+  [GENERATE] 山梨県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_山梨県.csv (6928行 × 36列)
+
+  [GENERATE] 京都府 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_京都府.csv (7495行 × 36列)
+
+  [GENERATE] 宮城県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_宮城県.csv (6936行 × 36列)
+
+  [GENERATE] 福岡県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_福岡県.csv (7098行 × 36列)
+
+  [GENERATE] 奈良県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_奈良県.csv (7131行 × 36列)
+
+  [GENERATE] 福島県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_福島県.csv (6938行 × 36列)
+
+  [GENERATE] 沖縄県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_沖縄県.csv (6918行 × 36列)
+
+  [GENERATE] 三重県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_三重県.csv (6944行 × 36列)
+
+  [GENERATE] 新潟県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_新潟県.csv (6929行 × 36列)
+
+  [GENERATE] 滋賀県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_滋賀県.csv (7073行 × 36列)
+
+  [GENERATE] 岐阜県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_岐阜県.csv (6956行 × 36列)
+
+  [GENERATE] 長野県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_長野県.csv (6962行 × 36列)
+
+  [GENERATE] 熊本県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_熊本県.csv (6899行 × 36列)
+
+  [GENERATE] 秋田県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_秋田県.csv (6868行 × 36列)
+
+  [GENERATE] 鹿児島県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_鹿児島県.csv (6913行 × 36列)
+
+  [GENERATE] 石川県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_石川県.csv (6898行 × 36列)
+
+  [GENERATE] 愛媛県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_愛媛県.csv (6865行 × 36列)
+
+  [GENERATE] 香川県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_香川県.csv (6868行 × 36列)
+
+  [GENERATE] 山形県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_山形県.csv (6879行 × 36列)
+
+  [GENERATE] 広島県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_広島県.csv (6944行 × 36列)
+
+  [GENERATE] 岩手県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_岩手県.csv (6879行 × 36列)
+
+  [GENERATE] 岡山県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_岡山県.csv (6901行 × 36列)
+
+  [GENERATE] 長崎県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_長崎県.csv (6865行 × 36列)
+
+  [GENERATE] 佐賀県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_佐賀県.csv (6885行 × 36列)
+
+  [GENERATE] 大分県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_大分県.csv (6867行 × 36列)
+
+  [GENERATE] 徳島県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_徳島県.csv (6861行 × 36列)
+
+  [GENERATE] 富山県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_富山県.csv (6860行 × 36列)
+
+  [GENERATE] 青森県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_青森県.csv (6880行 × 36列)
+
+  [GENERATE] 山口県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_山口県.csv (6875行 × 36列)
+
+  [GENERATE] 和歌山県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_和歌山県.csv (6873行 × 36列)
+
+  [GENERATE] 宮崎県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_宮崎県.csv (6860行 × 36列)
+
+  [GENERATE] 鳥取県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_鳥取県.csv (6852行 × 36列)
+
+  [GENERATE] 島根県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_島根県.csv (6852行 × 36列)
+
+  [GENERATE] 福井県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_福井県.csv (6886行 × 36列)
+
+  [GENERATE] 高知県 の完全統合シート生成中...
+    [OK] 出力完了: data\output_v2\mapcomplete_complete_sheets\MapComplete_Complete_高知県.csv (6854行 × 36列)
+
+  [OK] 都道府県別完全統合シート生成完了: data\output_v2\mapcomplete_complete_sheets
+  [OK] MapComplete統合CSV生成完了（row_type形式）
+
+============================================================
+  PersonaLevel統合CSV生成（ペルソナセグメントレベル）
+============================================================
+
+[LOAD] 全Phaseデータ読み込み開始...
+  [OK] phase3/Phase3_PersonaSummaryByMunicipality.csv: 4885行
+  [OK] phase13/Phase13_RarityScore.csv: 4885行
+  [OK] phase6/Phase6_MunicipalityFlowNodes.csv: 1070行
+  [OK] phase7/Phase7_SupplyDensityMap.csv: 1032行
+  [OK] phase10/Phase10_UrgencyByMunicipality.csv: 944行
+  [OK] phase14/Phase14_CompetitionProfile.csv: 944行
+  [OK] phase12/Phase12_SupplyDemandGap.csv: 966行
+  [OK] 全Phaseデータ読み込み完了
+
+
+[GENERATE] 都道府県別ペルソナレベル統合シート生成開始...
+  [INFO] 都道府県数: 47件
+  [DEBUG] Phase3 municipality サンプル: ['京都府京都市伏見区', '京都府京都市伏見区', '京都府京都市伏見区']
+  [DEBUG] Phase13 location(→municipality) サンプル: ['三重県度会郡大紀町', '鹿児島県鹿屋市', '三重県']
+  [DEBUG] マッピング後のprefecture欠損数: 0/4885
+
+  [GENERATE] 三重県 のペルソナレベル統合シート生成中...
+    - PersonaSummaryByMunicipality: 59行（ベース）
+    - Phase13_RarityScore: 結合完了
+  [ERROR] PersonaLevel統合CSV生成エラー: 'municipality'
+
+============================================================
+Traceback (most recent call last):
+  File "C:\Users\fuji1\OneDrive\Pythonスクリプト保管\job_medley_project\python_scripts\run_complete_v2.py", line 951, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\fuji1\OneDrive\Pythonスクリプト保管\job_medley_project\python_scripts\run_complete_v2.py", line 941, in main
+    print(f"  [\u2705 完了] すべての処理が完了しました！")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp932' codec can't encode character '\u2705' in position 3: illegal multibyte sequence
