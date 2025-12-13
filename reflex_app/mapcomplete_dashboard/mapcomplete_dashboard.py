@@ -1075,6 +1075,21 @@ class DashboardState(rx.State):
         CSVアップロード後はDB使用しない。
         注意: @rx.event(background=True)でロックタイムアウトを回避
         """
+        import time
+        import sys
+
+        # 施策2: 同一都道府県の再選択をスキップ（効果: ~1,500ms削減）
+        if value == self.selected_prefecture:
+            print(f"[PERF] set_prefecture SKIP: same value ({value})")
+            return
+
+        _t0 = time.time()
+        # ファイルにもログ出力（print()がバッファリングされる場合の対策）
+        _perf_log = open("C:/Users/fuji1/OneDrive/Pythonスクリプト保管/job_medley_project/reflex_app/perf_timing.log", "a", encoding="utf-8")
+        _perf_log.write(f"[PERF] === set_prefecture START: {value} ===\n")
+        _perf_log.flush()
+        print(f"[PERF] === set_prefecture START: {value} ===", flush=True)
+
         # CSVアップロード済みの場合はCSVデータを使用（DB使用しない）
         if self.csv_uploaded and self.df_full is not None:
             # CSV全データから市区町村リストを抽出（空文字列や"nan"を除外）
@@ -1095,12 +1110,21 @@ class DashboardState(rx.State):
                     filtered_count = len(df_data)
                     print(f"[CSV] 都道府県変更: {value}, 市区町村数: {len(municipalities_list)}, フィルタ済み: {filtered_count}行")
 
+                    _t1 = time.time()
+                    _csv_ms = (_t1-_t0)*1000
+                    _perf_log.write(f"[PERF] CSV filtering: {_csv_ms:.1f}ms\n")
+                    _perf_log.flush()
+                    print(f"[PERF] CSV filtering: {_csv_ms:.1f}ms", flush=True)
                     async with self:
                         self.selected_prefecture = value
                         self.selected_municipality = first_muni
                         self.municipalities = municipalities_list
                         self.df = df_data
                         self.filtered_rows = filtered_count
+                    _state_ms = (time.time()-_t1)*1000
+                    _perf_log.write(f"[PERF] State update: {_state_ms:.1f}ms\n")
+                    _perf_log.flush()
+                    print(f"[PERF] State update: {_state_ms:.1f}ms", flush=True)
                 else:
                     print(f"[CSV] 都道府県変更: {value}, 市区町村数: 0")
                     async with self:
@@ -1114,29 +1138,37 @@ class DashboardState(rx.State):
                     self.selected_municipality = ""
         # 市区町村リスト更新（DBから取得）
         elif _DB_AVAILABLE:
+            _t_db_start = time.time()
             municipalities_list = get_municipalities(value)
+            print(f"[PERF] DB get_municipalities: {(time.time()-_t_db_start)*1000:.1f}ms")
 
             # 最初の市区町村を選択し、フィルタ済みデータのみ取得
             if len(municipalities_list) > 0:
                 first_muni = municipalities_list[0]
 
                 # フィルタ済みデータのみ取得（数十〜数百行）
+                _t_query = time.time()
                 df_data = self._normalize_df(get_filtered_data(value, first_muni))
+                print(f"[PERF] DB get_filtered_data: {(time.time()-_t_query)*1000:.1f}ms")
                 filtered_count = len(df_data) if df_data is not None else 0
             else:
                 first_muni = ""
                 # 市区町村がない場合は都道府県全体
+                _t_query = time.time()
                 df_data = self._normalize_df(get_filtered_data(value))
+                print(f"[PERF] DB get_filtered_data (pref only): {(time.time()-_t_query)*1000:.1f}ms")
                 filtered_count = len(df_data) if df_data is not None else 0
 
             print(f"[DB] 都道府県変更: {value}, フィルタ済み: {filtered_count}行")
 
+            _t_state = time.time()
             async with self:
                 self.selected_prefecture = value
                 self.selected_municipality = first_muni
                 self.municipalities = municipalities_list
                 self.df = df_data
                 self.filtered_rows = filtered_count
+            print(f"[PERF] DB State update: {(time.time()-_t_state)*1000:.1f}ms")
         else:
             # CSV使用時の従来ロジック（フォールバック・空文字列や"nan"を除外）
             if self.df is not None and 'municipality' in self.df.columns:
@@ -1148,12 +1180,17 @@ class DashboardState(rx.State):
                     self.selected_prefecture = value
                     self.selected_municipality = ""
                     self.municipalities = municipalities_list
+                    self._update_city_summary_inline()
             else:
                 async with self:
                     self.selected_prefecture = value
                     self.selected_municipality = ""
+                    self._update_city_summary_inline()
 
-        self.update_city_summary()
+        _total_ms = (time.time()-_t0)*1000
+        _perf_log.write(f"[PERF] === set_prefecture TOTAL: {_total_ms:.1f}ms ===\n")
+        _perf_log.close()
+        print(f"[PERF] === set_prefecture TOTAL: {_total_ms:.1f}ms ===", flush=True)
 
     @rx.event(background=True)
     async def set_municipality(self, value: str):
@@ -1163,6 +1200,16 @@ class DashboardState(rx.State):
         CSVアップロード後はCSVデータをそのまま使用（フィルタリングは_get_filtered_dfで実施）。
         注意: @rx.event(background=True)でロックタイムアウトを回避
         """
+        import time
+
+        # 施策2: 同一市区町村の再選択をスキップ
+        if value == self.selected_municipality:
+            print(f"[PERF] set_municipality SKIP: same value ({value})")
+            return
+
+        _t0 = time.time()
+        print(f"[PERF] === set_municipality START: {value} ===")
+
         # CSVアップロード済みの場合は、CSV全体から選択地域でフィルタリング
         if self.csv_uploaded and self.df_full is not None:
             # 都道府県と市区町村でフィルタリング
@@ -1171,30 +1218,55 @@ class DashboardState(rx.State):
                 (self.df_full['municipality'] == value)
             ]
             filtered_count = len(df_data)
+            _t1 = time.time()
+            print(f"[PERF] CSV filtering: {(_t1-_t0)*1000:.1f}ms")
             print(f"[CSV] 市区町村変更: {value}, フィルタ済み: {filtered_count}行（CSV全体からフィルタリング）")
 
             async with self:
                 self.selected_municipality = value
                 self.df = df_data
                 self.filtered_rows = filtered_count
+                self._update_city_summary_inline()
+            print(f"[PERF] State update: {(time.time()-_t1)*1000:.1f}ms")
         # フィルタ済みデータのみ取得（DBから）
         elif _DB_AVAILABLE and self.selected_prefecture:
+            _t_query = time.time()
             df_data = self._normalize_df(get_filtered_data(self.selected_prefecture, value))
+            print(f"[PERF] DB get_filtered_data: {(time.time()-_t_query)*1000:.1f}ms")
             filtered_count = len(df_data) if df_data is not None else 0
             print(f"[DB] 市区町村変更: {value}, フィルタ済み: {filtered_count}行")
 
+            _t_state = time.time()
             async with self:
                 self.selected_municipality = value
                 self.df = df_data
                 self.filtered_rows = filtered_count
+                self._update_city_summary_inline()
+            print(f"[PERF] State update: {(time.time()-_t_state)*1000:.1f}ms")
         else:
             async with self:
                 self.selected_municipality = value
+                self._update_city_summary_inline()
 
-        self.update_city_summary()
+        print(f"[PERF] === set_municipality TOTAL: {(time.time()-_t0)*1000:.1f}ms ===")
 
     def update_city_summary(self):
         """選択地域サマリー更新（サーバーサイドフィルタリング版）"""
+        if not self.selected_municipality:
+            self.city_name = "-"
+            self.city_meta = "-"
+            return
+
+        self.city_name = f"{self.selected_prefecture} {self.selected_municipality}"
+
+        # データ件数カウント（dfは既にフィルタ済み）
+        if self.df is not None:
+            self.city_meta = f"{len(self.df):,}件のデータ"
+        else:
+            self.city_meta = "0件のデータ"
+
+    def _update_city_summary_inline(self):
+        """async with self内で呼び出す用のサマリー更新（background=True対応）"""
         if not self.selected_municipality:
             self.city_name = "-"
             self.city_meta = "-"
@@ -1544,29 +1616,10 @@ class DashboardState(rx.State):
     # dfは既にフィルタ済みなので、row_typeフィルタのみ実行
     # =====================================
 
-    @rx.var(cache=False)
-    def _cached_persona_muni_filtered(self) -> pd.DataFrame:
-        """PERSONA_MUNIフィルタ結果（キャッシュ無効化で常に最新データ）"""
-        if self.df is None or self.df.empty:
-            return pd.DataFrame()
-        if 'row_type' not in self.df.columns:
-            return pd.DataFrame()
-
-        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
-        return self.df[self.df['row_type'] == 'PERSONA_MUNI']
-
-    @rx.var(cache=False)
-    def _cached_employment_age_filtered(self) -> pd.DataFrame:
-        """EMPLOYMENT_AGE_CROSSフィルタ結果（キャッシュ無効化で常に最新データ）"""
-        if self.df is None or self.df.empty:
-            return pd.DataFrame()
-        if 'row_type' not in self.df.columns:
-            return pd.DataFrame()
-
-        # サーバーサイドフィルタリング: dfは既に地域でフィルタ済み、row_typeのみフィルタ
-        return self.df[self.df['row_type'] == 'EMPLOYMENT_AGE_CROSS']
-
-    # _cached_urgency_age_filtered() 削除済み（URGENCY_AGE廃止により不要）
+    # [REMOVED] _cached_persona_muni_filtered - パフォーマンス最適化のため削除 (2025-12-12)
+    # [REMOVED] _cached_employment_age_filtered - パフォーマンス最適化のため削除 (2025-12-12)
+    # [REMOVED] _cached_urgency_age_filtered - 以前削除済み（URGENCY_AGE廃止により不要）
+    # これらの中間キャッシュはUIで未使用だが毎イベントで計算されていた
 
     # =====================================
     # Supply パネル用計算プロパティ
@@ -2088,6 +2141,9 @@ class DashboardState(rx.State):
                 "top_sources": [{"name": "前橋市", "value": 621, "is_local": False}, ...]
             }
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return {"total": 0, "local_count": 0, "local_pct": 0, "top_sources": []}
         # 流入分析には全データが必要（df_fullを使用）
         # dfはフィルタ済みのため、他県からの流入データが欠落する
         if self.df_full is None or self.df_full.empty:
@@ -2183,6 +2239,9 @@ class DashboardState(rx.State):
                 "top_destinations": [{"name": "東京都", "value": 25}, ...]
             }
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return {"total": 0, "top_destinations": []}
         # 流出分析には全データが必要（df_fullを使用）
         # dfはフィルタ済みのため、他県への流出データが欠落する
         if self.df_full is None or self.df_full.empty:
@@ -2264,97 +2323,8 @@ class DashboardState(rx.State):
         """人材フローデータが存在するか"""
         return self.talent_flow_inflow_total > 0 or self.talent_flow_outflow_total > 0
 
-    @rx.var(cache=False)
-    def desired_area_age_gender_heatmap_html(self) -> str:
-        """年齢×希望地域のヒートマップ（Plotly HTML）
-
-        X軸: 希望地域（Top8）- 短縮表示
-        Y軸: 年齢層
-        色分け: 人数（濃いほど多い）
-        """
-        if not self.is_loaded or self.df is None:
-            return ""
-
-        # DESIRED_AREA_PATTERNを取得
-        filtered = self._safe_filter_by_row_type('DESIRED_AREA_PATTERN', copy=True)
-        if filtered.empty:
-            return ""
-
-        # 市区町村でフィルタ
-        selected_muni = self.selected_municipality
-        selected_pref = self.selected_prefecture
-
-        if selected_muni and selected_muni != "すべて":
-            filtered = filtered[filtered['municipality'] == selected_muni]
-        elif selected_pref and selected_pref != "すべて":
-            filtered = filtered[filtered['prefecture'] == selected_pref]
-
-        if filtered.empty:
-            return ""
-
-        # 希望地域ラベルを作成（市区町村名のみ）
-        filtered = filtered.copy()
-        filtered['dest_label'] = filtered['co_desired_municipality'].astype(str)
-
-        # Top8の希望地域を特定（表示スペースのため8に削減）
-        top_destinations = (
-            filtered
-            .groupby('dest_label')['count']
-            .sum()
-            .reset_index()
-            .sort_values('count', ascending=False)
-            .head(8)['dest_label']
-            .tolist()
-        )
-
-        if not top_destinations:
-            return ""
-
-        # ラベルを短縮（8文字以上は省略）
-        short_labels = [d[:8] + "…" if len(d) > 8 else d for d in top_destinations]
-
-        # 年齢層
-        age_groups = ["20代", "30代", "40代", "50代", "60代"]
-
-        # ヒートマップ用のマトリックスを作成
-        z_values = []
-        for age in age_groups:
-            row_values = []
-            for dest in top_destinations:
-                count = filtered[
-                    (filtered['category1'] == age) &
-                    (filtered['dest_label'] == dest)
-                ]['count'].sum()
-                row_values.append(int(count) if pd.notna(count) else 0)
-            z_values.append(row_values)
-
-        # Plotlyヒートマップ作成
-        fig = go.Figure(data=go.Heatmap(
-            z=z_values,
-            x=short_labels,
-            y=age_groups,
-            colorscale='Blues',
-            hoverongaps=False,
-            hovertemplate='希望地域: %{x}<br>年齢層: %{y}<br>人数: %{z}人<extra></extra>'
-        ))
-
-        fig.update_layout(
-            xaxis=dict(
-                tickangle=-45,
-                tickfont=dict(color='#94a3b8', size=11),
-                side='bottom'
-            ),
-            yaxis=dict(
-                tickfont=dict(color='#94a3b8', size=11),
-                autorange='reversed'
-            ),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=50, r=20, t=10, b=80),
-            height=280
-        )
-
-        return fig.to_html(full_html=False, include_plotlyjs='cdn')
+    # [REMOVED] desired_area_age_gender_heatmap_html - パフォーマンス最適化のため削除 (2025-12-12)
+    # UIで未使用だが毎イベントで計算されていた重いto_html処理
 
     # =====================================
     # Career パネル用追加計算プロパティ
@@ -2657,6 +2627,9 @@ class DashboardState(rx.State):
         形式: [{"label": "50代・女性・就業中", "count": 256, "share": 0.1465}, ...]
         データソース: row_type='PERSONA_MUNI', category1=persona_name, count
         """
+        # Lazy Loading: personaタブ以外では計算をスキップ
+        if self.active_tab != "persona":
+            return []
         if not self.is_loaded or self.df is None:
             return []
 
@@ -2704,6 +2677,9 @@ class DashboardState(rx.State):
         データソース: row_type='PERSONA_MUNI', category1=persona_name, count
         注意: 全ペルソナを表示（head制限なし）
         """
+        # Lazy Loading: personaタブ以外では計算をスキップ
+        if self.active_tab != "persona":
+            return []
         if not self.is_loaded or self.df is None:
             return []
 
@@ -3013,146 +2989,9 @@ class DashboardState(rx.State):
             })
         return result
 
-    @rx.var(cache=False)
-    def desired_area_pattern_heatmap_html(self) -> str:
-        """併願パターンの都道府県ヒートマップ（Plotly HTML）
-
-        【ターゲット視点】選択都道府県を希望する人が、どこから来ているかをヒートマップで表示
-        """
-        if not self.is_loaded:
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;min-height:100px;'>データを読み込んでください</div>"
-
-        prefecture = self.selected_prefecture
-        if not prefecture:
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;min-height:100px;'>都道府県を選択してください</div>"
-
-        # ターゲット視点でデータを取得（選択都道府県を希望する人）
-        filtered = self._get_target_prefecture_pattern_data(prefecture, 'DESIRED_AREA_PATTERN')
-
-        if filtered.empty:
-            return f"<div style='color:#94a3b8;padding:20px;text-align:center;'>{prefecture}を希望するデータがありません</div>"
-
-        needed = {'prefecture', 'co_desired_prefecture', 'count'}
-        if not needed.issubset(filtered.columns):
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;'>必要なカラムがありません</div>"
-
-        # 居住県（prefecture）ごとの件数を集計
-        agg = (
-            filtered
-            .groupby('prefecture')['count']
-            .sum()
-            .reset_index()
-            .sort_values('count', ascending=True)
-            .tail(15)
-        )
-
-        if agg.empty:
-            return f"<div style='color:#94a3b8;padding:20px;text-align:center;'>{prefecture}を希望するデータがありません</div>"
-
-        # 横棒グラフで表示
-        fig = go.Figure(
-            data=go.Bar(
-                x=agg['count'].tolist(),
-                y=agg['prefecture'].tolist(),
-                orientation='h',
-                marker=dict(color='#0072B2')  # Okabe-Ito: 青
-            )
-        )
-        fig.update_layout(
-            title=f"{prefecture}を希望する人の居住県",
-            xaxis_title="人数",
-            yaxis_title="居住県",
-            margin=dict(l=100, r=20, t=50, b=40),
-            height=400,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#e2e8f0')
-        )
-        fig.update_xaxes(gridcolor='rgba(255,255,255,0.1)')
-        fig.update_yaxes(gridcolor='rgba(255,255,255,0.1)')
-        return fig.to_html(include_plotlyjs='cdn', full_html=False)
-
-    @rx.var(cache=False)
-    def desired_area_pattern_heatmap_muni_html(self) -> str:
-        """併願パターンの市区町村ヒートマップ（Plotly HTML）
-
-        【ソース視点】選択市区町村に住んでいる人が、どこを併願希望しているかをヒートマップで表示
-        都道府県レベルではなく市区町村レベルで表示
-        """
-        if not self.is_loaded:
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;min-height:100px;'>データを読み込んでください</div>"
-
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
-        if not prefecture:
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;min-height:100px;'>都道府県を選択してください</div>"
-
-        # ソース視点で市区町村レベルのデータを取得（選択市町村に住んでいる人）
-        if municipality:
-            filtered = self._get_source_pattern_data(prefecture, municipality, 'DESIRED_AREA_PATTERN')
-        else:
-            filtered = self._get_source_prefecture_pattern_data(prefecture, 'DESIRED_AREA_PATTERN')
-
-        if filtered.empty:
-            target = f"{municipality or prefecture}"
-            return f"<div style='color:#94a3b8;padding:20px;text-align:center;'>{target}に住んでいる人の併願データがありません</div>"
-
-        # 併願希望先カラムの存在チェック
-        if 'co_desired_municipality' not in filtered.columns:
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;'>併願希望先市区町村カラムがありません</div>"
-
-        if 'count' not in filtered.columns:
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;'>件数カラムがありません</div>"
-
-        # 併願希望先市区町村ごとの件数を集計（都道府県も含む）
-        filtered['label'] = filtered['co_desired_prefecture'].astype(str) + ' ' + filtered['co_desired_municipality'].astype(str)
-        agg = (
-            filtered
-            .groupby('label')['count']
-            .sum()
-            .reset_index()
-            .sort_values('count', ascending=True)
-            .tail(15)
-        )
-
-        if agg.empty:
-            target = f"{municipality or prefecture}"
-            return f"<div style='color:#94a3b8;padding:20px;text-align:center;'>{target}に住んでいる人の併願データがありません</div>"
-
-        # 色弱配慮: 青系グラデーション使用（赤緑を避ける）
-        fig = go.Figure(
-            data=go.Bar(
-                x=agg['count'].tolist(),
-                y=agg['label'].tolist(),
-                orientation='h',
-                marker=dict(
-                    color=agg['count'].tolist(),
-                    colorscale='Blues',
-                    showscale=True,
-                    colorbar=dict(title="件数", tickfont=dict(color='#e2e8f0'))
-                )
-            )
-        )
-        target = municipality if municipality else prefecture
-        fig.update_layout(
-            title=dict(
-                text=f"{target}に住んでいる人の併願希望先 Top15",
-                font=dict(color='#e2e8f0', size=14)
-            ),
-            xaxis_title="人数",
-            yaxis_title="併願希望先市区町村",
-            margin=dict(l=180, r=60, t=50, b=40),
-            height=450,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#e2e8f0')
-        )
-        fig.update_xaxes(gridcolor='rgba(255,255,255,0.1)', tickfont=dict(color='#94a3b8'))
-        fig.update_yaxes(gridcolor='rgba(255,255,255,0.1)', tickfont=dict(color='#94a3b8'))
-        html = fig.to_html(include_plotlyjs='cdn', full_html=True)
-        # ダークテーマ用にbody背景色を注入
-        html = html.replace('<body>', '<body style="background:#0a0e17;margin:0;padding:0;">')
-        return html
+    # [REMOVED] desired_area_pattern_heatmap_html - パフォーマンス最適化のため削除 (2025-12-12)
+    # [REMOVED] desired_area_pattern_heatmap_muni_html - パフォーマンス最適化のため削除 (2025-12-12)
+    # UIで未使用だが毎イベントで計算されていた重いto_html処理
 
     @rx.var(cache=False)
     def residence_flow_top(self) -> List[Dict[str, Any]]:
@@ -3162,6 +3001,9 @@ class DashboardState(rx.State):
         row_type=RESIDENCE_FLOW, desired_prefecture==選択都道府県 でフィルタ
         形式: [{"origin_pref": "東京都", "dest_pref": "群馬県", "count": 5}]
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return []
         if not self.is_loaded:
             return []
 
@@ -3206,6 +3048,9 @@ class DashboardState(rx.State):
         row_type=RESIDENCE_FLOW, prefecture/municipality==選択市町村 でフィルタ
         集計対象: desired_prefecture/desired_municipality（希望勤務地）
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return []
         if not self.is_loaded:
             return []
 
@@ -3259,147 +3104,9 @@ class DashboardState(rx.State):
             })
         return result
 
-    @rx.var(cache=False)
-    def residence_flow_heatmap_html(self) -> str:
-        """居住地フローの都道府県グラフ（Plotly HTML）
-
-        【ターゲット視点】選択都道府県を希望する人が、どこに住んでいるかを棒グラフで表示
-        """
-        if not self.is_loaded:
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;min-height:100px;'>データを読み込んでください</div>"
-
-        prefecture = self.selected_prefecture
-        if not prefecture:
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;min-height:100px;'>都道府県を選択してください</div>"
-
-        # ターゲット視点でデータを取得（選択都道府県を希望する人）
-        filtered = self._get_target_prefecture_pattern_data(prefecture, 'RESIDENCE_FLOW')
-
-        if filtered.empty:
-            return f"<div style='color:#94a3b8;padding:20px;text-align:center;'>{prefecture}を希望するデータがありません</div>"
-
-        needed = {'prefecture', 'count'}
-        if not needed.issubset(filtered.columns):
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;'>必要なカラムがありません</div>"
-
-        # 居住県（prefecture）ごとの件数を集計
-        agg = (
-            filtered
-            .groupby('prefecture')['count']
-            .sum()
-            .reset_index()
-            .sort_values('count', ascending=True)
-            .tail(15)
-        )
-
-        if agg.empty:
-            return f"<div style='color:#94a3b8;padding:20px;text-align:center;'>{prefecture}を希望するデータがありません</div>"
-
-        # 横棒グラフで表示
-        fig = go.Figure(
-            data=go.Bar(
-                x=agg['count'].tolist(),
-                y=agg['prefecture'].tolist(),
-                orientation='h',
-                marker=dict(color='#E69F00')  # Okabe-Ito: オレンジ
-            )
-        )
-        fig.update_layout(
-            title=f"{prefecture}を希望する人の居住県",
-            xaxis_title="人数",
-            yaxis_title="居住県",
-            margin=dict(l=100, r=20, t=50, b=40),
-            height=400,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#e2e8f0')
-        )
-        fig.update_xaxes(gridcolor='#334155')
-        fig.update_yaxes(gridcolor='#334155')
-        return fig.to_html(include_plotlyjs='cdn', full_html=False)
-
-    @rx.var(cache=False)
-    def residence_flow_heatmap_muni_html(self) -> str:
-        """居住地フローの市区町村ヒートマップ（Plotly HTML）
-
-        【ソース視点】選択市区町村に住んでいる人が、どこを希望勤務地にしているかを棒グラフで表示
-        居住地 → 希望勤務地 のフローを可視化
-        色弱配慮: オレンジ系グラデーション使用（赤緑を避ける）
-        """
-        if not self.is_loaded:
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;min-height:100px;'>データを読み込んでください</div>"
-
-        prefecture = self.selected_prefecture
-        municipality = self.selected_municipality
-        if not prefecture:
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;min-height:100px;'>都道府県を選択してください</div>"
-
-        # ソース視点で市区町村レベルのデータを取得（選択市町村に住んでいる人）
-        if municipality:
-            filtered = self._get_source_pattern_data(prefecture, municipality, 'RESIDENCE_FLOW')
-        else:
-            filtered = self._get_source_prefecture_pattern_data(prefecture, 'RESIDENCE_FLOW')
-
-        if filtered.empty:
-            target = f"{municipality or prefecture}"
-            return f"<div style='color:#94a3b8;padding:20px;text-align:center;'>{target}に住んでいる人の希望勤務地データがありません</div>"
-
-        # 希望勤務地カラムの存在チェック
-        if 'desired_municipality' not in filtered.columns:
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;'>希望勤務地市区町村カラムがありません</div>"
-
-        if 'count' not in filtered.columns:
-            return "<div style='color:#94a3b8;padding:20px;text-align:center;'>件数カラムがありません</div>"
-
-        # 希望勤務地市区町村ごとの件数を集計（都道府県も含む）
-        filtered['label'] = filtered['desired_prefecture'].astype(str) + ' ' + filtered['desired_municipality'].astype(str)
-        agg = (
-            filtered
-            .groupby('label')['count']
-            .sum()
-            .reset_index()
-            .sort_values('count', ascending=True)
-            .tail(15)
-        )
-
-        if agg.empty:
-            target = f"{municipality or prefecture}"
-            return f"<div style='color:#94a3b8;padding:20px;text-align:center;'>{target}に住んでいる人の希望勤務地データがありません</div>"
-
-        # 色弱配慮: オレンジ系グラデーション使用（赤緑を避ける）
-        fig = go.Figure(
-            data=go.Bar(
-                x=agg['count'].tolist(),
-                y=agg['label'].tolist(),
-                orientation='h',
-                marker=dict(
-                    color=agg['count'].tolist(),
-                    colorscale='Oranges',
-                    showscale=True,
-                    colorbar=dict(title="件数", tickfont=dict(color='#e2e8f0'))
-                )
-            )
-        )
-        target = municipality if municipality else prefecture
-        fig.update_layout(
-            title=dict(
-                text=f"{target}に住んでいる人の希望勤務地 Top15",
-                font=dict(color='#e2e8f0', size=14)
-            ),
-            xaxis_title="人数",
-            yaxis_title="希望勤務地市区町村",
-            margin=dict(l=180, r=60, t=50, b=40),
-            height=450,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#e2e8f0')
-        )
-        fig.update_xaxes(gridcolor='rgba(255,255,255,0.1)', tickfont=dict(color='#94a3b8'))
-        fig.update_yaxes(gridcolor='rgba(255,255,255,0.1)', tickfont=dict(color='#94a3b8'))
-        html = fig.to_html(include_plotlyjs='cdn', full_html=True)
-        # ダークテーマ用にbody背景色を注入
-        html = html.replace('<body>', '<body style="background:#0a0e17;margin:0;padding:0;">')
-        return html
+    # [REMOVED] residence_flow_heatmap_html - パフォーマンス最適化のため削除 (2025-12-12)
+    # [REMOVED] residence_flow_heatmap_muni_html - パフォーマンス最適化のため削除 (2025-12-12)
+    # UIで未使用だが毎イベントで計算されていた重いto_html処理
 
     @rx.var(cache=False)
     def persona_bar_data(self) -> List[Dict[str, Any]]:
@@ -3408,6 +3115,9 @@ class DashboardState(rx.State):
         形式: [{"name": "50代・女性・就業中", "count": 256}, ...]
         データソース: row_type='PERSONA_MUNI', category1=persona_name, count
         """
+        # Lazy Loading: personaタブ以外では計算をスキップ
+        if self.active_tab != "persona":
+            return []
         if not self.is_loaded or self.df is None:
             return []
 
@@ -3443,6 +3153,9 @@ class DashboardState(rx.State):
         形式: [{"age_gender": "50代・女性", "就業中": 256, "離職中": 80, "在学中": 10}, ...]
         データソース: row_type='PERSONA_MUNI', category1=persona_name（年齢・性別・就業状態を分解）, count
         """
+        # Lazy Loading: personaタブ以外では計算をスキップ
+        if self.active_tab != "persona":
+            return []
         if not self.is_loaded or self.df is None:
             return []
 
@@ -3489,6 +3202,9 @@ class DashboardState(rx.State):
         形式: [{"name": "ペルソナA", "value": 500, "fill": "#38bdf8"}, ...]
         データソース: row_type='PERSONA_MUNI', category1=persona_name, count
         """
+        # Lazy Loading: personaタブ以外では計算をスキップ
+        if self.active_tab != "persona":
+            return []
         if not self.is_loaded or self.df is None:
             return []
 
@@ -4116,6 +3832,9 @@ class DashboardState(rx.State):
     @rx.var(cache=False)
     def gap_total_demand(self) -> str:
         """需給: 総需要"""
+        # Lazy Loading: gapタブ以外では計算をスキップ
+        if self.active_tab != "gap":
+            return "0"
         if not self.is_loaded or self.df is None:
             return "0"
 
@@ -4137,6 +3856,9 @@ class DashboardState(rx.State):
     @rx.var(cache=False)
     def gap_total_supply(self) -> str:
         """需給: 総供給"""
+        # Lazy Loading: gapタブ以外では計算をスキップ
+        if self.active_tab != "gap":
+            return "0"
         if not self.is_loaded or self.df is None:
             return "0"
 
@@ -4158,6 +3880,9 @@ class DashboardState(rx.State):
     @rx.var(cache=False)
     def gap_avg_ratio(self) -> str:
         """需給: 平均需給比率"""
+        # Lazy Loading: gapタブ以外では計算をスキップ
+        if self.active_tab != "gap":
+            return "0.0"
         if not self.is_loaded or self.df is None:
             return "0.0"
 
@@ -4183,6 +3908,9 @@ class DashboardState(rx.State):
     @rx.var(cache=False)
     def gap_shortage_count(self) -> str:
         """需給: 不足地域数（demand > supply）"""
+        # Lazy Loading: gapタブ以外では計算をスキップ
+        if self.active_tab != "gap":
+            return "0"
         if not self.is_loaded or self.df is None:
             return "0"
 
@@ -4205,6 +3933,9 @@ class DashboardState(rx.State):
     @rx.var(cache=False)
     def gap_surplus_count(self) -> str:
         """需給: 過剰地域数（supply > demand）"""
+        # Lazy Loading: gapタブ以外では計算をスキップ
+        if self.active_tab != "gap":
+            return "0"
         if not self.is_loaded or self.df is None:
             return "0"
 
@@ -4232,6 +3963,9 @@ class DashboardState(rx.State):
 
         NOTE: サーバーサイドフィルタリング対応のため、都道府県全体のデータを直接DBからクエリ
         """
+        # Lazy Loading: gapタブ以外では計算をスキップ
+        if self.active_tab != "gap":
+            return []
         if not self.is_loaded:
             return []
 
@@ -4279,6 +4013,9 @@ class DashboardState(rx.State):
 
         NOTE: サーバーサイドフィルタリング対応のため、都道府県全体のデータを直接DBからクエリ
         """
+        # Lazy Loading: gapタブ以外では計算をスキップ
+        if self.active_tab != "gap":
+            return []
         if not self.is_loaded:
             return []
 
@@ -4327,6 +4064,9 @@ class DashboardState(rx.State):
 
         NOTE: サーバーサイドフィルタリング対応のため、都道府県全体のデータを直接DBからクエリ
         """
+        # Lazy Loading: gapタブ以外では計算をスキップ
+        if self.active_tab != "gap":
+            return []
         if not self.is_loaded:
             return []
 
@@ -4924,6 +4664,9 @@ class DashboardState(rx.State):
 
         データソース: row_type='SUMMARY'
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return "0"
         if not self.is_loaded or self.df is None:
             return "0"
 
@@ -4944,6 +4687,9 @@ class DashboardState(rx.State):
 
         データソース: row_type='SUMMARY', applicant_count
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return "0"
         if not self.is_loaded or self.df is None:
             return "0"
 
@@ -4968,6 +4714,9 @@ class DashboardState(rx.State):
 
         データソース: row_type='SUMMARY', female_count, male_count
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return "0"
         if not self.is_loaded or self.df is None:
             return "0"
 
@@ -5001,6 +4750,9 @@ class DashboardState(rx.State):
         形式: [{"name": "女性", "value": 3000, "fill": "#E69F00"}, {"name": "男性", "value": 2000, "fill": "#0072B2"}] (Okabe-Ito)
         データソース: row_type='SUMMARY', female_count, male_count
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return []
         if not self.is_loaded or self.df is None:
             return []
 
@@ -5035,6 +4787,9 @@ class DashboardState(rx.State):
         データソース: row_type='SUMMARY', top_age_ratio, top_employment_ratio
         注意: top_age_ratioとtop_employment_ratioの平均値を表示
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return []
         if not self.is_loaded or self.df is None:
             return []
 
@@ -5065,6 +4820,9 @@ class DashboardState(rx.State):
     @rx.var(cache=False)
     def competition_avg_national_license_rate(self) -> str:
         """競合: 平均国家資格保有率"""
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return "0.0"
         if not self.is_loaded or self.df is None:
             return "0.0"
 
@@ -5086,6 +4844,9 @@ class DashboardState(rx.State):
     @rx.var(cache=False)
     def competition_avg_qualification_count(self) -> str:
         """競合: 平均資格数"""
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return "0.0"
         if not self.is_loaded or self.df is None:
             return "0.0"
 
@@ -5107,6 +4868,9 @@ class DashboardState(rx.State):
     @rx.var(cache=False)
     def competition_avg_male_ratio(self) -> str:
         """競合: 平均男性比率"""
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return "0.0"
         if not self.is_loaded or self.df is None:
             return "0.0"
 
@@ -5138,6 +4902,9 @@ class DashboardState(rx.State):
 
         形式: [{"name": "50代・女性", "value": 0.85}, ...]
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return []
         if not self.is_loaded or self.df is None:
             return []
 
@@ -5173,6 +4940,9 @@ class DashboardState(rx.State):
 
         形式: [{"name": "50代・女性", "value": 2.5}, ...]
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return []
         if not self.is_loaded or self.df is None:
             return []
 
@@ -5208,6 +4978,9 @@ class DashboardState(rx.State):
 
         形式: [{"name": "50代", "value": 75.5}, ...]
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return []
         if not self.is_loaded or self.df is None:
             return []
 
@@ -5757,6 +5530,9 @@ class DashboardState(rx.State):
             "avg_qualification_count": "1.8"
         }
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return {}
         if self.df_full is None or self.df_full.empty:
             return {}
 
@@ -5803,6 +5579,9 @@ class DashboardState(rx.State):
             {"type": "遠距離移動", "count": 168, "pct": "15.3%"},
         ]
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return []
         if self.df_full is None or self.df_full.empty:
             return []
 
@@ -5858,6 +5637,9 @@ class DashboardState(rx.State):
             "unit": "km"
         }
         """
+        # Lazy Loading: regionタブ以外では計算をスキップ
+        if self.active_tab != "region":
+            return {"q25": "-", "median": "-", "q75": "-", "unit": "km"}
         if self.df_full is None or self.df_full.empty:
             return {"q25": "-", "median": "-", "q75": "-", "unit": "km"}
 
@@ -5907,6 +5689,9 @@ class DashboardState(rx.State):
             ...
         ]
         """
+        # Lazy Loading: personaタブ以外では計算をスキップ
+        if self.active_tab != "persona":
+            return []
         if self.df_full is None or self.df_full.empty:
             return []
 
