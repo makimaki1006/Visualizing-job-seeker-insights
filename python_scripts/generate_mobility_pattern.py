@@ -130,15 +130,16 @@ def generate_mobility_pattern():
         # フル市区町村名
         residence_full = f"{row['residence_prefecture']}{row['residence_municipality']}"
 
-        # 希望地の都道府県・市区町村を分離
-        # desired_prefectureカラム優先、欠損時はフォールバック
+        # 希望地の都道府県・市区町村を取得
+        # Phase1_DesiredWork.csvにはdesired_prefecture, desired_municipalityカラムが別々に存在
         desired_pref = row.get('desired_prefecture')
+        desired_muni = row.get('desired_municipality')
+
+        # desired_prefectureがNaNの場合のみフォールバック
         if pd.isna(desired_pref) or not desired_pref:
-            # フォールバック: 正規表現で抽出
-            desired_pref, desired_muni = extract_prefecture_municipality(row['desired_municipality'])
-        else:
-            # prefectureカラムがある場合、市区町村部分のみ抽出
-            _, desired_muni = extract_prefecture_municipality(row['desired_municipality'])
+            # desired_location_fullから抽出を試みる
+            desired_location = row.get('desired_location_full', row.get('desired_municipality'))
+            desired_pref, desired_muni = extract_prefecture_municipality(desired_location)
 
         if not desired_pref or not desired_muni:
             continue

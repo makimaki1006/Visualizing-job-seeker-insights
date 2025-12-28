@@ -138,6 +138,11 @@ class DataQualityValidator:
         Returns:
             True: 信頼できる / False: 信頼できない
         """
+        # 観察的記述モードの場合、データがあればOK
+        if self.validation_mode == 'descriptive':
+            return valid_count > 0
+
+        # 推論的考察モードの場合、最小サンプル数を要求
         return (valid_count >= self.MIN_SAMPLE_TOTAL and
                 min_group_size >= self.MIN_SAMPLE_GROUP)
 
@@ -229,7 +234,12 @@ class DataQualityValidator:
         small_cells = (crosstab < self.MIN_SAMPLE_CROSS).sum().sum() - empty_cells
 
         # 信頼性判定
-        is_reliable = (small_cells / total_cells) < 0.3  # 30%未満なら信頼できる
+        if self.validation_mode == 'descriptive':
+            # 観察的記述モードの場合、データがあれば信頼できる
+            is_reliable = valid_cells > 0
+        else:
+            # 推論的考察モードの場合、小セル比率で判定
+            is_reliable = (small_cells / total_cells) < 0.3  # 30%未満なら信頼できる
 
         return {
             'col1': col1,
@@ -256,6 +266,11 @@ class DataQualityValidator:
         Returns:
             信頼性レベル
         """
+        # 観察的記述モードの場合、データがあればOK
+        if self.validation_mode == 'descriptive':
+            return 'DESCRIPTIVE'
+
+        # 推論的考察モードの場合、小セル割合で判定
         small_ratio = small_cells / total_cells
 
         if small_ratio < 0.1:
@@ -279,6 +294,11 @@ class DataQualityValidator:
         Returns:
             警告メッセージ
         """
+        # 観察的記述モードの場合、警告なし
+        if self.validation_mode == 'descriptive':
+            return "なし（観察的記述）"
+
+        # 推論的考察モードの場合、小セル・空セル割合で警告
         warnings = []
 
         small_ratio = small_cells / total_cells

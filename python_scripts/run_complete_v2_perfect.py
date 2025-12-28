@@ -24,6 +24,7 @@ from collections import defaultdict
 import re
 import sys
 import io
+import argparse
 import tkinter as tk
 from tkinter import filedialog
 from scipy.stats import chi2_contingency, f_oneway
@@ -345,21 +346,26 @@ class PerfectJobSeekerAnalyzer:
             print(f"  3. 強制的に保存（非推奨、自己責任）")
             print(f"")
 
-            while True:
-                try:
-                    choice = input(f"  選択してください (1/2/3): ").strip()
-                    if choice in ['1', '2', '3']:
+            # 非対話モード判定（標準入力がターミナルでない場合）
+            if not sys.stdin.isatty():
+                print(f"  [AUTO] 非対話モードのため、自動的に選択肢1（観察的記述専用）を選択します")
+                choice = '1'
+            else:
+                while True:
+                    try:
+                        choice = input(f"  選択してください (1/2/3): ").strip()
+                        if choice in ['1', '2', '3']:
+                            break
+                        else:
+                            print(f"  ❌ 1, 2, 3のいずれかを入力してください")
+                    except KeyboardInterrupt:
+                        print(f"\n  [CANCEL] ユーザーによりキャンセルされました")
+                        return False, quality_score
+                    except EOFError:
+                        # 非対話モードの場合、自動的に選択肢1（観察的記述専用）を選択
+                        print(f"  [AUTO] 非対話モードのため、自動的に選択肢1（観察的記述専用）を選択します")
+                        choice = '1'
                         break
-                    else:
-                        print(f"  ❌ 1, 2, 3のいずれかを入力してください")
-                except KeyboardInterrupt:
-                    print(f"\n  [CANCEL] ユーザーによりキャンセルされました")
-                    return False, quality_score
-                except EOFError:
-                    # 非対話モードの場合、自動的に選択肢1（観察的記述専用）を選択
-                    print(f"  [AUTO] 非対話モードのため、自動的に選択肢1（観察的記述専用）を選択します")
-                    choice = '1'
-                    break
 
             if choice == '1':
                 print(f"  [OK] 観察的記述専用として保存します")
@@ -389,8 +395,10 @@ class PerfectJobSeekerAnalyzer:
         location_stats = defaultdict(lambda: {
             'count': 0,
             'ages': [],
+            'age_buckets': defaultdict(int),  # 年齢層別カウント追加
             'genders': {'男性': 0, '女性': 0},
-            'qualifications': 0
+            'qualifications': 0,
+            'desired_area_counts': []  # 希望勤務地数リスト追加
         })
 
         for idx, row in self.processed_data.iterrows():
@@ -399,13 +407,35 @@ class PerfectJobSeekerAnalyzer:
                 location_stats[key]['count'] += 1
                 if row['age']:
                     location_stats[key]['ages'].append(row['age'])
+                # 年齢層別カウント
+                if row['age_bucket']:
+                    location_stats[key]['age_buckets'][row['age_bucket']] += 1
                 if row['gender'] and row['gender'] in location_stats[key]['genders']:
                     location_stats[key]['genders'][row['gender']] += 1
                 location_stats[key]['qualifications'] += row['qualification_count']
+                # 希望勤務地数を記録
+                location_stats[key]['desired_area_counts'].append(len(row['desired_areas']))
 
         for location, stats in location_stats.items():
             pref, muni = self._parse_location(location)
             lat, lng = self._get_coords(pref, muni)
+
+            # female_ratio計算
+            total_gender = stats['genders']['男性'] + stats['genders']['女性']
+            female_ratio = stats['genders']['女性'] / total_gender if total_gender > 0 else None
+
+            # top_age_ratio計算（最頻年齢層の比率）
+            age_buckets = stats['age_buckets']
+            if age_buckets:
+                top_age_bucket = max(age_buckets, key=age_buckets.get)
+                top_age_count = age_buckets[top_age_bucket]
+                top_age_ratio = top_age_count / stats['count'] if stats['count'] > 0 else None
+            else:
+                top_age_bucket = None
+                top_age_ratio = None
+
+            # avg_desired_areas計算
+            avg_desired_areas = np.mean(stats['desired_area_counts']) if stats['desired_area_counts'] else None
 
             map_data.append({
                 'prefecture': pref,
@@ -415,7 +445,11 @@ class PerfectJobSeekerAnalyzer:
                 'avg_age': np.mean(stats['ages']) if stats['ages'] else None,
                 'male_count': stats['genders']['男性'],
                 'female_count': stats['genders']['女性'],
+                'female_ratio': female_ratio,
+                'top_age_group': top_age_bucket,
+                'top_age_ratio': top_age_ratio,
                 'avg_qualifications': stats['qualifications'] / stats['count'] if stats['count'] > 0 else 0,
+                'avg_desired_areas': avg_desired_areas,
                 'latitude': lat,
                 'longitude': lng
             })
@@ -1410,9 +1444,10 @@ class PerfectJobSeekerAnalyzer:
         supply_density = self._generate_supply_density_map(self.processed_data)
         qualification_dist = self._generate_qualification_distribution(self.processed_data)
         age_gender_cross = self._generate_age_gender_cross_analysis(self.processed_data)
+        age_gender_cross_residence = self._generate_age_gender_cross_analysis_by_residence(self.processed_data)  # 居住地ベース追加
         mobility_score = self._generate_mobility_score(self.processed_data)
         persona_profile = self._generate_detailed_persona_profile(self.processed_data)
-        combined_df = pd.concat([supply_density, qualification_dist, age_gender_cross, mobility_score, persona_profile], ignore_index=True)
+        combined_df = pd.concat([supply_density, qualification_dist, age_gender_cross, age_gender_cross_residence, mobility_score, persona_profile], ignore_index=True)
 
         # 2. 品質ゲートチェック
         save_data, quality_score = self._check_quality_gate(combined_df, 7, "高度分析", mode='inferential')
@@ -1429,7 +1464,10 @@ class PerfectJobSeekerAnalyzer:
         print(f"  [OK] QualificationDistribution.csv: {len(qualification_dist)}件")
 
         age_gender_cross.to_csv(output_path / 'Phase7_AgeGenderCrossAnalysis.csv', index=False, encoding='utf-8-sig')
-        print(f"  [OK] AgeGenderCrossAnalysis.csv: {len(age_gender_cross)}件")
+        print(f"  [OK] AgeGenderCrossAnalysis.csv: {len(age_gender_cross)}件（希望勤務地ベース）")
+
+        age_gender_cross_residence.to_csv(output_path / 'Phase7_AgeGenderCrossAnalysis_Residence.csv', index=False, encoding='utf-8-sig')
+        print(f"  [OK] AgeGenderCrossAnalysis_Residence.csv: {len(age_gender_cross_residence)}件（居住地ベース）")
 
         mobility_score.to_csv(output_path / 'Phase7_MobilityScore.csv', index=False, encoding='utf-8-sig')
         print(f"  [OK] MobilityScore.csv: {len(mobility_score)}件")
@@ -1502,34 +1540,123 @@ class PerfectJobSeekerAnalyzer:
         return qual_dist.sort_values('count', ascending=False)
 
     def _generate_age_gender_cross_analysis(self, df):
-        """年齢層×性別クロス分析を生成（市区町村レベル）"""
-        results = []
+        """年齢層×性別クロス分析を生成（市区町村レベル、希望勤務地ベース）
 
-        # 市区町村×年齢層×性別でグループ化
-        for (residence_pref, residence_muni) in df.groupby(['residence_pref', 'residence_muni']).groups.keys():
-            # 都道府県レベル集計（市区町村が空）をスキップ
-            if not residence_muni or pd.isna(residence_muni) or residence_muni == '' or residence_muni == residence_pref:
+        SUMMARYと同じく希望勤務地（目的地）ベースで集計するように修正。
+        これにより SUMMARY.applicant_count = AGE_GENDER.count合計 が成立する。
+        """
+        # 希望勤務地×年齢層×性別でグループ化
+        ag_data = {}
+
+        for idx, row in df.iterrows():
+            # 年齢バケット・性別が欠損の場合は「不明」に置換
+            age_bkt_raw = row.get('age_bucket', '')
+            gender_raw = row.get('gender', '')
+            age_bkt = age_bkt_raw if (pd.notna(age_bkt_raw) and age_bkt_raw != '') else '不明'
+            gender = gender_raw if (pd.notna(gender_raw) and gender_raw != '') else '不明'
+
+            # 希望勤務地リストをループ
+            desired_areas = row.get('desired_areas', [])
+            if not desired_areas:
                 continue
 
-            location_group = df[(df['residence_pref'] == residence_pref) & (df['residence_muni'] == residence_muni)]
-            location = f"{residence_pref}{residence_muni}"
+            for area in desired_areas:
+                dest_pref = area.get('prefecture', '')
+                dest_muni = area.get('municipality', '')
 
-            for age_group in ['20代', '30代', '40代', '50代', '60代', '70歳以上']:
-                for gender in ['男性', '女性']:
-                    subset = location_group[(location_group['age_bucket'] == age_group) & (location_group['gender'] == gender)]
+                # 都道府県レベル集計をスキップ
+                if not dest_muni or pd.isna(dest_muni) or dest_muni == '' or dest_muni == dest_pref:
+                    continue
 
-                    if len(subset) > 0:
-                        results.append({
-                            'location': location,
-                            'prefecture': residence_pref,
-                            'municipality': residence_muni,
-                            'age_group': age_group,
-                            'gender': gender,
-                            'count': len(subset),
-                            'avg_desired_areas': subset['希望勤務地数'].mean(),
-                            'avg_qualifications': subset['qualification_count'].mean(),
-                            'national_license_rate': subset['has_national_license'].sum() / len(subset) if len(subset) > 0 else 0
-                        })
+                key = (dest_pref, dest_muni, age_bkt, gender)
+                if key not in ag_data:
+                    ag_data[key] = {
+                        'count': 0,
+                        'desired_areas_sum': 0,
+                        'qual_sum': 0,
+                        'nat_lic_sum': 0
+                    }
+
+                ag_data[key]['count'] += 1
+                ag_data[key]['desired_areas_sum'] += row.get('希望勤務地数', 0) or 0
+                ag_data[key]['qual_sum'] += row.get('qualification_count', 0) or 0
+                ag_data[key]['nat_lic_sum'] += 1 if row.get('has_national_license', False) else 0
+
+        # 結果をリストに変換
+        results = []
+        for (dest_pref, dest_muni, age_group, gender), data in ag_data.items():
+            cnt = data['count']
+            if cnt > 0:
+                results.append({
+                    'location': f"{dest_pref}{dest_muni}",
+                    'prefecture': dest_pref,
+                    'municipality': dest_muni,
+                    'age_group': age_group,
+                    'gender': gender,
+                    'count': cnt,
+                    'avg_desired_areas': data['desired_areas_sum'] / cnt,
+                    'avg_qualifications': data['qual_sum'] / cnt,
+                    'national_license_rate': data['nat_lic_sum'] / cnt
+                })
+
+        return pd.DataFrame(results).sort_values(['prefecture', 'municipality', 'age_group', 'gender'])
+
+    def _generate_age_gender_cross_analysis_by_residence(self, df):
+        """年齢層×性別クロス分析を生成（市区町村レベル、居住地ベース）
+
+        居住地（どこに住んでいるか）ベースで集計。
+        地域の労働力供給元の把握に使用。
+        AGE_GENDER（希望勤務地ベース）とは異なる視点を提供。
+        """
+        # 居住地×年齢層×性別でグループ化
+        ag_data = {}
+
+        for idx, row in df.iterrows():
+            # 居住地が欠損の場合はスキップ
+            res_pref = row.get('residence_pref', '')
+            res_muni = row.get('residence_muni', '')
+
+            if not res_pref or pd.isna(res_pref) or res_pref == '':
+                continue
+            if not res_muni or pd.isna(res_muni) or res_muni == '':
+                continue
+
+            # 年齢バケット・性別が欠損の場合は「不明」に置換
+            age_bkt_raw = row.get('age_bucket', '')
+            gender_raw = row.get('gender', '')
+            age_bkt = age_bkt_raw if (pd.notna(age_bkt_raw) and age_bkt_raw != '') else '不明'
+            gender = gender_raw if (pd.notna(gender_raw) and gender_raw != '') else '不明'
+
+            key = (res_pref, res_muni, age_bkt, gender)
+            if key not in ag_data:
+                ag_data[key] = {
+                    'count': 0,
+                    'desired_areas_sum': 0,
+                    'qual_sum': 0,
+                    'nat_lic_sum': 0
+                }
+
+            ag_data[key]['count'] += 1
+            ag_data[key]['desired_areas_sum'] += row.get('希望勤務地数', 0) or 0
+            ag_data[key]['qual_sum'] += row.get('qualification_count', 0) or 0
+            ag_data[key]['nat_lic_sum'] += 1 if row.get('has_national_license', False) else 0
+
+        # 結果をリストに変換
+        results = []
+        for (res_pref, res_muni, age_group, gender), data in ag_data.items():
+            cnt = data['count']
+            if cnt > 0:
+                results.append({
+                    'location': f"{res_pref}{res_muni}",
+                    'prefecture': res_pref,
+                    'municipality': res_muni,
+                    'age_group': age_group,
+                    'gender': gender,
+                    'count': cnt,
+                    'avg_desired_areas': data['desired_areas_sum'] / cnt,
+                    'avg_qualifications': data['qual_sum'] / cnt,
+                    'national_license_rate': data['nat_lic_sum'] / cnt
+                })
 
         return pd.DataFrame(results).sort_values(['prefecture', 'municipality', 'age_group', 'gender'])
 
@@ -1848,10 +1975,19 @@ class PerfectJobSeekerAnalyzer:
         urgency_by_muni = self._generate_urgency_by_municipality(df_with_urgency)
         urgency_age_muni = self._generate_urgency_age_by_municipality(df_with_urgency)
         urgency_employment_muni = self._generate_urgency_employment_by_municipality(df_with_urgency)
-        combined_df = pd.concat([urgency_dist, urgency_age_cross, urgency_employment_cross], ignore_index=True)
+
+        # 新規追加: 緊急度×性別、緊急度×転職希望時期カテゴリ
+        urgency_gender_cross = self._generate_urgency_gender_cross(df_with_urgency)
+        urgency_gender_matrix = self._generate_urgency_gender_matrix(df_with_urgency)
+        urgency_gender_muni = self._generate_urgency_gender_by_municipality(df_with_urgency)
+        urgency_start_category_cross = self._generate_urgency_start_category_cross(df_with_urgency)
+        urgency_start_category_matrix = self._generate_urgency_start_category_matrix(df_with_urgency)
+        urgency_start_category_muni = self._generate_urgency_start_category_by_municipality(df_with_urgency)
+
+        combined_df = pd.concat([urgency_dist, urgency_age_cross, urgency_employment_cross, urgency_gender_cross], ignore_index=True)
 
         # 2. 品質ゲートチェック
-        save_data, quality_score = self._check_quality_gate(combined_df, 10, "転職意欲・緊急度分析", mode='inferential')
+        save_data, quality_score = self._check_quality_gate(combined_df, 10, "転職意欲・緊急度分析", mode='descriptive')
 
         if not save_data:
             print(f"  [SKIP] Phase 10をスキップしました")
@@ -1882,11 +2018,34 @@ class PerfectJobSeekerAnalyzer:
         urgency_employment_muni.to_csv(output_path / 'Phase10_UrgencyEmploymentCross_ByMunicipality.csv', index=False, encoding='utf-8-sig')
         print(f"  [OK] UrgencyEmploymentCross_ByMunicipality.csv: {len(urgency_employment_muni)}件")
 
-        # 4. 品質レポート保存
-        self._save_quality_report(combined_df, 10, output_path, mode='inferential')
+        # 新規追加: 緊急度×性別のCSV保存
+        urgency_gender_cross.to_csv(output_path / 'Phase10_UrgencyGenderCross.csv', index=False, encoding='utf-8-sig')
+        print(f"  [OK] UrgencyGenderCross.csv: {len(urgency_gender_cross)}件")
 
-        report_overall = self.validator_inferential.generate_quality_report(combined_df)
-        self.validator_inferential.export_quality_report_csv(report_overall, str(output_path / 'P10_QualityReport.csv'))
+        urgency_gender_matrix.to_csv(output_path / 'Phase10_UrgencyGenderCross_Matrix.csv', index=True, encoding='utf-8-sig')
+        print(f"  [OK] UrgencyGenderCross_Matrix.csv: {urgency_gender_matrix.shape[0]}行 x {urgency_gender_matrix.shape[1]}列")
+
+        urgency_gender_muni.to_csv(output_path / 'Phase10_UrgencyGenderCross_ByMunicipality.csv', index=False, encoding='utf-8-sig')
+        print(f"  [OK] UrgencyGenderCross_ByMunicipality.csv: {len(urgency_gender_muni)}件")
+
+        # 新規追加: 緊急度×転職希望時期カテゴリのCSV保存
+        if len(urgency_start_category_cross) > 0:
+            urgency_start_category_cross.to_csv(output_path / 'Phase10_UrgencyStartCategoryCross.csv', index=False, encoding='utf-8-sig')
+            print(f"  [OK] UrgencyStartCategoryCross.csv: {len(urgency_start_category_cross)}件")
+
+        if not urgency_start_category_matrix.empty:
+            urgency_start_category_matrix.to_csv(output_path / 'Phase10_UrgencyStartCategoryCross_Matrix.csv', index=True, encoding='utf-8-sig')
+            print(f"  [OK] UrgencyStartCategoryCross_Matrix.csv: {urgency_start_category_matrix.shape[0]}行 x {urgency_start_category_matrix.shape[1]}列")
+
+        if len(urgency_start_category_muni) > 0:
+            urgency_start_category_muni.to_csv(output_path / 'Phase10_UrgencyStartCategoryCross_ByMunicipality.csv', index=False, encoding='utf-8-sig')
+            print(f"  [OK] UrgencyStartCategoryCross_ByMunicipality.csv: {len(urgency_start_category_muni)}件")
+
+        # 4. 品質レポート保存
+        self._save_quality_report(combined_df, 10, output_path, mode='descriptive')
+
+        report_overall = self.validator_descriptive.generate_quality_report(combined_df)
+        self.validator_descriptive.export_quality_report_csv(report_overall, str(output_path / 'P10_QualityReport.csv'))
         print(f"  [OK] P10_QualityReport.csv")
 
         print(f"  [OK] Phase 10完了（品質スコア: {quality_score:.1f}/100）")
@@ -2089,6 +2248,124 @@ class PerfectJobSeekerAnalyzer:
         urgency_employment_muni.columns = ['location', 'employment_status', 'count', 'avg_urgency_score']
 
         return urgency_employment_muni.sort_values(['location', 'employment_status'])
+
+    def _generate_urgency_gender_cross(self, df):
+        """緊急度×性別クロス分析を生成"""
+        results = []
+
+        for urgency_rank in df['urgency_rank'].unique():
+            for gender in df['gender'].dropna().unique():
+                subset = df[
+                    (df['urgency_rank'] == urgency_rank) &
+                    (df['gender'] == gender)
+                ]
+
+                if len(subset) > 0:
+                    results.append({
+                        'urgency_rank': urgency_rank,
+                        'gender': gender,
+                        'count': len(subset),
+                        'avg_age': subset['age'].mean(),
+                        'avg_urgency_score': subset['urgency_score'].mean()
+                    })
+
+        return pd.DataFrame(results).sort_values(['urgency_rank', 'gender'])
+
+    def _generate_urgency_gender_matrix(self, df):
+        """緊急度×性別クロス集計マトリックスを生成"""
+        matrix = pd.crosstab(df['urgency_rank'], df['gender'])
+        return matrix
+
+    def _generate_urgency_gender_by_municipality(self, df):
+        """市区町村×性別別緊急度集計を生成"""
+        results = []
+
+        for idx, row in df.iterrows():
+            for area in row['desired_areas']:
+                results.append({
+                    'prefecture': area['prefecture'],
+                    'municipality': area['municipality'],
+                    'location': area['full'],
+                    'gender': row['gender'],
+                    'urgency_score': row['urgency_score'],
+                    'urgency_rank': row['urgency_rank']
+                })
+
+        df_results = pd.DataFrame(results)
+
+        # 集計
+        urgency_gender_muni = df_results.groupby(['location', 'gender']).agg({
+            'urgency_score': ['count', 'mean']
+        }).reset_index()
+
+        urgency_gender_muni.columns = ['location', 'gender', 'count', 'avg_urgency_score']
+
+        return urgency_gender_muni.sort_values(['location', 'gender'])
+
+    def _generate_urgency_start_category_cross(self, df):
+        """緊急度×転職希望時期カテゴリ（今すぐ/1ヶ月以内/3ヶ月以内/3ヶ月以上先/機会があれば）クロス分析を生成"""
+        results = []
+
+        # desired_startカラムを転職希望時期カテゴリとして使用
+        if 'desired_start' not in df.columns:
+            return pd.DataFrame(columns=['urgency_rank', 'start_category', 'count', 'avg_age', 'avg_urgency_score'])
+
+        for urgency_rank in df['urgency_rank'].unique():
+            for start_cat in df['desired_start'].dropna().unique():
+                subset = df[
+                    (df['urgency_rank'] == urgency_rank) &
+                    (df['desired_start'] == start_cat)
+                ]
+
+                if len(subset) > 0:
+                    results.append({
+                        'urgency_rank': urgency_rank,
+                        'start_category': start_cat,
+                        'count': len(subset),
+                        'avg_age': subset['age'].mean(),
+                        'avg_urgency_score': subset['urgency_score'].mean()
+                    })
+
+        return pd.DataFrame(results).sort_values(['urgency_rank', 'start_category'])
+
+    def _generate_urgency_start_category_matrix(self, df):
+        """緊急度×転職希望時期カテゴリクロス集計マトリックスを生成"""
+        if 'desired_start' not in df.columns:
+            return pd.DataFrame()
+        matrix = pd.crosstab(df['urgency_rank'], df['desired_start'])
+        return matrix
+
+    def _generate_urgency_start_category_by_municipality(self, df):
+        """市区町村×転職希望時期カテゴリ別緊急度集計を生成"""
+        results = []
+
+        if 'desired_start' not in df.columns:
+            return pd.DataFrame(columns=['location', 'start_category', 'count', 'avg_urgency_score'])
+
+        for idx, row in df.iterrows():
+            for area in row['desired_areas']:
+                results.append({
+                    'prefecture': area['prefecture'],
+                    'municipality': area['municipality'],
+                    'location': area['full'],
+                    'start_category': row['desired_start'],
+                    'urgency_score': row['urgency_score'],
+                    'urgency_rank': row['urgency_rank']
+                })
+
+        df_results = pd.DataFrame(results)
+
+        if len(df_results) == 0:
+            return pd.DataFrame(columns=['location', 'start_category', 'count', 'avg_urgency_score'])
+
+        # 集計
+        urgency_start_muni = df_results.groupby(['location', 'start_category']).agg({
+            'urgency_score': ['count', 'mean']
+        }).reset_index()
+
+        urgency_start_muni.columns = ['location', 'start_category', 'count', 'avg_urgency_score']
+
+        return urgency_start_muni.sort_values(['location', 'start_category'])
 
     # ===========================================
     # Phase 12: 需給ギャップ分析
@@ -2467,15 +2744,24 @@ if __name__ == "__main__":
     print("=" * 80)
     print()
 
-    # CSVファイル選択（GUI）
-    root = tk.Tk()
-    root.withdraw()
-    csv_path = filedialog.askopenfilename(
-        title="CSVファイルを選択",
-        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
-        initialdir=r"C:\Users\fuji1\OneDrive\Pythonスクリプト保管\out"
-    )
-    root.destroy()
+    # コマンドライン引数の解析
+    parser = argparse.ArgumentParser(description='ジョブメドレー求職者データ分析')
+    parser.add_argument('--input', type=str, help='入力CSVファイルのパス')
+    args = parser.parse_args()
+
+    # CSVファイル選択（コマンドライン引数またはGUI）
+    if args.input:
+        csv_path = args.input
+        print(f"コマンドライン引数からファイル指定: {csv_path}")
+    else:
+        root = tk.Tk()
+        root.withdraw()
+        csv_path = filedialog.askopenfilename(
+            title="CSVファイルを選択",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            initialdir=r"C:\Users\fuji1\OneDrive\Pythonスクリプト保管\out"
+        )
+        root.destroy()
 
     if not csv_path:
         print("ファイルが選択されませんでした")

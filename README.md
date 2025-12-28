@@ -1,7 +1,7 @@
 # ジョブメドレー求職者データ分析・可視化システム
 
-**バージョン**: 3.0 (Reflex統合版)
-**最終更新**: 2025年11月22日
+**バージョン**: 3.1 (Phase 12-14追加版)
+**最終更新**: 2025年11月23日
 **ステータス**: 本番運用可能 ✅
 
 ## プロジェクト概要
@@ -24,7 +24,7 @@ Reflexダッシュボード（認証付き）
 
 ### 主要機能
 
-- **V3 CSV生成エンジン**: 10段階の包括的データ分析パイプライン
+- **V3 CSV生成エンジン**: 14段階の包括的データ分析パイプライン（Phase 1-14）
 - **Reflexダッシュボード**: インタラクティブWeb UI（認証システム統合）
 - **Tursoデータベース**: 18,877行のクラウドデータベース
 - **ドメイン制限認証**: @f-a-c.co.jp、@cyxen.co.jp限定アクセス
@@ -61,7 +61,7 @@ cd python_scripts
 python run_complete_v3.py
 ```
 
-GUIでCSVファイルを選択すると、Phase 1-10のすべてのCSVファイルが生成されます。
+GUIでCSVファイルを選択すると、Phase 1-14のすべてのCSVファイルが生成されます。
 
 ### 3. ダッシュボード起動
 
@@ -231,12 +231,29 @@ python run_complete_v3.py
 - `P10_QualityReport.csv` - 品質レポート
 - `P10_QualityReport_Inferential.csv` - 推論的考察用品質レポート
 
+**注記**: Phase 10は現在品質スコア40.0/100（観察的記述専用）。データ補完またはバリデーション基準の明文化により改善可能。
+
+#### Phase 12: 需給ギャップ分析（3ファイル）
+- `Phase12_SupplyDemandGap.csv` - 市区町村別需給ギャップスコア
+- `P12_QualityReport.csv` - 品質レポート
+- `P12_QualityReport_Descriptive.csv` - 観察的記述用品質レポート
+
+#### Phase 13: 希少性スコア（3ファイル）
+- `Phase13_RarityScore.csv` - 資格・職種別希少性スコア
+- `P13_QualityReport.csv` - 品質レポート
+- `P13_QualityReport_Descriptive.csv` - 観察的記述用品質レポート
+
+#### Phase 14: 競合分析（3ファイル）
+- `Phase14_CompetitionProfile.csv` - 市区町村別競合プロファイル
+- `P14_QualityReport.csv` - 品質レポート
+- `P14_QualityReport_Descriptive.csv` - 観察的記述用品質レポート
+
 #### 統合レポート（3ファイル）
 - `geocache.json` - ジオコーディングキャッシュ
 - `OverallQualityReport.csv` - 統合品質レポート
 - `OverallQualityReport_Inferential.csv` - 推論的考察用統合品質レポート
 
-**合計**: 43ファイル | **品質スコア**: 82.86/100 (EXCELLENT)
+**合計**: 52ファイル | **品質スコア**: 82.86/100 (EXCELLENT)
 
 詳細は [V3_CSV_SPECIFICATION.md](docs/V3_CSV_SPECIFICATION.md) を参照してください。
 
@@ -335,6 +352,50 @@ python comprehensive_test_suite_v3.py
 
 **合計**: 270件（4階層×27テスト×10回繰り返し）
 **成功率**: 100.0%（270/270成功）
+
+### 自動化統合テスト 🆕
+
+#### 完全統合テスト（run_complete_v3.py実行含む）
+
+```bash
+cd python_scripts
+python automated_integration_test.py --input "C:\Users\fuji1\OneDrive\Pythonスクリプト保管\out\results_20251122_200023.csv"
+```
+
+**実行内容**:
+1. run_complete_v3.pyの自動実行（Phase 1-14完全生成）
+2. 52個の出力CSVファイル存在確認
+3. Phase別品質スコア検証（最低基準60点）
+4. V2パターンファイル確認（3ファイル）
+5. MapComplete統合CSV確認
+
+**出力**:
+- `tests/results/integration_test_YYYYMMDD_HHMMSS.json` - 詳細結果（JSON）
+- `tests/results/integration_test_YYYYMMDD_HHMMSS.md` - テストレポート（Markdown）
+
+**実行時間**: 約5-10分（データ量に依存）
+
+#### クイック検証テスト（既存出力のみチェック）
+
+```bash
+cd python_scripts
+python quick_validation_test.py
+```
+
+**実行内容**:
+1. 既存Phase 1-14出力ファイル存在確認
+2. 統合品質レポート読み取り
+3. V2パターンファイル確認
+4. MapComplete統合CSV確認
+
+**出力**:
+- `tests/results/quick_validation_YYYYMMDD_HHMMSS.json` - 検証結果（JSON）
+
+**実行時間**: 約5-10秒
+
+**使い分け**:
+- **完全統合テスト**: 新しいデータで全Phase実行＋検証（CI/CD、定期実行）
+- **クイック検証**: 既存出力の整合性確認のみ（開発中の確認）
 
 ---
 
@@ -448,6 +509,7 @@ reflex run --backend-port 8003 --frontend-port 3003
 
 | 日付 | バージョン | 変更内容 |
 |------|-----------|---------|
+| 2025-11-23 | 3.1 | Phase 12-14追加、run_complete_v3.py stdout修正、自動化統合テスト追加（automated_integration_test.py, quick_validation_test.py） |
 | 2025-11-22 | 3.0 | Reflex統合版リリース - 認証システム統合、Tursoデータベース連携 |
 | 2025-11-22 | 2.1 | V3 CSV完全実装 - 270/270テスト成功、品質検証システム統合 |
 | 2025-10-28 | 2.0 | V2 CSV実装 - 新形式対応、Phase 1-10完全実装 |

@@ -90,14 +90,14 @@ def generate_desired_area_pattern():
         if len(unique_areas) < 2:
             continue
 
-        # 外れ値フィルタリング1: 40件以上の希望地を持つ求職者は除外
-        if len(unique_areas) >= 40:
+        # 外れ値フィルタリング1: 100件以上の希望地を持つ求職者は除外（緩和: 40→100）
+        if len(unique_areas) >= 100:
             excluded_count_total += 1
             continue
 
-        # 外れ値フィルタリング2: 5つ以上の異なる都道府県を持つ求職者は除外
+        # 外れ値フィルタリング2: 15以上の異なる都道府県を持つ求職者は除外（緩和: 5→15）
         unique_prefectures = set(area[0] for area in unique_areas)
-        if len(unique_prefectures) >= 5:
+        if len(unique_prefectures) >= 15:
             excluded_count_pref += 1
             continue
 
