@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(copy:*)",
+      "Bash(copy \"screenshots\\\\sales_02_market_overview.png\" \"notebooklm_images\\\\02_市場概況_KPIと年齢分布グラフ.png\")",
+      "Bash(copy \"screenshots\\\\sales_03_personnel_attributes.png\" \"notebooklm_images\\\\03_人材属性_ペルソナと資格分析.png\")",
+      "Bash(copy \"screenshots\\\\sales_04_region_mobility.png\" \"notebooklm_images\\\\04_地域移動パターン_フロー分析.png\")",
+      "Bash(copy \"screenshots\\\\sales_05_combination_analysis.png\" \"notebooklm_images\\\\05_レアリティ分析_人材組み合わせ検索.png\")",
+      "Bash(cmd /c:*)",
+      "Bash(powershell -Command:*)",
+      "WebSearch"
+    ]
+  }
+}

@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>job_ap_analyzer_gui 営業資料</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+        }
+
+        body {
+            font-family: "Yu Gothic", "Meiryo", "Hiragino Sans", sans-serif;
+            font-size: 11pt;
+            line-height: 1.6;
+            color: #333;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 22pt;
+            color: #1a1a2e;
+            border-bottom: 3px solid #4a90a4;
+            padding-bottom: 10px;
+            margin-top: 25px;
+            page-break-after: avoid;
+        }
+
+        h2 {
+            font-size: 16pt;
+            color: #16213e;
+            border-left: 5px solid #4a90a4;
+            padding-left: 15px;
+            margin-top: 20px;
+            page-break-after: avoid;
+        }
+
+        h3 {
+            font-size: 13pt;
+            color: #0f3460;
+            margin-top: 15px;
+            page-break-after: avoid;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+            font-size: 10pt;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #4a90a4;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 12px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        blockquote {
+            border-left: 4px solid #4a90a4;
+            margin: 12px 0;
+            color: #555;
+            font-style: italic;
+            background-color: #f5f5f5;
+            padding: 10px 15px;
+        }
+
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: "Consolas", monospace;
+            font-size: 9pt;
+        }
+
+        pre {
+            background-color: #f4f4f4;
+            padding: 12px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 9pt;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 15px 0;
+        }
+
+        strong {
+            color: #1a1a2e;
+        }
+
+        ul, ol {
+            padding-left: 20px;
+        }
+
+        li {
+            margin: 4px 0;
+        }
+
+        /* ページ分割の最適化 */
+        h1, h2, h3 {
+            page-break-after: avoid;
+        }
+
+        table, img {
+            page-break-inside: avoid;
+        }
+    </style>
+</head>
+<body>
+    <h1>job_ap_analyzer_gui 営業資料</h1>
+
+<p><strong>医療・介護人材採用を、データで変える</strong></p>
+
+<hr />
+
+<h2>1. このツールで何ができるか</h2>
+
+<h3>一言で言うと</h3>
+
+<p><strong>「採用したい地域に、どんな求職者が、何人いるか」が一目で分かる</strong></p>
+
+<p>従来は「求人を出して、応募を待つ」だけだった採用活動を、
+<strong>データに基づいた戦略的な採用活動</strong>に変えるツールです。</p>
+
+<hr />
+
+<h2>2. 解決する課題</h2>
+
+<h3>採用担当者の悩み</h3>
+
+<table>
+<thead>
+<tr>
+  <th>悩み</th>
+  <th>従来</th>
+  <th>このツールで</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>「うちの地域に看護師はいるの？」</td>
+  <td>分からない</td>
+  <td><strong>数値で把握可能</strong></td>
+</tr>
+<tr>
+  <td>「どの資格を持った人が多い？」</td>
+  <td>感覚頼み</td>
+  <td><strong>ランキングで可視化</strong></td>
+</tr>
+<tr>
+  <td>「隣の市から通勤してくれる人は？」</td>
+  <td>不明</td>
+  <td><strong>移動パターン分析</strong></td>
+</tr>
+<tr>
+  <td>「競合と比べて採用しやすい？」</td>
+  <td>推測</td>
+  <td><strong>需給バランスで判定</strong></td>
+</tr>
+</tbody>
+</table>
+
+<hr />
+
+<h2>3. 主な機能と活用シーン</h2>
+
+<h3>3.1 市場概況ダッシュボード</h3>
+
+<p><strong>機能</strong>: 選択した地域の求職者数、年齢分布、性別比率、雇用形態を一覧表示</p>
+
+<p><strong>活用シーン</strong>:
+- 新規拠点の採用計画策定
+- 年度採用目標の根拠作成
+- 経営会議への報告資料</p>
+
+<p><strong>得られる洞察の例</strong>:</p>
+
+<blockquote>
+  <p>「京都市には介護職希望者が1,305人おり、40代女性が最多（23%）。
+  パート希望が6割を占めるため、柔軟なシフト制度がアピールポイントになる」</p>
+</blockquote>
+
+<hr />
+
+<h3>3.2 人材属性分析</h3>
+
+<p><strong>機能</strong>: 資格保有状況、年齢×性別クロス分析</p>
+
+<p><strong>活用シーン</strong>:
+- 採用ターゲットの絞り込み
+- 求人原稿のペルソナ設定
+- 資格要件の見直し</p>
+
+<p><strong>得られる洞察の例</strong>:</p>
+
+<blockquote>
+  <p>「介護福祉士保有者は全体の35%。50代女性に集中している。
+  若手（20-30代）で介護福祉士を持つ人材は希少価値が高い」</p>
+</blockquote>
+
+<hr />
+
+<h3>3.3 地域・移動パターン分析</h3>
+
+<p><strong>機能</strong>: 求職者の居住地と希望勤務地の関係を分析</p>
+
+<p><strong>活用シーン</strong>:
+- 採用エリアの拡大検討
+- 通勤手当・送迎の検討
+- 近隣施設との差別化</p>
+
+<p><strong>得られる洞察の例</strong>:</p>
+
+<blockquote>
+  <p>「この地域の求職者の49%は地元希望だが、34%は近隣市区町村への移動も可。
+  隣の○○市からの採用を視野に入れれば、候補者が1.5倍に」</p>
+</blockquote>
+
+<hr />
+
+<h3>3.4 人材組み合わせ分析（レアリティ分析）</h3>
+
+<p><strong>機能</strong>: 年齢・性別・資格の組み合わせで人材を絞り込み検索</p>
+
+<p><strong>活用シーン</strong>:
+- 採用要件に合致する人材数の把握
+- 条件緩和の効果シミュレーション
+- 競合との獲得競争の見極め</p>
+
+<p><strong>得られる洞察の例</strong>:</p>
+
+<blockquote>
+  <p>「30代・男性・介護福祉士保有者」は該当4人（全体の0.3%）= <strong>超希少人材</strong>
+  → 条件を「40代まで」に広げると42人に増加。要件緩和の検討を推奨</p>
+</blockquote>
+
+<hr />
+
+<h2>4. 競合との差別化ポイント</h2>
+
+<h3>従来のサービスとの違い</h3>
+
+<table>
+<thead>
+<tr>
+  <th>項目</th>
+  <th>求人サイトの管理画面</th>
+  <th>市場調査レポート</th>
+  <th><strong>このツール</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>データの鮮度</td>
+  <td>応募者のみ</td>
+  <td>年1回更新</td>
+  <td><strong>リアルタイム</strong></td>
+</tr>
+<tr>
+  <td>地域粒度</td>
+  <td>都道府県まで</td>
+  <td>地方ブロック</td>
+  <td><strong>市区町村単位</strong></td>
+</tr>
+<tr>
+  <td>資格分析</td>
+  <td>なし</td>
+  <td>主要資格のみ</td>
+  <td><strong>全資格対応</strong></td>
+</tr>
+<tr>
+  <td>操作性</td>
+  <td>複雑</td>
+  <td>PDF固定</td>
+  <td><strong>インタラクティブ</strong></td>
+</tr>
+<tr>
+  <td>コスト</td>
+  <td>月額○万円〜</td>
+  <td>数十万円/回</td>
+  <td><strong>低コスト</strong></td>
+</tr>
+</tbody>
+</table>
+
+<hr />
+
+<h2>5. 導入効果（期待されるROI）</h2>
+
+<h3>5.1 採用コスト削減</h3>
+
+<table>
+<thead>
+<tr>
+  <th>効果</th>
+  <th>詳細</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>無駄な求人出稿の削減</strong></td>
+  <td>人材がいない地域への出稿を事前に回避</td>
+</tr>
+<tr>
+  <td><strong>ターゲット精度向上</strong></td>
+  <td>実在する人材層に絞った訴求</td>
+</tr>
+<tr>
+  <td><strong>採用期間短縮</strong></td>
+  <td>データに基づく迅速な意思決定</td>
+</tr>
+</tbody>
+</table>
+
+<h3>5.2 採用成功率向上</h3>
+
+<table>
+<thead>
+<tr>
+  <th>効果</th>
+  <th>詳細</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>競合分析</strong></td>
+  <td>需給バランスで採用難易度を事前把握</td>
+</tr>
+<tr>
+  <td><strong>条件最適化</strong></td>
+  <td>市場に合った給与・条件設定</td>
+</tr>
+<tr>
+  <td><strong>エリア戦略</strong></td>
+  <td>移動パターンを考慮した広域採用</td>
+</tr>
+</tbody>
+</table>
+
+<h3>5.3 経営判断の高度化</h3>
+
+<table>
+<thead>
+<tr>
+  <th>効果</th>
+  <th>詳細</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>新規拠点判断</strong></td>
+  <td>人材確保可能性を事前検証</td>
+</tr>
+<tr>
+  <td><strong>事業計画策定</strong></td>
+  <td>採用計画の数値的根拠</td>
+</tr>
+<tr>
+  <td><strong>取締役会報告</strong></td>
+  <td>データに基づく客観的説明</td>
+</tr>
+</tbody>
+</table>
+
+<hr />
+
+<h2>6. 想定ユーザー</h2>
+
+<h3>プライマリターゲット</h3>
+
+<table>
+<thead>
+<tr>
+  <th>業種</th>
+  <th>役職</th>
+  <th>課題</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>医療法人</td>
+  <td>採用担当</td>
+  <td>看護師・介護士の慢性的不足</td>
+</tr>
+<tr>
+  <td>介護施設</td>
+  <td>施設長</td>
+  <td>新規開設時の人材確保</td>
+</tr>
+<tr>
+  <td>訪問介護</td>
+  <td>エリアマネージャー</td>
+  <td>地域ごとの人材把握</td>
+</tr>
+</tbody>
+</table>
+
+<h3>セカンダリターゲット</h3>
+
+<table>
+<thead>
+<tr>
+  <th>業種</th>
+  <th>役職</th>
+  <th>課題</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>人材紹介会社</td>
+  <td>コンサルタント</td>
+  <td>提案の説得力向上</td>
+</tr>
+<tr>
+  <td>自治体</td>
+  <td>福祉担当</td>
+  <td>地域の人材動向把握</td>
+</tr>
+<tr>
+  <td>コンサル</td>
+  <td>医療担当</td>
+  <td>M&amp;A・再編時のDD</td>
+</tr>
+</tbody>
+</table>
+
+<hr />
+
+<h2>7. デモシナリオ</h2>
+
+<h3>シナリオ1: 新規施設開設の採用計画</h3>
+
+<pre><code>1. 開設予定地（例: 京都府京都市）を選択
+2. 市場概況で求職者数を確認 → 「1,305人の求職者がいます」
+3. 資格分布で必要資格の保有者を確認 → 「介護福祉士: 456人」
+4. 年齢分布でターゲット層を特定 → 「40代が最多、次いで50代」
+5. 移動パターンで採用エリアを検討 → 「近隣市からの流入も期待可能」
+
+結論: 採用計画の数値的根拠が得られた
+</code></pre>
+
+<h3>シナリオ2: 採用難の原因分析</h3>
+
+<pre><code>1. 自施設のある地域を選択
+2. 人材組み合わせ分析で現在の採用要件を入力
+3. 該当者数を確認 → 「たった12人しかいない（0.9%）」
+4. 条件を緩和して再検索 → 「年齢上限を上げると85人に」
+
+結論: 採用要件が市場と乖離していた。条件緩和を提案
+</code></pre>
+
+<hr />
+
+<h2>8. 技術的特徴</h2>
+
+<h3>8.1 データの信頼性</h3>
+
+<ul>
+<li><strong>データソース</strong>: ジョブメドレー求職者データ（国内最大級）</li>
+<li><strong>更新頻度</strong>: 定期更新</li>
+<li><strong>カバレッジ</strong>: 全国47都道府県、1,700以上の市区町村</li>
+</ul>
+
+<h3>8.2 セキュリティ</h3>
+
+<ul>
+<li><strong>個人情報</strong>: 集計データのみ使用（個人特定不可）</li>
+<li><strong>認証</strong>: ログイン必須</li>
+<li><strong>通信</strong>: HTTPS暗号化</li>
+</ul>
+
+<h3>8.3 可用性</h3>
+
+<ul>
+<li><strong>クラウドベース</strong>: ブラウザでアクセス</li>
+<li><strong>マルチデバイス</strong>: PC・タブレット対応</li>
+<li><strong>レスポンス</strong>: 3秒以内の表示</li>
+</ul>
+
+<hr />
+
+<h2>9. 料金体系（案）</h2>
+
+<table>
+<thead>
+<tr>
+  <th>プラン</th>
+  <th>対象</th>
+  <th>機能</th>
+  <th>価格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>ライト</td>
+  <td>単施設</td>
+  <td>基本分析</td>
+  <td>月額XX,XXX円</td>
+</tr>
+<tr>
+  <td>スタンダード</td>
+  <td>複数施設</td>
+  <td>全機能</td>
+  <td>月額XX,XXX円</td>
+</tr>
+<tr>
+  <td>エンタープライズ</td>
+  <td>法人全体</td>
+  <td>カスタム対応</td>
+  <td>要相談</td>
+</tr>
+</tbody>
+</table>
+
+<p>※価格は検討中</p>
+
+<hr />
+
+<h2>10. 競合製品比較</h2>
+
+<table>
+<thead>
+<tr>
+  <th>製品名</th>
+  <th>強み</th>
+  <th>弱み</th>
+  <th>当ツールとの比較</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>A社レポート</td>
+  <td>ブランド力</td>
+  <td>高額、更新遅い</td>
+  <td><strong>低コスト＆リアルタイム</strong></td>
+</tr>
+<tr>
+  <td>B社ダッシュボード</td>
+  <td>多機能</td>
+  <td>複雑、学習コスト</td>
+  <td><strong>シンプル操作</strong></td>
+</tr>
+<tr>
+  <td>求人サイト分析</td>
+  <td>自社応募者分析</td>
+  <td>市場全体が見えない</td>
+  <td><strong>市場全体を可視化</strong></td>
+</tr>
+</tbody>
+</table>
+
+<hr />
+
+<h2>11. FAQ</h2>
+
+<h3>Q1: データはどこから来ていますか？</h3>
+
+<p>A: ジョブメドレーに登録している求職者の匿名化・集計データを使用しています。個人を特定する情報は含まれていません。</p>
+
+<h3>Q2: どのくらいの頻度で更新されますか？</h3>
+
+<p>A: 定期的に更新されます。最新のデータで分析が可能です。</p>
+
+<h3>Q3: 他の職種（看護師、PT/OTなど）にも対応していますか？</h3>
+
+<p>A: 現在は介護職がメインですが、今後他職種への展開を予定しています。</p>
+
+<h3>Q4: 自社の応募データと連携できますか？</h3>
+
+<p>A: 現時点では対応していませんが、将来的な機能拡張として検討中です。</p>
+
+<hr />
+
+<h2>12. お問い合わせ</h2>
+
+<p><strong>デモのご依頼・詳細なご説明</strong></p>
+
+<ul>
+<li>担当: （担当者名）</li>
+<li>メール: （メールアドレス）</li>
+<li>電話: （電話番号）</li>
+</ul>
+
+<hr />
+
+<h2>付録: 画面サンプル</h2>
+
+<h3>A. ログイン画面</h3>
+
+<p><img src="C:/Users/fuji1/OneDrive/Pythonスクリプト保管/job_medley_project/nicegui_app/docs/screenshots/sales_01_login.png" alt="ログイン画面" /></p>
+
+<ul>
+<li>シンプルなログインフォーム</li>
+<li>メールアドレス・パスワード認証</li>
+<li>セキュアなHTTPS通信</li>
+</ul>
+
+<hr />
+
+<h3>B. 市場概況タブ</h3>
+
+<p><img src="C:/Users/fuji1/OneDrive/Pythonスクリプト保管/job_medley_project/nicegui_app/docs/screenshots/sales_02_market_overview.png" alt="市場概況タブ" /></p>
+
+<ul>
+<li><strong>KPIカード</strong>: 総求職者数、年齢中央値、女性比率など</li>
+<li><strong>年齢分布グラフ</strong>: 棒グラフで世代構成を可視化</li>
+<li><strong>性別・雇用形態分布</strong>: 円グラフで直感的に把握</li>
+<li><strong>実データ例（東京都）</strong>: 132,690人の求職者データを表示</li>
+</ul>
+
+<hr />
+
+<h3>C. 人材属性タブ</h3>
+
+<p><img src="C:/Users/fuji1/OneDrive/Pythonスクリプト保管/job_medley_project/nicegui_app/docs/screenshots/sales_03_personnel_attributes.png" alt="人材属性タブ" /></p>
+
+<ul>
+<li><strong>ペルソナ分析</strong>: 年齢×性別の組み合わせランキング</li>
+<li><strong>資格詳細一覧</strong>: 全資格を定着率順に表示</li>
+<li><strong>年齢×性別クロス分析</strong>: 詳細な属性分布</li>
+<li><strong>実データ例</strong>: 50代×女性が19.6%（26,013人）で最多</li>
+</ul>
+
+<hr />
+
+<h3>D. 地域・移動パターンタブ</h3>
+
+<p><img src="C:/Users/fuji1/OneDrive/Pythonスクリプト保管/job_medley_project/nicegui_app/docs/screenshots/sales_04_region_mobility.png" alt="地域・移動パターンタブ" /></p>
+
+<ul>
+<li><strong>移動パターン円グラフ</strong>: 地元志向/近隣移動/広域移動の比率</li>
+<li><strong>居住地→希望勤務地フロー</strong>: 人材の流動パターン</li>
+<li><strong>ペルソナシェア</strong>: 地域内人材構成比</li>
+</ul>
+
+<hr />
+
+<h3>E. 人材組み合わせ分析（レアリティ分析）</h3>
+
+<p><img src="C:/Users/fuji1/OneDrive/Pythonスクリプト保管/job_medley_project/nicegui_app/docs/screenshots/sales_05_combination_analysis.png" alt="人材組み合わせ分析" /></p>
+
+<ul>
+<li><strong>条件選択UI</strong>: 年代・性別・資格をチェックボックスで複数選択</li>
+<li><strong>資格一覧</strong>: 467種類の資格を取得者数順に表示</li>
+<li><strong>該当者数・構成比表示</strong>: リアルタイムで検索結果を表示</li>
+<li><strong>実データ例</strong>: 「30代・男性・介護福祉士」で検索 → <strong>45人該当</strong>（希少人材）</li>
+</ul>
+
+<hr />
+
+<h2>付録: 実演用データサンプル</h2>
+
+<h3>東京都全体（2025年12月時点）</h3>
+
+<table>
+<thead>
+<tr>
+  <th>指標</th>
+  <th>数値</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>総求職者数</td>
+  <td>132,690人</td>
+</tr>
+<tr>
+  <td>女性比率</td>
+  <td>65.0%</td>
+</tr>
+<tr>
+  <td>最多ペルソナ</td>
+  <td>50代×女性（19.6%）</td>
+</tr>
+<tr>
+  <td>資格保有者TOP</td>
+  <td>調理師（12,015人）</td>
+</tr>
+</tbody>
+</table>
+
+<h3>人材組み合わせ検索例</h3>
+
+<table>
+<thead>
+<tr>
+  <th>条件</th>
+  <th>該当者数</th>
+  <th>レアリティ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>30代・男性・介護福祉士</td>
+  <td>45人</td>
+  <td>⭐⭐⭐ 希少</td>
+</tr>
+<tr>
+  <td>40代・女性・介護福祉士</td>
+  <td>約200人</td>
+  <td>⭐⭐ やや希少</td>
+</tr>
+<tr>
+  <td>50代・女性・資格不問</td>
+  <td>約26,000人</td>
+  <td>⭐ 一般的</td>
+</tr>
+</tbody>
+</table>
+
+<hr />
+
+<p><em>このドキュメントは2025年12月25日時点の情報に基づいています。</em></p>
+
+</body>
+</html>

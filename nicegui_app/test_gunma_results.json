@@ -1,0 +1,1974 @@
+{
+  "summary": {
+    "total_patterns": 30,
+    "errors": 0,
+    "warnings": 30,
+    "success_rate": 100.0
+  },
+  "pattern_results": [
+    {
+      "job_type": "介護職",
+      "prefecture": "群馬県",
+      "municipality": "前橋市",
+      "timestamp": "2025-12-31T03:34:59.326942",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 616,
+          "female_count": 1468
+        },
+        "flow": {
+          "inflow": 1077,
+          "outflow": 1019,
+          "net_flow": 58,
+          "applicant_count": 1528
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "66.0",
+          "median": "25.1",
+          "min": "0.0",
+          "max": "852.1"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "看護師",
+      "prefecture": "群馬県",
+      "municipality": "前橋市",
+      "timestamp": "2025-12-31T03:35:05.398471",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 273,
+          "female_count": 1859
+        },
+        "flow": {
+          "inflow": 1566,
+          "outflow": 1421,
+          "net_flow": 145,
+          "applicant_count": 2005
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "66.0",
+          "median": "25.1",
+          "min": "0.0",
+          "max": "852.1"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "保育士",
+      "prefecture": "群馬県",
+      "municipality": "前橋市",
+      "timestamp": "2025-12-31T03:35:10.607025",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 121,
+          "female_count": 798
+        },
+        "flow": {
+          "inflow": 767,
+          "outflow": 294,
+          "net_flow": 473,
+          "applicant_count": 880
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "66.0",
+          "median": "25.1",
+          "min": "0.0",
+          "max": "852.1"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "栄養士",
+      "prefecture": "群馬県",
+      "municipality": "前橋市",
+      "timestamp": "2025-12-31T03:35:16.859266",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 27,
+          "female_count": 326
+        },
+        "flow": {
+          "inflow": 260,
+          "outflow": 638,
+          "net_flow": -378,
+          "applicant_count": 361
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "66.0",
+          "median": "25.1",
+          "min": "0.0",
+          "max": "852.1"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 9
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "生活相談員",
+      "prefecture": "群馬県",
+      "municipality": "前橋市",
+      "timestamp": "2025-12-31T03:35:22.121910",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 428,
+          "female_count": 381
+        },
+        "flow": {
+          "inflow": 690,
+          "outflow": 183,
+          "net_flow": 507,
+          "applicant_count": 770
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "41.0",
+          "median": "14.0",
+          "min": "0.0",
+          "max": "990.7"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "介護職",
+      "prefecture": "群馬県",
+      "municipality": "高崎市",
+      "timestamp": "2025-12-31T03:35:27.200092",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 614,
+          "female_count": 1391
+        },
+        "flow": {
+          "inflow": 966,
+          "outflow": 1517,
+          "net_flow": -551,
+          "applicant_count": 1444
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "69.5",
+          "median": "31.4",
+          "min": "0.0",
+          "max": "1501.6"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "看護師",
+      "prefecture": "群馬県",
+      "municipality": "高崎市",
+      "timestamp": "2025-12-31T03:35:32.561284",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 311,
+          "female_count": 1883
+        },
+        "flow": {
+          "inflow": 1589,
+          "outflow": 2295,
+          "net_flow": -706,
+          "applicant_count": 2109
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "69.5",
+          "median": "31.4",
+          "min": "0.0",
+          "max": "1501.6"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "保育士",
+      "prefecture": "群馬県",
+      "municipality": "高崎市",
+      "timestamp": "2025-12-31T03:35:37.900650",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 135,
+          "female_count": 653
+        },
+        "flow": {
+          "inflow": 639,
+          "outflow": 266,
+          "net_flow": 373,
+          "applicant_count": 750
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "69.5",
+          "median": "31.4",
+          "min": "0.0",
+          "max": "1501.6"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "栄養士",
+      "prefecture": "群馬県",
+      "municipality": "高崎市",
+      "timestamp": "2025-12-31T03:35:43.169079",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 25,
+          "female_count": 346
+        },
+        "flow": {
+          "inflow": 247,
+          "outflow": 569,
+          "net_flow": -322,
+          "applicant_count": 353
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "69.5",
+          "median": "31.4",
+          "min": "0.0",
+          "max": "1501.6"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 8
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "生活相談員",
+      "prefecture": "群馬県",
+      "municipality": "高崎市",
+      "timestamp": "2025-12-31T03:35:48.523858",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 514,
+          "female_count": 343
+        },
+        "flow": {
+          "inflow": 663,
+          "outflow": 8431,
+          "net_flow": -7768,
+          "applicant_count": 843
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "84.0",
+          "median": "20.0",
+          "min": "0.0",
+          "max": "1544.3"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "介護職",
+      "prefecture": "群馬県",
+      "municipality": "太田市",
+      "timestamp": "2025-12-31T03:35:53.589886",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 382,
+          "female_count": 976
+        },
+        "flow": {
+          "inflow": 750,
+          "outflow": 939,
+          "net_flow": -189,
+          "applicant_count": 1100
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "51.3",
+          "median": "20.7",
+          "min": "0.0",
+          "max": "1573.6"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "看護師",
+      "prefecture": "群馬県",
+      "municipality": "太田市",
+      "timestamp": "2025-12-31T03:35:58.743163",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 265,
+          "female_count": 1180
+        },
+        "flow": {
+          "inflow": 1085,
+          "outflow": 1223,
+          "net_flow": -138,
+          "applicant_count": 1419
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "51.3",
+          "median": "20.7",
+          "min": "0.0",
+          "max": "1573.6"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "保育士",
+      "prefecture": "群馬県",
+      "municipality": "太田市",
+      "timestamp": "2025-12-31T03:36:04.371744",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 94,
+          "female_count": 692
+        },
+        "flow": {
+          "inflow": 626,
+          "outflow": 570,
+          "net_flow": 56,
+          "applicant_count": 753
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "51.3",
+          "median": "20.7",
+          "min": "0.0",
+          "max": "1573.6"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "栄養士",
+      "prefecture": "群馬県",
+      "municipality": "太田市",
+      "timestamp": "2025-12-31T03:36:09.784347",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 35,
+          "female_count": 328
+        },
+        "flow": {
+          "inflow": 285,
+          "outflow": 379,
+          "net_flow": -94,
+          "applicant_count": 372
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "51.3",
+          "median": "20.7",
+          "min": "0.0",
+          "max": "1573.6"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "生活相談員",
+      "prefecture": "群馬県",
+      "municipality": "太田市",
+      "timestamp": "2025-12-31T03:36:14.784310",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 380,
+          "female_count": 366
+        },
+        "flow": {
+          "inflow": 622,
+          "outflow": 548,
+          "net_flow": 74,
+          "applicant_count": 740
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "31.5",
+          "median": "19.8",
+          "min": "0.0",
+          "max": "383.7"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "介護職",
+      "prefecture": "群馬県",
+      "municipality": "桐生市",
+      "timestamp": "2025-12-31T03:36:20.068510",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 139,
+          "female_count": 275
+        },
+        "flow": {
+          "inflow": 197,
+          "outflow": 476,
+          "net_flow": -279,
+          "applicant_count": 340
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "54.9",
+          "median": "29.0",
+          "min": "0.0",
+          "max": "1589.9"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "看護師",
+      "prefecture": "群馬県",
+      "municipality": "桐生市",
+      "timestamp": "2025-12-31T03:36:25.409125",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 160,
+          "female_count": 385
+        },
+        "flow": {
+          "inflow": 357,
+          "outflow": 2530,
+          "net_flow": -2173,
+          "applicant_count": 525
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "54.9",
+          "median": "29.0",
+          "min": "0.0",
+          "max": "1589.9"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "保育士",
+      "prefecture": "群馬県",
+      "municipality": "桐生市",
+      "timestamp": "2025-12-31T03:36:30.530075",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 11,
+          "female_count": 175
+        },
+        "flow": {
+          "inflow": 136,
+          "outflow": 1545,
+          "net_flow": -1409,
+          "applicant_count": 196
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "54.9",
+          "median": "29.0",
+          "min": "0.0",
+          "max": "1589.9"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "栄養士",
+      "prefecture": "群馬県",
+      "municipality": "桐生市",
+      "timestamp": "2025-12-31T03:36:35.709245",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 8,
+          "female_count": 81
+        },
+        "flow": {
+          "inflow": 64,
+          "outflow": 44,
+          "net_flow": 20,
+          "applicant_count": 84
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "54.9",
+          "median": "29.0",
+          "min": "0.0",
+          "max": "1589.9"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 8
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "生活相談員",
+      "prefecture": "群馬県",
+      "municipality": "桐生市",
+      "timestamp": "2025-12-31T03:36:41.152125",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 104,
+          "female_count": 62
+        },
+        "flow": {
+          "inflow": 130,
+          "outflow": 127,
+          "net_flow": 3,
+          "applicant_count": 168
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "89.4",
+          "median": "15.1",
+          "min": "0.0",
+          "max": "1968.9"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "介護職",
+      "prefecture": "群馬県",
+      "municipality": "沼田市",
+      "timestamp": "2025-12-31T03:36:46.418649",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 30,
+          "female_count": 82
+        },
+        "flow": {
+          "inflow": 43,
+          "outflow": 78,
+          "net_flow": -35,
+          "applicant_count": 78
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "56.9",
+          "median": "17.7",
+          "min": "0.0",
+          "max": "1566.1"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "看護師",
+      "prefecture": "群馬県",
+      "municipality": "沼田市",
+      "timestamp": "2025-12-31T03:36:51.655714",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 14,
+          "female_count": 44
+        },
+        "flow": {
+          "inflow": 25,
+          "outflow": 216,
+          "net_flow": -191,
+          "applicant_count": 70
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "56.9",
+          "median": "17.7",
+          "min": "0.0",
+          "max": "1566.1"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 9
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "保育士",
+      "prefecture": "群馬県",
+      "municipality": "沼田市",
+      "timestamp": "2025-12-31T03:36:57.040594",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 0,
+          "female_count": 10
+        },
+        "flow": {
+          "inflow": 3,
+          "outflow": 16,
+          "net_flow": -13,
+          "applicant_count": 11
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "56.9",
+          "median": "17.7",
+          "min": "0.0",
+          "max": "1566.1"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 3
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "栄養士",
+      "prefecture": "群馬県",
+      "municipality": "沼田市",
+      "timestamp": "2025-12-31T03:37:02.602174",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 14,
+          "female_count": 12
+        },
+        "flow": {
+          "inflow": 23,
+          "outflow": 5,
+          "net_flow": 18,
+          "applicant_count": 27
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "56.9",
+          "median": "17.7",
+          "min": "0.0",
+          "max": "1566.1"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 6
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "生活相談員",
+      "prefecture": "群馬県",
+      "municipality": "沼田市",
+      "timestamp": "2025-12-31T03:37:07.962594",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 59,
+          "female_count": 5
+        },
+        "flow": {
+          "inflow": 54,
+          "outflow": 89,
+          "net_flow": -35,
+          "applicant_count": 62
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "34.0",
+          "median": "26.4",
+          "min": "0.0",
+          "max": "125.6"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 8
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "介護職",
+      "prefecture": "群馬県",
+      "municipality": "富岡市",
+      "timestamp": "2025-12-31T03:37:13.428918",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 78,
+          "female_count": 156
+        },
+        "flow": {
+          "inflow": 144,
+          "outflow": 176,
+          "net_flow": -32,
+          "applicant_count": 206
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "26.1",
+          "median": "18.1",
+          "min": "0.0",
+          "max": "114.6"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 10
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "看護師",
+      "prefecture": "群馬県",
+      "municipality": "富岡市",
+      "timestamp": "2025-12-31T03:37:18.676228",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 22,
+          "female_count": 155
+        },
+        "flow": {
+          "inflow": 130,
+          "outflow": 194,
+          "net_flow": -64,
+          "applicant_count": 190
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "26.1",
+          "median": "18.1",
+          "min": "0.0",
+          "max": "114.6"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 9
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "保育士",
+      "prefecture": "群馬県",
+      "municipality": "富岡市",
+      "timestamp": "2025-12-31T03:37:23.878799",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 4,
+          "female_count": 29
+        },
+        "flow": {
+          "inflow": 29,
+          "outflow": 16,
+          "net_flow": 13,
+          "applicant_count": 36
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "26.1",
+          "median": "18.1",
+          "min": "0.0",
+          "max": "114.6"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 8
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "栄養士",
+      "prefecture": "群馬県",
+      "municipality": "富岡市",
+      "timestamp": "2025-12-31T03:37:28.943710",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 3,
+          "female_count": 24
+        },
+        "flow": {
+          "inflow": 24,
+          "outflow": 19,
+          "net_flow": 5,
+          "applicant_count": 34
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "26.1",
+          "median": "18.1",
+          "min": "0.0",
+          "max": "114.6"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 4
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    },
+    {
+      "job_type": "生活相談員",
+      "prefecture": "群馬県",
+      "municipality": "富岡市",
+      "timestamp": "2025-12-31T03:37:34.013756",
+      "tests": {
+        "basic_stats": {
+          "applicant_count": 0,
+          "avg_age": 0,
+          "avg_qualifications": 0,
+          "male_count": 130,
+          "female_count": 42
+        },
+        "flow": {
+          "inflow": 165,
+          "outflow": 25,
+          "net_flow": 140,
+          "applicant_count": 175
+        },
+        "competition": {
+          "data_exists": true,
+          "type": "dict",
+          "keys": [
+            "total_applicants",
+            "female_ratio",
+            "male_ratio",
+            "top_age",
+            "top_age_ratio"
+          ]
+        },
+        "distance": {
+          "mean": "19.5",
+          "median": "12.6",
+          "min": "0.0",
+          "max": "189.1"
+        },
+        "mobility": {
+          "data_exists": true,
+          "types": [
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "persona": {
+          "data_exists": true,
+          "count": 9
+        },
+        "rarity": {
+          "data_exists": true,
+          "count": 20
+        }
+      },
+      "errors": [],
+      "warnings": [
+        "basic_stats: applicant_count=0"
+      ]
+    }
+  ],
+  "comparison_results": [
+    {
+      "municipality": "前橋市",
+      "status": "OK",
+      "message": "職種間でデータが正しく異なる",
+      "data": {
+        "介護職": {
+          "inflow": 1077,
+          "outflow": 1019,
+          "applicant_count": 1528
+        },
+        "看護師": {
+          "inflow": 1566,
+          "outflow": 1421,
+          "applicant_count": 2005
+        },
+        "保育士": {
+          "inflow": 767,
+          "outflow": 294,
+          "applicant_count": 880
+        },
+        "栄養士": {
+          "inflow": 260,
+          "outflow": 638,
+          "applicant_count": 361
+        },
+        "生活相談員": {
+          "inflow": 690,
+          "outflow": 183,
+          "applicant_count": 770
+        }
+      }
+    },
+    {
+      "municipality": "高崎市",
+      "status": "OK",
+      "message": "職種間でデータが正しく異なる",
+      "data": {
+        "介護職": {
+          "inflow": 966,
+          "outflow": 1517,
+          "applicant_count": 1444
+        },
+        "看護師": {
+          "inflow": 1589,
+          "outflow": 2295,
+          "applicant_count": 2109
+        },
+        "保育士": {
+          "inflow": 639,
+          "outflow": 266,
+          "applicant_count": 750
+        },
+        "栄養士": {
+          "inflow": 247,
+          "outflow": 569,
+          "applicant_count": 353
+        },
+        "生活相談員": {
+          "inflow": 663,
+          "outflow": 8431,
+          "applicant_count": 843
+        }
+      }
+    },
+    {
+      "municipality": "太田市",
+      "status": "OK",
+      "message": "職種間でデータが正しく異なる",
+      "data": {
+        "介護職": {
+          "inflow": 750,
+          "outflow": 939,
+          "applicant_count": 1100
+        },
+        "看護師": {
+          "inflow": 1085,
+          "outflow": 1223,
+          "applicant_count": 1419
+        },
+        "保育士": {
+          "inflow": 626,
+          "outflow": 570,
+          "applicant_count": 753
+        },
+        "栄養士": {
+          "inflow": 285,
+          "outflow": 379,
+          "applicant_count": 372
+        },
+        "生活相談員": {
+          "inflow": 622,
+          "outflow": 548,
+          "applicant_count": 740
+        }
+      }
+    },
+    {
+      "municipality": "桐生市",
+      "status": "OK",
+      "message": "職種間でデータが正しく異なる",
+      "data": {
+        "介護職": {
+          "inflow": 197,
+          "outflow": 476,
+          "applicant_count": 340
+        },
+        "看護師": {
+          "inflow": 357,
+          "outflow": 2530,
+          "applicant_count": 525
+        },
+        "保育士": {
+          "inflow": 136,
+          "outflow": 1545,
+          "applicant_count": 196
+        },
+        "栄養士": {
+          "inflow": 64,
+          "outflow": 44,
+          "applicant_count": 84
+        },
+        "生活相談員": {
+          "inflow": 130,
+          "outflow": 127,
+          "applicant_count": 168
+        }
+      }
+    },
+    {
+      "municipality": "沼田市",
+      "status": "OK",
+      "message": "職種間でデータが正しく異なる",
+      "data": {
+        "介護職": {
+          "inflow": 43,
+          "outflow": 78,
+          "applicant_count": 78
+        },
+        "看護師": {
+          "inflow": 25,
+          "outflow": 216,
+          "applicant_count": 70
+        },
+        "保育士": {
+          "inflow": 3,
+          "outflow": 16,
+          "applicant_count": 11
+        },
+        "栄養士": {
+          "inflow": 23,
+          "outflow": 5,
+          "applicant_count": 27
+        },
+        "生活相談員": {
+          "inflow": 54,
+          "outflow": 89,
+          "applicant_count": 62
+        }
+      }
+    },
+    {
+      "municipality": "富岡市",
+      "status": "OK",
+      "message": "職種間でデータが正しく異なる",
+      "data": {
+        "介護職": {
+          "inflow": 144,
+          "outflow": 176,
+          "applicant_count": 206
+        },
+        "看護師": {
+          "inflow": 130,
+          "outflow": 194,
+          "applicant_count": 190
+        },
+        "保育士": {
+          "inflow": 29,
+          "outflow": 16,
+          "applicant_count": 36
+        },
+        "栄養士": {
+          "inflow": 24,
+          "outflow": 19,
+          "applicant_count": 34
+        },
+        "生活相談員": {
+          "inflow": 165,
+          "outflow": 25,
+          "applicant_count": 175
+        }
+      }
+    }
+  ]
+}

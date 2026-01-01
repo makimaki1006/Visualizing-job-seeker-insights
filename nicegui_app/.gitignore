@@ -1,0 +1,33 @@
+# Environment
+.env
+.env.*
+
+# NiceGUI cache
+.nicegui/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large data files (>100MB)
+MapComplete_Complete_All_FIXED.csv
+*.csv.gz

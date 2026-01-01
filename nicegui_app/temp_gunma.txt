@@ -1,0 +1,313 @@
+============================================================
+[STARTUP] db_helper.py loading...
+[STARTUP] Python version: 3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]
+[STARTUP] Current directory: C:\Users\fuji1\OneDrive\PythonƒXƒNƒŠƒvƒg•ÛŠÇ\job_medley_project\nicegui_app
+============================================================
+[STARTUP] .env loaded (default)
+[STARTUP] USE_CSV_MODE = False (env: 'false', cloud: False)
+[STARTUP] TURSO_DATABASE_URL set: True (len=71)
+[STARTUP] TURSO_AUTH_TOKEN set: True (len=279)
+[STARTUP] DATABASE_URL set: False
+[STARTUP] SQLite fallback path: C:\Users\fuji1\OneDrive\PythonƒXƒNƒŠƒvƒg•ÛŠÇ\job_medley_project\nicegui_app\data\job_medley.db
+[STARTUP] Data directory ensured: C:\Users\fuji1\OneDrive\PythonƒXƒNƒŠƒvƒg•ÛŠÇ\job_medley_project\nicegui_app\data
+[STARTUP] Turso config available: URL=True, TOKEN=True
+============================================================
+[STARTUP] db_helper.py SUMMARY:
+  USE_CSV_MODE: False
+  Turso config available: True
+  _HAS_POSTGRES: False
+  Initial mode: Database
+============================================================
+================================================================================
+ŒQ”nŒ§ 30ƒpƒ^[ƒ“•ïŠ‡ƒeƒXƒg
+ŠJn: 2025-12-30 21:39:10
+================================================================================
+
+[01/30] ‰îŒìE ~ ‘O‹´s ... [JOB_TYPE] Already set to: ‰îŒìE
+[DB] get_distance_stats: Sampled 249 distance records, mean=66.0
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[02/30] ŠÅŒìt ~ ‘O‹´s ... [JOB_TYPE] Changing from '‰îŒìE' to 'ŠÅŒìt'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 249 distance records, mean=66.0
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[03/30] •Ûˆçm ~ ‘O‹´s ... [JOB_TYPE] Changing from 'ŠÅŒìt' to '•Ûˆçm'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 249 distance records, mean=66.0
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[04/30] ‰h—{m ~ ‘O‹´s ... [JOB_TYPE] Changing from '•Ûˆçm' to '‰h—{m'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 249 distance records, mean=66.0
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[05/30] ¶Šˆ‘Š’kˆõ ~ ‘O‹´s ... [JOB_TYPE] Changing from '‰h—{m' to '¶Šˆ‘Š’kˆõ'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: No aggregated data found
+[ERROR] 1Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+
+[06/30] ‰îŒìE ~ ‚ès ... [JOB_TYPE] Changing from '¶Šˆ‘Š’kˆõ' to '‰îŒìE'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 300 distance records, mean=69.5
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[07/30] ŠÅŒìt ~ ‚ès ... [JOB_TYPE] Changing from '‰îŒìE' to 'ŠÅŒìt'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 300 distance records, mean=69.5
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[08/30] •Ûˆçm ~ ‚ès ... [JOB_TYPE] Changing from 'ŠÅŒìt' to '•Ûˆçm'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 300 distance records, mean=69.5
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[09/30] ‰h—{m ~ ‚ès ... [JOB_TYPE] Changing from '•Ûˆçm' to '‰h—{m'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 300 distance records, mean=69.5
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[10/30] ¶Šˆ‘Š’kˆõ ~ ‚ès ... [JOB_TYPE] Changing from '‰h—{m' to '¶Šˆ‘Š’kˆõ'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: No aggregated data found
+[ERROR] 1Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+
+[11/30] ‰îŒìE ~ ‘¾“cs ... [JOB_TYPE] Changing from '¶Šˆ‘Š’kˆõ' to '‰îŒìE'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 239 distance records, mean=51.3
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[12/30] ŠÅŒìt ~ ‘¾“cs ... [JOB_TYPE] Changing from '‰îŒìE' to 'ŠÅŒìt'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 239 distance records, mean=51.3
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[13/30] •Ûˆçm ~ ‘¾“cs ... [JOB_TYPE] Changing from 'ŠÅŒìt' to '•Ûˆçm'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 239 distance records, mean=51.3
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[14/30] ‰h—{m ~ ‘¾“cs ... [JOB_TYPE] Changing from '•Ûˆçm' to '‰h—{m'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 239 distance records, mean=51.3
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[15/30] ¶Šˆ‘Š’kˆõ ~ ‘¾“cs ... [JOB_TYPE] Changing from '‰h—{m' to '¶Šˆ‘Š’kˆõ'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: No aggregated data found
+[ERROR] 1Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+
+[16/30] ‰îŒìE ~ ‹Ë¶s ... [JOB_TYPE] Changing from '¶Šˆ‘Š’kˆõ' to '‰îŒìE'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 154 distance records, mean=54.9
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[17/30] ŠÅŒìt ~ ‹Ë¶s ... [JOB_TYPE] Changing from '‰îŒìE' to 'ŠÅŒìt'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 154 distance records, mean=54.9
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[18/30] •Ûˆçm ~ ‹Ë¶s ... [JOB_TYPE] Changing from 'ŠÅŒìt' to '•Ûˆçm'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 154 distance records, mean=54.9
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[19/30] ‰h—{m ~ ‹Ë¶s ... [JOB_TYPE] Changing from '•Ûˆçm' to '‰h—{m'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 154 distance records, mean=54.9
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[20/30] ¶Šˆ‘Š’kˆõ ~ ‹Ë¶s ... [JOB_TYPE] Changing from '‰h—{m' to '¶Šˆ‘Š’kˆõ'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: No aggregated data found
+[ERROR] 1Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+
+[21/30] ‰îŒìE ~ À“cs ... [JOB_TYPE] Changing from '¶Šˆ‘Š’kˆõ' to '‰îŒìE'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 54 distance records, mean=56.9
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[22/30] ŠÅŒìt ~ À“cs ... [JOB_TYPE] Changing from '‰îŒìE' to 'ŠÅŒìt'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 54 distance records, mean=56.9
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[23/30] •Ûˆçm ~ À“cs ... [JOB_TYPE] Changing from 'ŠÅŒìt' to '•Ûˆçm'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 54 distance records, mean=56.9
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[24/30] ‰h—{m ~ À“cs ... [JOB_TYPE] Changing from '•Ûˆçm' to '‰h—{m'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 54 distance records, mean=56.9
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[25/30] ¶Šˆ‘Š’kˆõ ~ À“cs ... [JOB_TYPE] Changing from '‰h—{m' to '¶Šˆ‘Š’kˆõ'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: No aggregated data found
+[ERROR] 1Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+
+[26/30] ‰îŒìE ~ •x‰ªs ... [JOB_TYPE] Changing from '¶Šˆ‘Š’kˆõ' to '‰îŒìE'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 89 distance records, mean=26.1
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[27/30] ŠÅŒìt ~ •x‰ªs ... [JOB_TYPE] Changing from '‰îŒìE' to 'ŠÅŒìt'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 89 distance records, mean=26.1
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[28/30] •Ûˆçm ~ •x‰ªs ... [JOB_TYPE] Changing from 'ŠÅŒìt' to '•Ûˆçm'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 89 distance records, mean=26.1
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[29/30] ‰h—{m ~ •x‰ªs ... [JOB_TYPE] Changing from '•Ûˆçm' to '‰h—{m'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: Sampled 89 distance records, mean=26.1
+[ERROR] 2Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+    -> ‹£‡ƒf[ƒ^ƒGƒ‰[: slice(None, 3, None)
+
+[30/30] ¶Šˆ‘Š’kˆõ ~ •x‰ªs ... [JOB_TYPE] Changing from '‰h—{m' to '¶Šˆ‘Š’kˆõ'
+[JOB_TYPE] Cache cleared for job_type change
+[DB] get_distance_stats: No aggregated data found
+[ERROR] 1Œ
+    -> Šî–{“ŒvƒGƒ‰[: get_prefecture_stats() takes 1 positional argument but 2 were given
+
+================================================================================
+EíŠÔƒf[ƒ^”äŠrƒeƒXƒg
+================================================================================
+
+‘O‹´s: [JOB_TYPE] Changing from '¶Šˆ‘Š’kˆõ' to '‰îŒìE'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '‰îŒìE' to 'ŠÅŒìt'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from 'ŠÅŒìt' to '•Ûˆçm'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '•Ûˆçm' to '‰h—{m'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '‰h—{m' to '¶Šˆ‘Š’kˆõ'
+[JOB_TYPE] Cache cleared for job_type change
+[OK] ‰îŒìE=1077, ŠÅŒìt=1566, •Ûˆçm=767, ‰h—{m=260, ¶Šˆ‘Š’kˆõ=690
+
+‚ès: [JOB_TYPE] Changing from '¶Šˆ‘Š’kˆõ' to '‰îŒìE'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '‰îŒìE' to 'ŠÅŒìt'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from 'ŠÅŒìt' to '•Ûˆçm'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '•Ûˆçm' to '‰h—{m'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '‰h—{m' to '¶Šˆ‘Š’kˆõ'
+[JOB_TYPE] Cache cleared for job_type change
+[OK] ‰îŒìE=966, ŠÅŒìt=1589, •Ûˆçm=639, ‰h—{m=247, ¶Šˆ‘Š’kˆõ=663
+
+‘¾“cs: [JOB_TYPE] Changing from '¶Šˆ‘Š’kˆõ' to '‰îŒìE'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '‰îŒìE' to 'ŠÅŒìt'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from 'ŠÅŒìt' to '•Ûˆçm'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '•Ûˆçm' to '‰h—{m'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '‰h—{m' to '¶Šˆ‘Š’kˆõ'
+[JOB_TYPE] Cache cleared for job_type change
+[OK] ‰îŒìE=750, ŠÅŒìt=1085, •Ûˆçm=626, ‰h—{m=285, ¶Šˆ‘Š’kˆõ=622
+
+‹Ë¶s: [JOB_TYPE] Changing from '¶Šˆ‘Š’kˆõ' to '‰îŒìE'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '‰îŒìE' to 'ŠÅŒìt'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from 'ŠÅŒìt' to '•Ûˆçm'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '•Ûˆçm' to '‰h—{m'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '‰h—{m' to '¶Šˆ‘Š’kˆõ'
+[JOB_TYPE] Cache cleared for job_type change
+[OK] ‰îŒìE=197, ŠÅŒìt=357, •Ûˆçm=136, ‰h—{m=64, ¶Šˆ‘Š’kˆõ=130
+
+À“cs: [JOB_TYPE] Changing from '¶Šˆ‘Š’kˆõ' to '‰îŒìE'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '‰îŒìE' to 'ŠÅŒìt'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from 'ŠÅŒìt' to '•Ûˆçm'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '•Ûˆçm' to '‰h—{m'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '‰h—{m' to '¶Šˆ‘Š’kˆõ'
+[JOB_TYPE] Cache cleared for job_type change
+[OK] ‰îŒìE=43, ŠÅŒìt=25, •Ûˆçm=3, ‰h—{m=23, ¶Šˆ‘Š’kˆõ=54
+
+•x‰ªs: [JOB_TYPE] Changing from '¶Šˆ‘Š’kˆõ' to '‰îŒìE'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '‰îŒìE' to 'ŠÅŒìt'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from 'ŠÅŒìt' to '•Ûˆçm'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '•Ûˆçm' to '‰h—{m'
+[JOB_TYPE] Cache cleared for job_type change
+[JOB_TYPE] Changing from '‰h—{m' to '¶Šˆ‘Š’kˆõ'
+[JOB_TYPE] Cache cleared for job_type change
+[OK] ‰îŒìE=144, ŠÅŒìt=130, •Ûˆçm=29, ‰h—{m=24, ¶Šˆ‘Š’kˆõ=165
+
+================================================================================
+ƒeƒXƒgƒTƒ}ƒŠ[
+================================================================================
+ƒeƒXƒgƒpƒ^[ƒ“”: 30
+ƒGƒ‰[”: 54
+Œx”: 0
+¬Œ÷—¦: -80.0%
+
+Ú×Œ‹‰Ê: C:\Users\fuji1\OneDrive\PythonƒXƒNƒŠƒvƒg•ÛŠÇ\job_medley_project\nicegui_app\test_gunma_results.json
