@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Force reload: 2025-12-24 v2 - Fix qualification retention count
+# Force reload: 2026-01-02 v3 - Turso介護職データ修正完了（613行追加）
 """
 ハイブリッドデータベースアクセスヘルパー（CSV + Turso + SQLite + PostgreSQL対応）
 
