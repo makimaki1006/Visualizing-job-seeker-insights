@@ -286,6 +286,7 @@ def set_current_job_type(job_type: str) -> None:
     次回クエリ時に新しい職種でデータが取得される。
     """
     global _current_job_type, _static_cache, _cache, _cache_time
+    global _preload_cache, _preload_status  # P0-3修正: プリロードキャッシュも追加
 
     if _current_job_type == job_type:
         print(f"[JOB_TYPE] Already set to: {job_type}")
@@ -302,7 +303,17 @@ def set_current_job_type(job_type: str) -> None:
     }
     _cache = {}
     _cache_time = {}
-    print(f"[JOB_TYPE] Cache cleared for job_type change")
+
+    # P0-3修正: プリロードキャッシュもクリア（メモリ管理とデータ整合性のため）
+    _preload_cache = {}
+    _preload_status = {
+        "loading": False,
+        "loaded": False,
+        "progress": 0,
+        "total": len(PREFECTURE_ORDER),
+        "errors": []
+    }
+    print(f"[JOB_TYPE] All caches cleared including _preload_cache for job_type change")
 
 
 def get_current_job_type() -> str:

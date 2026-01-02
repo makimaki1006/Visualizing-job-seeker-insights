@@ -455,8 +455,12 @@ def load_gap_data() -> pd.DataFrame:
 
     if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
         try:
-            log("[DATA] Loading GAP data from Turso (essential columns)...")
-            _gap_dataframe = query_turso(f"SELECT {GAP_COLUMNS} FROM job_seeker_data WHERE row_type = 'GAP'")
+            # P0-2修正: 職種フィルタを追加
+            job_type = get_current_job_type()
+            log(f"[DATA] Loading GAP data from Turso for job_type={job_type} (essential columns)...")
+            _gap_dataframe = query_turso(
+                f"SELECT {GAP_COLUMNS} FROM job_seeker_data WHERE row_type = 'GAP' AND job_type = '{job_type}'"
+            )
             log(f"[DATA] Loaded {len(_gap_dataframe):,} GAP rows from Turso")
             # Ensure numeric columns
             for col in ["demand_count", "supply_count", "gap", "demand_supply_ratio"]:
@@ -922,6 +926,8 @@ def dashboard_page() -> None:
 
     # Container reference for municipality dropdown rebuild
     muni_container = None
+    # Global reference to municipality selector for map click sync
+    _muni_select_ref = None
 
     def _get_event_value(e, widget):
         """extract value from NiceGUI event; fallback to widget.value."""
@@ -935,6 +941,7 @@ def dashboard_page() -> None:
 
     def create_municipality_dropdown():
         """Create municipality dropdown with proper event binding."""
+        nonlocal _muni_select_ref
         current_pref = state.get("prefecture", "全国")
         options = get_municipality_options(current_pref)
         current_muni = state.get("municipality", "すべて")
@@ -965,6 +972,8 @@ def dashboard_page() -> None:
             'color="white" '
             'popup-content-class="bg-grey-9 text-white"'
         ).style("min-width: 180px;")
+        # Save reference for map click sync
+        _muni_select_ref = muni_select
         return muni_select
 
     async def on_pref_select(e):
@@ -998,10 +1007,14 @@ def dashboard_page() -> None:
 
             async def on_job_type_change(e):
                 """職種変更時のハンドラ - db_helperの職種を切り替えてデータ再読み込み"""
+                global _gap_dataframe  # P0-1修正: GAPキャッシュをクリアするためglobal宣言
                 new_job_type = _get_event_value(e, job_type_select)
                 if new_job_type is not None and new_job_type != state.get("job_type"):
                     state["job_type"] = new_job_type
                     log(f"[UI] job_type change -> {new_job_type}")
+                    # P0-1修正: main.pyのGAPキャッシュをクリア（重要！）
+                    _gap_dataframe = None
+                    log(f"[UI] Cleared _gap_dataframe cache for job_type change")
                     # db_helperの職種を切り替え（キャッシュクリア含む）
                     set_current_job_type(new_job_type)
                     ui.notify(f"職種を「{new_job_type}」に切り替えました", type="positive")
@@ -3048,6 +3061,13 @@ def dashboard_page() -> None:
                                     if clicked_muni in valid_munis:
                                         print(f"[CHOROPLETH] Clicked: {clicked_muni} at ({lat}, {lng})")
                                         state["municipality"] = clicked_muni
+                                        # サイドバーのセレクターと同期
+                                        if _muni_select_ref is not None:
+                                            try:
+                                                _muni_select_ref.set_value(clicked_muni)
+                                            except Exception as ex:
+                                                print(f"[CHOROPLETH] Selector sync failed: {ex}")
+                                        ui.notify(f"市区町村: {clicked_muni}", type="info", position="top")
                                         show_content.refresh()
                                     else:
                                         # データベースに存在しない市区町村をクリックした場合
@@ -3082,9 +3102,10 @@ def dashboard_page() -> None:
                             flows_data = get_flow_lines(pref)
                             for flow in flows_data[:50]:
                                 weight = min(max(flow['count'] / 100, 1), 8)
+                                # Leaflet polyline形式: [[lat1, lng1], [lat2, lng2]]
                                 map_widget.generic_layer(
                                     name='polyline',
-                                    args=[[[(flow['from_lat'], flow['from_lng']), (flow['to_lat'], flow['to_lng'])]], {'color': '#3b82f6', 'weight': weight, 'opacity': 0.6}]
+                                    args=[[[flow['from_lat'], flow['from_lng']], [flow['to_lat'], flow['to_lng']]], {'color': '#3b82f6', 'weight': weight, 'opacity': 0.6}]
                                 )
 
                         legend_items = [
@@ -3096,10 +3117,38 @@ def dashboard_page() -> None:
                         data_summary = [f"表示マーカー: {len(markers_data) if markers_data else 0}件"]
 
                     elif mode_val == "流入元":
-                        # 流入元可視化: 選択都道府県への流入元を色分け
+                        # 流入元可視化: 選択都道府県/市区町村への流入元を色分け + 矢印
                         if pref:
-                            muni = state.get("municipality") if state.get("municipality") != "全て" else None
+                            muni = state.get("municipality") if state.get("municipality") not in ["全て", "すべて"] else None
                             inflow_data = get_inflow_sources(pref, muni, ws_val, age_val, gender_val)
+
+                            # ターゲット（選択市区町村）の座標を取得
+                            target_lat, target_lng = None, None
+                            if muni and markers_data:
+                                # 市区町村名で検索（名前変換候補も含む）
+                                muni_variants = set(generate_name_variants(muni))
+                                for m in markers_data:
+                                    if m.get('municipality') in muni_variants:
+                                        lat = m.get('lat')
+                                        lng = m.get('lng')
+                                        # 座標が有効な場合のみ採用
+                                        if lat is not None and lng is not None:
+                                            target_lat, target_lng = lat, lng
+                                            break
+                            # 市区町村が見つからない場合は都道府県の代表点を使用
+                            if target_lat is None and markers_data:
+                                for m in markers_data:
+                                    if m.get('prefecture') == pref:
+                                        lat = m.get('lat')
+                                        lng = m.get('lng')
+                                        # 座標が有効な場合のみ採用
+                                        if lat is not None and lng is not None:
+                                            target_lat, target_lng = lat, lng
+                                            break
+                            # それでも見つからない場合は都道府県中心点を使用
+                            if target_lat is None:
+                                pref_center = get_pref_center(pref)
+                                target_lat, target_lng = pref_center
 
                             if inflow_data:
                                 # countの分位数計算
@@ -3109,21 +3158,52 @@ def dashboard_page() -> None:
                                 p70 = max_count * 0.7
                                 p40 = max_count * 0.4
 
+                                # 流入矢印を描画（TOP20、ターゲット座標がある場合のみ）
+                                print(f"[DEBUG] Flow arrows: target=({target_lat}, {target_lng}), inflow_count={len(inflow_data)}")
+                                if target_lat and target_lng:
+                                    for idx, d in enumerate(inflow_data[:20]):
+                                        count = d['count']
+                                        # 線の太さはcountに比例（最小3px、最大6pxで視認性確保）
+                                        weight = min(max(count / max_count * 6, 3), 6)
+                                        # 色分け（グレー廃止 - 視認性確保）
+                                        if count >= p90:
+                                            line_color = '#ef4444'  # 赤
+                                        elif count >= p70:
+                                            line_color = '#f97316'  # オレンジ
+                                        elif count >= p40:
+                                            line_color = '#eab308'  # 黄
+                                        else:
+                                            line_color = '#fb923c'  # 薄オレンジ（視認性確保）
+
+                                        # 流入元 → ターゲットへの矢印線（TOP20のみ描画）
+                                        map_widget.generic_layer(
+                                            name='polyline',
+                                            args=[
+                                                [[d['lat'], d['lng']], [target_lat, target_lng]],
+                                                {
+                                                    'color': line_color,
+                                                    'weight': weight,
+                                                    'opacity': 0.95
+                                                }
+                                            ]
+                                        )
+
+                                # 流入元のマーカーを描画（サイズ縮小版）
                                 for d in inflow_data[:150]:
                                     count = d['count']
-                                    # 色分け
+                                    # 色分け（グレー廃止 - 視認性確保）
                                     if count >= p90:
                                         color = '#ef4444'  # 赤
-                                        radius = 15
+                                        radius = 7
                                     elif count >= p70:
                                         color = '#f97316'  # オレンジ
-                                        radius = 12
+                                        radius = 6
                                     elif count >= p40:
                                         color = '#eab308'  # 黄
-                                        radius = 9
+                                        radius = 5
                                     else:
-                                        color = '#9ca3af'  # 灰
-                                        radius = 6
+                                        color = '#fb923c'  # 薄オレンジ（視認性確保）
+                                        radius = 4
 
                                     map_widget.generic_layer(
                                         name='circleMarker',
@@ -3132,18 +3212,16 @@ def dashboard_page() -> None:
                                             'color': '#ffffff',
                                             'weight': 1,
                                             'fillColor': color,
-                                            'fillOpacity': 0.6
+                                            'fillOpacity': 0.7
                                         }]
                                     )
 
-                                # 選択地域をハイライト
-                                target_marker = next((m for m in markers_data if m.get('prefecture') == pref), None)
-                                if target_marker:
-                                    # 選択中の地域を緑色で強調
+                                # 選択地域（ターゲット）を緑色でハイライト
+                                if target_lat and target_lng:
                                     map_widget.generic_layer(
                                         name='circleMarker',
-                                        args=[[target_marker['lat'], target_marker['lng']], {
-                                            'radius': 15,
+                                        args=[[target_lat, target_lng], {
+                                            'radius': 10,
                                             'color': '#ffffff',
                                             'weight': 2,
                                             'fillColor': '#22c55e',
@@ -3151,7 +3229,14 @@ def dashboard_page() -> None:
                                         }]
                                     )
 
-                            legend_items = ["赤: 主要流入元（上位10%）", "オレンジ: 重要流入元", "黄: 中程度", "灰: 少数"]
+                            legend_items = [
+                                "緑●: 選択地域（流入先）",
+                                "━→: 流入矢印（TOP20）",
+                                "赤●: 主要流入元（上位10%）",
+                                "橙●: 重要流入元",
+                                "黄●: 中程度",
+                                "薄橙●: 少数"
+                            ]
                             top3 = inflow_data[:3] if inflow_data else []
                             top3_text = ', '.join([f"{d['source_pref']}{d['source_muni']}({d['count']}人)" for d in top3])
                             data_summary = [f"流入元: {len(inflow_data) if inflow_data else 0}地域", f"TOP3: {top3_text}"]
@@ -3166,7 +3251,7 @@ def dashboard_page() -> None:
                         if balance_data:
                             for d in balance_data[:150]:
                                 ratio = d['ratio']
-                                # 色分け（青=流入優位、赤=流出優位）
+                                # 色分け（青=流入優位、緑=均衡、赤=流出優位）
                                 if ratio > 0.65:
                                     color = '#1d4ed8'  # 濃い青
                                     radius = 12
@@ -3174,8 +3259,8 @@ def dashboard_page() -> None:
                                     color = '#60a5fa'  # 薄い青
                                     radius = 10
                                 elif ratio > 0.45:
-                                    color = '#9ca3af'  # 灰
-                                    radius = 8
+                                    color = '#22c55e'  # 緑（均衡・視認性確保）
+                                    radius = 9
                                 elif ratio > 0.35:
                                     color = '#f87171'  # 薄い赤
                                     radius = 10
@@ -3195,7 +3280,7 @@ def dashboard_page() -> None:
                                     }]
                                 )
 
-                        legend_items = ["濃青: 流入優位（>65%）", "薄青: やや流入優位", "灰: バランス", "薄赤: やや流出優位", "濃赤: 流出優位（<35%）"]
+                        legend_items = ["濃青: 流入優位（>65%）", "薄青: やや流入優位", "緑: バランス", "薄赤: やや流出優位", "濃赤: 流出優位（<35%）"]
                         inflow_areas = len([d for d in balance_data if d['ratio'] > 0.55]) if balance_data else 0
                         outflow_areas = len([d for d in balance_data if d['ratio'] < 0.45]) if balance_data else 0
                         data_summary = [f"流入優位: {inflow_areas}地域", f"流出優位: {outflow_areas}地域"]
@@ -3220,8 +3305,8 @@ def dashboard_page() -> None:
                                         color = '#eab308'  # 黄
                                         radius = 9
                                     else:
-                                        color = '#9ca3af'  # 灰
-                                        radius = 6
+                                        color = '#fb923c'  # 薄オレンジ（視認性確保）
+                                        radius = 7
 
                                     # 競合地域を円形マーカーで表示
                                     map_widget.generic_layer(
@@ -3250,7 +3335,7 @@ def dashboard_page() -> None:
                                         }]
                                     )
 
-                            legend_items = ["赤: 強い競合（>20%）", "オレンジ: 中程度（10-20%）", "黄: 弱い競合（5-10%）", "灰: ほぼ競合なし"]
+                            legend_items = ["赤: 強い競合（>20%）", "オレンジ: 中程度（10-20%）", "黄: 弱い競合（5-10%）", "薄橙: ほぼ競合なし"]
                             top3 = competing_data[:3] if competing_data else []
                             top3_text = ', '.join([f"{d['target_pref']}({d['percentage']:.1f}%)" for d in top3])
                             data_summary = [f"競合地域: {len(competing_data) if competing_data else 0}地域", f"TOP3: {top3_text}"]
@@ -3282,8 +3367,14 @@ def dashboard_page() -> None:
 
                                 # 流入・流出データ（モードに応じて）
                                 if mode_val in ["流入元", "流出/流入バランス"]:
-                                    inflow = muni_marker.get('inflow', 0)
-                                    outflow = muni_marker.get('outflow', 0)
+                                    # inflow_dataから実際の流入数を計算
+                                    try:
+                                        inflow_sources = get_inflow_sources(pref, selected_muni, ws_val, age_val, gender_val)
+                                        inflow = sum(d.get('count', 0) for d in inflow_sources) if inflow_sources else 0
+                                    except Exception:
+                                        inflow = 0
+                                    # TODO: outflowは別途実装が必要（現在はデータなし）
+                                    outflow = 0
                                     net_flow = inflow - outflow
 
                                     with ui.element("div").classes("mb-3"):
