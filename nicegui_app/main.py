@@ -420,53 +420,50 @@ def load_data() -> pd.DataFrame:
     return pd.DataFrame()
 
 
-# GAP data cache
-_gap_dataframe: pd.DataFrame | None = None
+# GAP data cache (都道府県別キャッシュ)
+_gap_cache: dict[str, pd.DataFrame] = {}
 
 
-def load_gap_data() -> pd.DataFrame:
+def load_gap_data(pref: str | None = None) -> pd.DataFrame:
     """Load GAP row_type data from Turso for supply/demand balance analysis.
 
-    戦略:
-    - 初回ロード: 必要カラムのみ（タイムアウト回避）
-    - バックグラウンド: 全カラムをロード（db_helper側で実行）
+    2026-01-03 最適化: 都道府県別にクエリを分割（タイムアウト回避）
+    - 全国データを一度に取得すると502タイムアウトが発生
+    - 都道府県を指定することで軽量なクエリに分割
     """
-    global _gap_dataframe
-    if _gap_dataframe is not None:
-        return _gap_dataframe
+    global _gap_cache
 
-    # 事前ロードキャッシュをチェック（バックグラウンドロード完了時）
-    if _DB_HELPER_AVAILABLE:
-        try:
-            preloaded = get_preloaded_data(row_type='GAP')
-            if not preloaded.empty:
-                _gap_dataframe = preloaded
-                log(f"[DATA] Using preload cache for GAP: {len(_gap_dataframe):,} rows")
-                # Ensure numeric columns
-                for col in ["demand_count", "supply_count", "gap", "demand_supply_ratio"]:
-                    if col in _gap_dataframe.columns:
-                        _gap_dataframe[col] = pd.to_numeric(_gap_dataframe[col], errors="coerce")
-                return _gap_dataframe
-        except Exception as e:
-            log(f"[DATA] GAP preload cache check failed: {e}")
+    # キャッシュキーを生成
+    job_type = get_current_job_type()
+    cache_key = f"{job_type}_{pref or 'ALL'}"
 
-    # 初回ロード: 需給バランス分析に必要なカラムのみ取得
+    if cache_key in _gap_cache and not _gap_cache[cache_key].empty:
+        return _gap_cache[cache_key]
+
+    # 必要カラムのみ取得
     GAP_COLUMNS = "prefecture, municipality, row_type, demand_count, supply_count, gap, demand_supply_ratio"
 
     if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
         try:
-            # P0-2修正: 職種フィルタを追加
-            job_type = get_current_job_type()
-            log(f"[DATA] Loading GAP data from Turso for job_type={job_type} (essential columns)...")
-            _gap_dataframe = query_turso(
-                f"SELECT {GAP_COLUMNS} FROM job_seeker_data WHERE row_type = 'GAP' AND job_type = '{job_type}'"
-            )
-            log(f"[DATA] Loaded {len(_gap_dataframe):,} GAP rows from Turso")
+            # 都道府県フィルタ付きクエリ（タイムアウト回避）
+            if pref and pref != "全国":
+                sql = f"SELECT {GAP_COLUMNS} FROM job_seeker_data WHERE row_type = 'GAP' AND job_type = '{job_type}' AND prefecture = '{pref}'"
+                log(f"[DATA] Loading GAP data from Turso for job_type={job_type}, pref={pref}...")
+            else:
+                # 全国の場合も実行するが、タイムアウトリスクあり
+                sql = f"SELECT {GAP_COLUMNS} FROM job_seeker_data WHERE row_type = 'GAP' AND job_type = '{job_type}'"
+                log(f"[DATA] Loading GAP data from Turso for job_type={job_type} (全国)...")
+
+            result_df = query_turso(sql)
+            log(f"[DATA] Loaded {len(result_df):,} GAP rows from Turso")
+
             # Ensure numeric columns
             for col in ["demand_count", "supply_count", "gap", "demand_supply_ratio"]:
-                if col in _gap_dataframe.columns:
-                    _gap_dataframe[col] = pd.to_numeric(_gap_dataframe[col], errors="coerce")
-            return _gap_dataframe
+                if col in result_df.columns:
+                    result_df[col] = pd.to_numeric(result_df[col], errors="coerce")
+
+            _gap_cache[cache_key] = result_df
+            return result_df
         except Exception as exc:
             log(f"[DATA] GAP data load failed: {exc}")
             return pd.DataFrame()
@@ -475,7 +472,8 @@ def load_gap_data() -> pd.DataFrame:
 
 def get_gap_stats(pref: str | None = None, muni: str | None = None) -> dict:
     """Get supply/demand gap statistics for the balance tab (Reflex完全再現)."""
-    gap_df = load_gap_data()
+    # 2026-01-03: 都道府県パラメータを渡してタイムアウト回避
+    gap_df = load_gap_data(pref)
     if gap_df.empty:
         return {"demand": 0, "supply": 0, "gap": 0, "ratio": 0, "shortage_count": 0, "surplus_count": 0}
 
@@ -509,7 +507,8 @@ def get_gap_rankings(pref: str | None = None, limit: int = 10) -> dict:
 
     NOTE: 市区町村を選択しても、同じ都道府県内のランキングが表示される（Reflex版仕様）。
     """
-    gap_df = load_gap_data()
+    # 2026-01-03: 都道府県パラメータを渡してタイムアウト回避
+    gap_df = load_gap_data(pref)
     if gap_df.empty:
         return {"shortage": [], "surplus": [], "ratio": []}
 
@@ -1007,14 +1006,14 @@ def dashboard_page() -> None:
 
             async def on_job_type_change(e):
                 """職種変更時のハンドラ - db_helperの職種を切り替えてデータ再読み込み"""
-                global _gap_dataframe  # P0-1修正: GAPキャッシュをクリアするためglobal宣言
+                global _gap_cache  # 2026-01-03: 辞書型キャッシュに変更
                 new_job_type = _get_event_value(e, job_type_select)
                 if new_job_type is not None and new_job_type != state.get("job_type"):
                     state["job_type"] = new_job_type
                     log(f"[UI] job_type change -> {new_job_type}")
-                    # P0-1修正: main.pyのGAPキャッシュをクリア（重要！）
-                    _gap_dataframe = None
-                    log(f"[UI] Cleared _gap_dataframe cache for job_type change")
+                    # 2026-01-03: GAPキャッシュをクリア（都道府県別キャッシュ対応）
+                    _gap_cache.clear()
+                    log(f"[UI] Cleared _gap_cache for job_type change")
                     # db_helperの職種を切り替え（キャッシュクリア含む）
                     set_current_job_type(new_job_type)
                     ui.notify(f"職種を「{new_job_type}」に切り替えました", type="positive")

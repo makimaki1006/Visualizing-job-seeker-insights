@@ -3393,7 +3393,12 @@ def get_workstyle_mobility_data(prefecture: str = None, municipality: str = None
             # 2025-12-31 修正: CSVモードでもjob_typeフィルタを追加
             filtered = df[(df['row_type'] == 'WORKSTYLE_MOBILITY') & (df['job_type'] == job_type)]
         else:
-            sql = "SELECT * FROM job_seeker_data WHERE job_type = ? AND row_type = 'WORKSTYLE_MOBILITY'"
+            # 2026-01-03 最適化: SELECT * → 必要カラムのみ取得（タイムアウト回避）
+            sql = """
+                SELECT prefecture, municipality, category1, category2, count, avg_reference_distance_km
+                FROM job_seeker_data
+                WHERE job_type = ? AND row_type = 'WORKSTYLE_MOBILITY'
+            """
             filtered = query_df(sql, (job_type,))
 
         if filtered.empty:
@@ -3414,6 +3419,20 @@ def get_workstyle_mobility_data(prefecture: str = None, municipality: str = None
         filtered['avg_reference_distance_km'] = pd.to_numeric(
             filtered['avg_reference_distance_km'], errors='coerce'
         ).fillna(0)
+
+        # 2026-01-03 追加: 移動パターン表記の正規化（地元希望→地元志向など）
+        mobility_normalize = {
+            "地元希望": "地元志向",
+            "近隣移動": "近隣移動",
+            "中距離移動": "中距離移動",
+            "遠距離移動": "遠距離移動",
+            "中距離": "中距離移動",
+            "遠距離": "遠距離移動",
+        }
+        if 'category2' in filtered.columns:
+            filtered['category2'] = filtered['category2'].apply(
+                lambda x: mobility_normalize.get(x, x) if pd.notna(x) else x
+            )
 
         # 集計（category1 = 雇用形態, category2 = 移動タイプ）
         result = []
@@ -3653,46 +3672,37 @@ def get_inflow_sources(
         print(f"[DB] get_inflow_sources: target={target_prefecture}/{target_municipality}, filters={workstyle}/{age_group}/{gender}")
         job_type = _current_job_type
 
+        # 2026-01-03 最適化: SELECT * → 必要カラムのみ、都道府県フィルタをSQLに含める（タイムアウト回避）
+        INFLOW_COLUMNS = "prefecture, municipality, desired_prefecture, desired_municipality, count, category1, category2"
+
         if USE_CSV_MODE:
             df = _load_csv_data()
             # 2025-12-31 修正: CSVモードでもjob_typeフィルタを追加
             filtered = df[(df['row_type'] == 'RESIDENCE_FLOW') & (df['job_type'] == job_type)]
+            # 希望勤務地（target）でフィルタ
+            if 'desired_prefecture' in filtered.columns:
+                filtered = filtered[filtered['desired_prefecture'] == target_prefecture]
+            if target_municipality and target_municipality != "全て" and 'desired_municipality' in filtered.columns:
+                filtered = filtered[filtered['desired_municipality'] == target_municipality]
         else:
-            filtered = query_df(
-                "SELECT * FROM job_seeker_data WHERE job_type = ? AND row_type = 'RESIDENCE_FLOW'",
-                (job_type,)
-            )
+            # SQLで都道府県フィルタを直接適用（クエリ軽量化）
+            if target_municipality and target_municipality != "全て":
+                sql = f"SELECT {INFLOW_COLUMNS} FROM job_seeker_data WHERE job_type = ? AND row_type = 'RESIDENCE_FLOW' AND desired_prefecture = ? AND desired_municipality = ?"
+                params = (job_type, target_prefecture, target_municipality)
+            else:
+                sql = f"SELECT {INFLOW_COLUMNS} FROM job_seeker_data WHERE job_type = ? AND row_type = 'RESIDENCE_FLOW' AND desired_prefecture = ?"
+                params = (job_type, target_prefecture)
+            filtered = query_df(sql, params)
 
         if filtered.empty:
             print("[DB] get_inflow_sources: No RESIDENCE_FLOW data")
             return []
-
-        # 希望勤務地（target）でフィルタ
-        # desired_prefecture = 希望勤務地都道府県（必須カラム）
-        # 注: category1は年齢層であり、都道府県ではないためfallbackとして使用不可
-        if 'desired_prefecture' in filtered.columns:
-            filtered = filtered[filtered['desired_prefecture'] == target_prefecture]
-        else:
-            print(f"[DB] get_inflow_sources: desired_prefecture column not found")
-            return []
-
-        if target_municipality and target_municipality != "全て":
-            # desired_municipality = 希望勤務地市区町村（必須カラム）
-            # 注: category2は性別であり、市区町村ではないためfallbackとして使用不可
-            if 'desired_municipality' in filtered.columns:
-                filtered = filtered[filtered['desired_municipality'] == target_municipality]
-            else:
-                print(f"[DB] get_inflow_sources: desired_municipality column not found")
-                return []
 
         # 属性フィルタ（category1=年齢層, category2=性別）
         if age_group and age_group != "全て" and 'category1' in filtered.columns:
             filtered = filtered[filtered['category1'] == age_group]
         if gender and gender != "全て" and 'category2' in filtered.columns:
             filtered = filtered[filtered['category2'] == gender]
-        # workstyleフィルタは別途対応が必要（RESIDENCE_FLOWには含まれない場合あり）
-        if workstyle and workstyle != "全て" and 'workstyle' in filtered.columns:
-            filtered = filtered[filtered['workstyle'] == workstyle]
 
         if filtered.empty:
             print("[DB] get_inflow_sources: Filtered data is empty")
