@@ -16,7 +16,7 @@ import gc
 import time
 from pathlib import Path
 from typing import List, Dict, Any
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 import httpx
 import pandas as pd
@@ -67,6 +67,8 @@ try:
         # 職種切り替え関数
         set_current_job_type,
         get_current_job_type,
+        # CSVモードフラグ
+        USE_CSV_MODE,
     )
     _DB_HELPER_AVAILABLE = True
     print("[STARTUP] db_helper.py loaded successfully")
@@ -99,11 +101,13 @@ except ImportError as e:
     DB_PREFECTURE_ORDER = []
     set_current_job_type = lambda job_type: None
     get_current_job_type = lambda: "介護職"
+    USE_CSV_MODE = True  # フォールバック時はCSVモード
 
 # コロプレスマップヘルパー（47都道府県GeoJSON対応）
 try:
     from choropleth_helper import (
         load_geojson,
+        load_multiple_geojson,
         get_pref_center,
         get_color_by_value,
         find_municipality_at_point,
@@ -115,6 +119,7 @@ except ImportError as e:
     _CHOROPLETH_AVAILABLE = False
     print(f"[STARTUP] choropleth_helper.py import failed: {e}")
     load_geojson = lambda pref: None
+    load_multiple_geojson = lambda prefs: None
     get_pref_center = lambda pref: (36.5, 138.0)
     get_color_by_value = lambda v, m, mode: "#9ca3af"
     find_municipality_at_point = lambda lat, lng, data: None
@@ -264,8 +269,13 @@ def generate_name_variants(name: str) -> list:
     Returns:
         GeoJSON名への変換候補リスト（元の名前含む）
     """
-    if not name:
+    # NaN値やNone、空文字列のチェック（pd.isna()でより堅牢に）
+    if pd.isna(name) or name is None or name == '':
         return []
+
+    # 文字列でない場合は変換（上記チェックを通過した非文字列型に対応）
+    if not isinstance(name, str):
+        name = str(name)
 
     candidates = [name]  # 元の名前も含める
 
@@ -379,8 +389,9 @@ def load_data() -> pd.DataFrame:
     # 初回ロード: 最小カラム（タイムアウト回避）
     ESSENTIAL_COLUMNS = "prefecture, municipality, row_type"
 
-    print(f"[DATA] TURSO_DATABASE_URL: {bool(TURSO_DATABASE_URL)}, TURSO_AUTH_TOKEN: {bool(TURSO_AUTH_TOKEN)}", flush=True)
-    if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
+    # CSVモードの場合はTursoを使わずにCSVから読み込む
+    print(f"[DATA] USE_CSV_MODE: {USE_CSV_MODE}, TURSO_DATABASE_URL: {bool(TURSO_DATABASE_URL)}, TURSO_AUTH_TOKEN: {bool(TURSO_AUTH_TOKEN)}", flush=True)
+    if not USE_CSV_MODE and TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
         try:
             print("[DATA] Attempting Turso load (essential columns)...", flush=True)
             log("[DATA] Loading from Turso (SUMMARY only, essential columns)...")
@@ -420,8 +431,9 @@ def load_data() -> pd.DataFrame:
     return pd.DataFrame()
 
 
-# GAP data cache (都道府県別キャッシュ)
-_gap_cache: dict[str, pd.DataFrame] = {}
+# GAP data cache (都道府県別キャッシュ) - LRU方式でメモリ管理
+_gap_cache: OrderedDict[str, pd.DataFrame] = OrderedDict()
+_GAP_CACHE_MAX_SIZE = 50  # LRU上限（メモリ超過防止）
 
 
 def load_gap_data(pref: str | None = None) -> pd.DataFrame:
@@ -438,6 +450,7 @@ def load_gap_data(pref: str | None = None) -> pd.DataFrame:
     cache_key = f"{job_type}_{pref or 'ALL'}"
 
     if cache_key in _gap_cache and not _gap_cache[cache_key].empty:
+        _gap_cache.move_to_end(cache_key)  # LRU: 最近使用したものを末尾に移動
         return _gap_cache[cache_key]
 
     # 必要カラムのみ取得
@@ -462,7 +475,11 @@ def load_gap_data(pref: str | None = None) -> pd.DataFrame:
                 if col in result_df.columns:
                     result_df[col] = pd.to_numeric(result_df[col], errors="coerce")
 
+            # LRU方式でキャッシュに追加（メモリ超過防止）
             _gap_cache[cache_key] = result_df
+            while len(_gap_cache) > _GAP_CACHE_MAX_SIZE:
+                removed_key, _ = _gap_cache.popitem(last=False)  # 最も古いものを削除
+                log(f"[CACHE] LRU evicted from _gap_cache: {removed_key}")
             return result_df
         except Exception as exc:
             log(f"[DATA] GAP data load failed: {exc}")
@@ -1123,12 +1140,15 @@ def dashboard_page() -> None:
                 female_total = kpi_stats.get("female_count", 0)
                 total_applicants = male_total + female_total
 
-                # 平均年齢は年齢分布から概算（加重平均）
-                age_dist = kpi_stats.get("age_distribution", {})
-                age_midpoints = {"20代": 25, "30代": 35, "40代": 45, "50代": 55, "60代": 65, "70歳以上": 75}
-                total_age_weighted = sum(age_dist.get(k, 0) * v for k, v in age_midpoints.items())
-                total_age_count = sum(age_dist.values())
-                avg_age_val = round(total_age_weighted / total_age_count, 1) if total_age_count > 0 else None
+                # 平均年齢はSUMMARYから直接取得（年代分布からの推定ではなく実データ）
+                avg_age_val = kpi_stats.get("avg_age")
+                # フォールバック: avg_ageがない場合は年齢分布から概算
+                if avg_age_val is None:
+                    age_dist = kpi_stats.get("age_distribution", {})
+                    age_midpoints = {"20代": 25, "30代": 35, "40代": 45, "50代": 55, "60代": 65, "70歳以上": 75}
+                    total_age_weighted = sum(age_dist.get(k, 0) * v for k, v in age_midpoints.items())
+                    total_age_count = sum(age_dist.values())
+                    avg_age_val = round(total_age_weighted / total_age_count, 1) if total_age_count > 0 else None
 
                 # === KPIカード（3列）：求職者数、平均年齢、男女比 ===
                 ui.label(f"KPI（{kpi_label}）").classes("text-sm font-semibold mb-2").style(f"color: {MUTED_COLOR}")
@@ -2303,7 +2323,7 @@ def dashboard_page() -> None:
                             ui.label("（").style(f"color: {MUTED_COLOR}; font-size: 0.9rem")
                             ui.label(state["prefecture"]).style(f"color: {ACCENT_5}; font-weight: bold; font-size: 0.9rem")
                             ui.label("内）").style(f"color: {MUTED_COLOR}; font-size: 0.9rem")
-                    ui.label("就業希望者数が居住者数を上回る市区町村（需要超過）").style(
+                    ui.label("働きたい人が住んでいる求職者より多い市区町村（人材流入傾向）").style(
                         f"color: {MUTED_COLOR}; font-size: 0.85rem; margin-bottom: 16px"
                     )
 
@@ -2349,7 +2369,7 @@ def dashboard_page() -> None:
                             ui.label("（").style(f"color: {MUTED_COLOR}; font-size: 0.9rem")
                             ui.label(state["prefecture"]).style(f"color: {SUCCESS_COLOR}; font-weight: bold; font-size: 0.9rem")
                             ui.label("内）").style(f"color: {MUTED_COLOR}; font-size: 0.9rem")
-                    ui.label("居住者数が就業希望者数を上回る市区町村（供給超過）").style(
+                    ui.label("住んでいる求職者が働きたい人より多い市区町村（人材流出傾向）").style(
                         f"color: {MUTED_COLOR}; font-size: 0.85rem; margin-bottom: 16px"
                     )
 
@@ -2904,8 +2924,26 @@ def dashboard_page() -> None:
                     polygon_stats = {"total": 0, "with_data": 0, "max_count": 0}  # 凡例用統計
                     geojson_data_for_click = None  # マップクリック用にGeoJSONを保持
 
+                    # 流入元モード用：先にinflow_dataを取得（ポリゴン表示と矢印表示で共有）
+                    inflow_data_cache = None
+                    if mode_val == "流入元" and pref:
+                        muni_for_inflow = state.get("municipality") if state.get("municipality") not in ["全て", "すべて"] else None
+                        ws_val = state.get("talentmap_workstyle")
+                        age_val = state.get("talentmap_age")
+                        gender_val = state.get("talentmap_gender")
+                        inflow_data_cache = get_inflow_sources(pref, muni_for_inflow, ws_val, age_val, gender_val)
+
                     if state["talentmap_show_polygons"] and pref and _CHOROPLETH_AVAILABLE:
-                        geojson_data = load_geojson(pref)
+                        # 流入元モードの場合、流入元都道府県のGeoJSONも読み込む
+                        if mode_val == "流入元" and inflow_data_cache:
+                            # 流入元の都道府県を取得（上位30件に限定して重複排除）
+                            source_prefs = list(dict.fromkeys([d['source_pref'] for d in inflow_data_cache[:30] if d.get('source_pref')]))
+                            # 選択した都道府県 + 流入元都道府県をマージ
+                            all_prefs = [pref] + [p for p in source_prefs if p != pref]
+                            geojson_data = load_multiple_geojson(all_prefs)
+                            print(f"[CHOROPLETH] 流入元モード: {len(all_prefs)} prefectures loaded")
+                        else:
+                            geojson_data = load_geojson(pref)
                         if geojson_data:
                             geojson_data_for_click = geojson_data  # クリックハンドラ用に保持
 
@@ -3119,7 +3157,8 @@ def dashboard_page() -> None:
                         # 流入元可視化: 選択都道府県/市区町村への流入元を色分け + 矢印
                         if pref:
                             muni = state.get("municipality") if state.get("municipality") not in ["全て", "すべて"] else None
-                            inflow_data = get_inflow_sources(pref, muni, ws_val, age_val, gender_val)
+                            # キャッシュされたinflow_dataを使用（ポリゴン表示で既に取得済み）
+                            inflow_data = inflow_data_cache if inflow_data_cache else get_inflow_sources(pref, muni, ws_val, age_val, gender_val)
 
                             # ターゲット（選択市区町村）の座標を取得
                             target_lat, target_lng = None, None
@@ -3157,13 +3196,26 @@ def dashboard_page() -> None:
                                 p70 = max_count * 0.7
                                 p40 = max_count * 0.4
 
-                                # 流入矢印を描画（TOP20、ターゲット座標がある場合のみ）
+                                # 流入矢印を描画（TOP5、ターゲット座標がある場合のみ）
+                                # 改善: 本数削減・透明度低下・細線化で視認性向上
                                 print(f"[DEBUG] Flow arrows: target=({target_lat}, {target_lng}), inflow_count={len(inflow_data)}")
                                 if target_lat and target_lng:
-                                    for idx, d in enumerate(inflow_data[:20]):
+                                    for idx, d in enumerate(inflow_data[:5]):  # TOP5に削減
                                         count = d['count']
-                                        # 線の太さはcountに比例（最小3px、最大6pxで視認性確保）
-                                        weight = min(max(count / max_count * 6, 3), 6)
+                                        # 順位に応じた透明度・太さ（全体的に細く）
+                                        if idx < 2:
+                                            # TOP2: 強調表示
+                                            opacity = 0.6
+                                            weight = min(max(count / max_count * 2, 1), 2)
+                                        elif idx < 4:
+                                            # TOP3-4: 中程度
+                                            opacity = 0.4
+                                            weight = min(max(count / max_count * 1.5, 0.8), 1.5)
+                                        else:
+                                            # TOP5: 控えめ
+                                            opacity = 0.25
+                                            weight = min(max(count / max_count * 1.2, 0.6), 1.2)
+
                                         # 色分け（グレー廃止 - 視認性確保）
                                         if count >= p90:
                                             line_color = '#ef4444'  # 赤
@@ -3182,7 +3234,7 @@ def dashboard_page() -> None:
                                                 {
                                                     'color': line_color,
                                                     'weight': weight,
-                                                    'opacity': 0.95
+                                                    'opacity': opacity
                                                 }
                                             ]
                                         )
@@ -3230,7 +3282,7 @@ def dashboard_page() -> None:
 
                             legend_items = [
                                 "緑●: 選択地域（流入先）",
-                                "━→: 流入矢印（TOP20）",
+                                "━→: 流入矢印（TOP5）",
                                 "赤●: 主要流入元（上位10%）",
                                 "橙●: 重要流入元",
                                 "黄●: 中程度",
@@ -3508,7 +3560,8 @@ def dashboard_page() -> None:
         tab_buttons = []
 
         def create_tab_click_handler(tab_id: str):
-            def handler():
+            async def handler():
+                # NiceGUIはasync handlerを推奨（WebSocket接続維持のため）
                 state["tab"] = tab_id
                 for btn, btn_id in tab_buttons:
                     if btn_id == tab_id:
