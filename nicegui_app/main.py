@@ -2311,6 +2311,115 @@ def dashboard_page() -> None:
                             ui.label(f"{formatted}{unit}").classes("text-2xl font-bold").style(f"color: {PRIMARY_COLOR}")
 
                 # ==========================================
+                # 流入元×GAP分析（市区町村選択時のみ）
+                # ==========================================
+                if muni_val and muni_val != "すべて":
+                    with ui.card().style(
+                        f"background-color: {CARD_BG}; border: 1px solid {BORDER_COLOR}; "
+                        f"border-radius: 12px; padding: 24px; margin-top: 24px; width: 100%"
+                    ):
+                        ui.label("📍 流入元地域の需給状況").classes("text-lg font-bold mb-2").style(f"color: {TEXT_COLOR}")
+                        ui.label("この地域で働きたい人がどこから来るか、その地域の人材余剰状況を分析").style(
+                            f"color: {MUTED_COLOR}; font-size: 0.85rem; margin-bottom: 16px"
+                        )
+
+                        # 流入元を取得（db_helperの既存関数）
+                        from db_helper import get_inflow_sources
+                        inflow_sources = get_inflow_sources(pref_val, muni_val)
+
+                        if inflow_sources:
+                            # 流入元の都道府県ごとにGAPデータを取得（キャッシュ活用）
+                            gap_by_source = []
+                            pref_gap_cache = {}  # 都道府県別GAPキャッシュ（ローカル）
+
+                            for source in inflow_sources[:10]:  # 上位10件
+                                source_pref = source.get("source_pref", "")
+                                source_muni = source.get("source_muni", "")
+                                flow_count = source.get("count", 0)
+
+                                if not source_pref or not source_muni:
+                                    continue
+
+                                # 都道府県のGAPデータを取得（キャッシュ活用）
+                                if source_pref not in pref_gap_cache:
+                                    pref_gap_cache[source_pref] = load_gap_data(source_pref)
+
+                                gap_df = pref_gap_cache[source_pref]
+                                source_gap = 0
+                                source_demand = 0
+                                source_supply = 0
+
+                                if not gap_df.empty:
+                                    muni_row = gap_df[gap_df["municipality"] == source_muni]
+                                    if not muni_row.empty:
+                                        source_gap = float(muni_row["gap"].iloc[0] or 0)
+                                        source_demand = float(muni_row["demand_count"].iloc[0] or 0)
+                                        source_supply = float(muni_row["supply_count"].iloc[0] or 0)
+
+                                gap_by_source.append({
+                                    "pref": source_pref,
+                                    "muni": source_muni,
+                                    "flow_count": flow_count,
+                                    "gap": source_gap,
+                                    "demand": source_demand,
+                                    "supply": source_supply
+                                })
+
+                            if gap_by_source:
+                                # テーブルヘッダー
+                                with ui.row().classes("w-full items-center py-2").style(
+                                    f"border-bottom: 1px solid {BORDER_COLOR}; background-color: rgba(255,255,255,0.03)"
+                                ):
+                                    ui.label("流入元地域").classes("text-sm font-semibold").style(f"color: {MUTED_COLOR}; width: 180px")
+                                    ui.label("流入数").classes("text-sm font-semibold text-right").style(f"color: {MUTED_COLOR}; width: 80px")
+                                    ui.label("GAP").classes("text-sm font-semibold text-right").style(f"color: {MUTED_COLOR}; width: 80px")
+                                    ui.label("示唆").classes("text-sm font-semibold").style(f"color: {MUTED_COLOR}; width: 160px; margin-left: 16px")
+
+                                # テーブル行
+                                for item in gap_by_source:
+                                    gap_val = item["gap"]
+                                    # 示唆テキストと色を決定
+                                    if gap_val < -100:
+                                        hint_text = "✅ 人材余剰→狙い目"
+                                        hint_color = SUCCESS_COLOR
+                                    elif gap_val < 0:
+                                        hint_text = "○ やや余剰"
+                                        hint_color = "#10b981"
+                                    elif gap_val > 100:
+                                        hint_text = "⚠️ 競合地域"
+                                        hint_color = WARNING_COLOR
+                                    else:
+                                        hint_text = "△ 均衡"
+                                        hint_color = MUTED_COLOR
+
+                                    with ui.row().classes("w-full items-center py-2").style(
+                                        f"border-bottom: 1px solid {BORDER_COLOR}"
+                                    ):
+                                        # 地域名
+                                        with ui.column().style("width: 180px"):
+                                            ui.label(item["muni"]).classes("text-sm font-medium").style(f"color: {TEXT_COLOR}")
+                                            ui.label(item["pref"]).classes("text-xs").style(f"color: {MUTED_COLOR}")
+                                        # 流入数
+                                        ui.label(f"{item['flow_count']:,}人").classes("text-sm text-right").style(f"color: {PRIMARY_COLOR}; width: 80px")
+                                        # GAP
+                                        gap_color = SUCCESS_COLOR if gap_val < 0 else WARNING_COLOR if gap_val > 0 else MUTED_COLOR
+                                        gap_sign = "+" if gap_val > 0 else ""
+                                        ui.label(f"{gap_sign}{gap_val:,.0f}").classes("text-sm font-semibold text-right").style(f"color: {gap_color}; width: 80px")
+                                        # 示唆
+                                        ui.label(hint_text).classes("text-sm").style(f"color: {hint_color}; width: 160px; margin-left: 16px")
+
+                                # 凡例
+                                with ui.row().classes("w-full gap-4 mt-4 flex-wrap"):
+                                    ui.label("凡例:").classes("text-xs").style(f"color: {MUTED_COLOR}")
+                                    ui.label("GAP = 働きたい人 − 住んでいる求職者").classes("text-xs").style(f"color: {MUTED_COLOR}")
+                                    ui.label("負の値 = 人材余剰（採用しやすい）").classes("text-xs").style(f"color: {SUCCESS_COLOR}")
+                                    ui.label("正の値 = 人材不足（競合多い）").classes("text-xs").style(f"color: {WARNING_COLOR}")
+                            else:
+                                ui.label("流入元のGAPデータがありません").style(f"color: {MUTED_COLOR}; text-align: center; padding: 24px")
+                        else:
+                            ui.label("流入元データがありません（市区町村を選択してください）").style(f"color: {MUTED_COLOR}; text-align: center; padding: 24px")
+
+                # ==========================================
                 # 需要超過ランキング Top 10（横棒グラフ）
                 # ==========================================
                 with ui.card().style(
