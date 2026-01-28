@@ -2324,8 +2324,10 @@ def dashboard_page() -> None:
                         )
 
                         # 流入元を取得（db_helperの既存関数）
-                        from db_helper import get_inflow_sources
-                        inflow_sources = get_inflow_sources(pref_val, muni_val)
+                        from db_helper import get_inflow_sources, filter_realistic_flows
+                        inflow_sources_raw = get_inflow_sources(pref_val, muni_val)
+                        # 現実的な転職パターンのみにフィルタ（遠方ノイズ除去）
+                        inflow_sources = filter_realistic_flows(inflow_sources_raw, pref_val)
 
                         if inflow_sources:
                             # 流入元の都道府県ごとにGAPデータを取得（キャッシュ活用）
@@ -3003,7 +3005,7 @@ def dashboard_page() -> None:
                         ui.checkbox("フロー表示", value=state["talentmap_show_flows"], on_change=lambda e: update_filter("talentmap_show_flows", e.value)).style(f"color: {TEXT_COLOR}")
 
                 # 追加関数インポート
-                from db_helper import get_inflow_sources, get_flow_balance, get_competing_areas
+                from db_helper import get_inflow_sources, get_flow_balance, get_competing_areas, filter_realistic_flows
 
                 # フィルタ値取得（stateから読み込み）
                 ws_val = state["talentmap_workstyle"] if state["talentmap_workstyle"] != "全て" else None
@@ -3040,7 +3042,9 @@ def dashboard_page() -> None:
                         ws_val = state.get("talentmap_workstyle")
                         age_val = state.get("talentmap_age")
                         gender_val = state.get("talentmap_gender")
-                        inflow_data_cache = get_inflow_sources(pref, muni_for_inflow, ws_val, age_val, gender_val)
+                        inflow_data_raw = get_inflow_sources(pref, muni_for_inflow, ws_val, age_val, gender_val)
+                        # 現実的な転職パターンのみにフィルタ（遠方ノイズ除去）
+                        inflow_data_cache = filter_realistic_flows(inflow_data_raw, pref)
 
                     if state["talentmap_show_polygons"] and pref and _CHOROPLETH_AVAILABLE:
                         # 流入元モードの場合、流入元都道府県のGeoJSONも読み込む
@@ -3266,8 +3270,12 @@ def dashboard_page() -> None:
                         # 流入元可視化: 選択都道府県/市区町村への流入元を色分け + 矢印
                         if pref:
                             muni = state.get("municipality") if state.get("municipality") not in ["全て", "すべて"] else None
-                            # キャッシュされたinflow_dataを使用（ポリゴン表示で既に取得済み）
-                            inflow_data = inflow_data_cache if inflow_data_cache else get_inflow_sources(pref, muni, ws_val, age_val, gender_val)
+                            # キャッシュされたinflow_dataを使用（ポリゴン表示で既に取得済み、フィルタ適用済み）
+                            if inflow_data_cache:
+                                inflow_data = inflow_data_cache
+                            else:
+                                inflow_data_raw = get_inflow_sources(pref, muni, ws_val, age_val, gender_val)
+                                inflow_data = filter_realistic_flows(inflow_data_raw, pref)
 
                             # ターゲット（選択市区町村）の座標を取得
                             target_lat, target_lng = None, None
@@ -3527,9 +3535,10 @@ def dashboard_page() -> None:
 
                                 # 流入・流出データ（モードに応じて）
                                 if mode_val in ["流入元", "流出/流入バランス"]:
-                                    # inflow_dataから実際の流入数を計算
+                                    # inflow_dataから実際の流入数を計算（現実的なフローのみ）
                                     try:
-                                        inflow_sources = get_inflow_sources(pref, selected_muni, ws_val, age_val, gender_val)
+                                        inflow_sources_raw = get_inflow_sources(pref, selected_muni, ws_val, age_val, gender_val)
+                                        inflow_sources = filter_realistic_flows(inflow_sources_raw, pref)
                                         inflow = sum(d.get('count', 0) for d in inflow_sources) if inflow_sources else 0
                                     except Exception:
                                         inflow = 0

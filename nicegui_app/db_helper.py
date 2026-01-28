@@ -20,6 +20,7 @@ import httpx  # requests から置き換え（非同期対応）
 from pathlib import Path
 from typing import Optional, Union
 from datetime import datetime, timedelta
+from collections import OrderedDict
 
 print("=" * 60)
 print("[STARTUP] db_helper.py loading...")
@@ -68,6 +69,121 @@ print(f"[STARTUP] USE_CSV_MODE = {USE_CSV_MODE} (env: '{_csv_mode_env}', cloud: 
 # CSVファイル名
 CSV_FILENAME = "MapComplete_Complete_All_FIXED.csv"
 CSV_FILENAME_GZ = "MapComplete_Complete_All_FIXED.csv.gz"
+
+# =====================================
+# 隣接都道府県定義（転職・通勤の現実性フィルタ用）
+# =====================================
+# 基本隣接（県境を共有）
+ADJACENT_PREFECTURES = {
+    "北海道": ["青森県"],  # 青函トンネル
+    "青森県": ["北海道", "岩手県", "秋田県"],
+    "岩手県": ["青森県", "秋田県", "宮城県"],
+    "宮城県": ["岩手県", "秋田県", "山形県", "福島県"],
+    "秋田県": ["青森県", "岩手県", "宮城県", "山形県"],
+    "山形県": ["秋田県", "宮城県", "福島県", "新潟県"],
+    "福島県": ["宮城県", "山形県", "新潟県", "群馬県", "栃木県", "茨城県"],
+    "茨城県": ["福島県", "栃木県", "埼玉県", "千葉県"],
+    "栃木県": ["福島県", "茨城県", "群馬県", "埼玉県"],
+    "群馬県": ["福島県", "新潟県", "長野県", "埼玉県", "栃木県"],
+    "埼玉県": ["群馬県", "栃木県", "茨城県", "千葉県", "東京都", "山梨県", "長野県"],
+    "千葉県": ["茨城県", "埼玉県", "東京都"],
+    "東京都": ["埼玉県", "千葉県", "神奈川県", "山梨県"],
+    "神奈川県": ["東京都", "山梨県", "静岡県"],
+    "新潟県": ["山形県", "福島県", "群馬県", "長野県", "富山県"],
+    "富山県": ["新潟県", "長野県", "岐阜県", "石川県"],
+    "石川県": ["富山県", "岐阜県", "福井県"],
+    "福井県": ["石川県", "岐阜県", "滋賀県", "京都府"],
+    "山梨県": ["埼玉県", "東京都", "神奈川県", "長野県", "静岡県"],
+    "長野県": ["新潟県", "群馬県", "埼玉県", "山梨県", "静岡県", "愛知県", "岐阜県", "富山県"],
+    "岐阜県": ["富山県", "石川県", "福井県", "長野県", "愛知県", "三重県", "滋賀県"],
+    "静岡県": ["神奈川県", "山梨県", "長野県", "愛知県"],
+    "愛知県": ["静岡県", "長野県", "岐阜県", "三重県"],
+    "三重県": ["愛知県", "岐阜県", "滋賀県", "京都府", "奈良県", "和歌山県"],
+    "滋賀県": ["福井県", "岐阜県", "三重県", "京都府"],
+    "京都府": ["福井県", "滋賀県", "三重県", "奈良県", "大阪府", "兵庫県"],
+    "大阪府": ["京都府", "奈良県", "和歌山県", "兵庫県"],
+    "兵庫県": ["京都府", "大阪府", "鳥取県", "岡山県", "徳島県"],  # 徳島: 大鳴門橋
+    "奈良県": ["三重県", "京都府", "大阪府", "和歌山県"],
+    "和歌山県": ["三重県", "奈良県", "大阪府"],
+    "鳥取県": ["兵庫県", "岡山県", "島根県", "広島県"],
+    "島根県": ["鳥取県", "広島県", "山口県"],
+    "岡山県": ["兵庫県", "鳥取県", "広島県", "香川県"],  # 香川: 瀬戸大橋
+    "広島県": ["鳥取県", "島根県", "岡山県", "山口県", "愛媛県"],  # 愛媛: しまなみ海道
+    "山口県": ["島根県", "広島県", "福岡県"],  # 福岡: 関門トンネル
+    "徳島県": ["兵庫県", "香川県", "愛媛県", "高知県"],  # 兵庫: 大鳴門橋
+    "香川県": ["徳島県", "愛媛県", "岡山県"],  # 岡山: 瀬戸大橋
+    "愛媛県": ["徳島県", "香川県", "高知県", "広島県"],  # 広島: しまなみ海道
+    "高知県": ["徳島県", "愛媛県"],
+    "福岡県": ["山口県", "佐賀県", "熊本県", "大分県"],  # 山口: 関門トンネル
+    "佐賀県": ["福岡県", "長崎県"],
+    "長崎県": ["佐賀県"],
+    "熊本県": ["福岡県", "大分県", "宮崎県", "鹿児島県"],
+    "大分県": ["福岡県", "熊本県", "宮崎県"],
+    "宮崎県": ["大分県", "熊本県", "鹿児島県"],
+    "鹿児島県": ["熊本県", "宮崎県"],
+    "沖縄県": [],  # 離島
+}
+
+# 大都市圏への上京・転職を考慮した拡張（広域から受け入れ）
+METRO_EXTENDED = {
+    "東京都": ["茨城県", "栃木県", "群馬県", "静岡県", "長野県", "新潟県"],  # 首都圏広域
+    "大阪府": ["三重県", "岡山県", "徳島県", "香川県", "福井県"],  # 関西広域
+    "愛知県": ["滋賀県", "福井県", "石川県", "富山県"],  # 中部広域
+    "福岡県": ["長崎県", "宮崎県", "鹿児島県"],  # 九州広域
+    "神奈川県": ["静岡県"],  # 横浜広域
+    "埼玉県": ["茨城県", "栃木県", "群馬県"],  # さいたま広域
+    "千葉県": ["茨城県"],  # 千葉広域
+    "京都府": ["岡山県"],  # 京都広域
+    "兵庫県": ["岡山県", "香川県"],  # 神戸広域
+    "広島県": ["香川県"],  # 広島広域
+    "宮城県": ["岩手県", "福島県", "山形県"],  # 仙台広域
+    "北海道": [],  # 単独
+}
+
+
+def is_realistic_flow(source_pref: str, target_pref: str) -> bool:
+    """
+    流入元→流入先が現実的な転職・通勤パターンかを判定
+
+    Args:
+        source_pref: 流入元（居住地）の都道府県
+        target_pref: 流入先（希望勤務地）の都道府県
+
+    Returns:
+        True: 現実的（同一県、隣接県、大都市圏拡張に該当）
+        False: 非現実的（遠方からの転職）
+    """
+    # 同一県は常にOK
+    if source_pref == target_pref:
+        return True
+
+    # 基本隣接県
+    if source_pref in ADJACENT_PREFECTURES.get(target_pref, []):
+        return True
+
+    # 大都市圏拡張（target_prefが大都市の場合、広域から受け入れ）
+    if source_pref in METRO_EXTENDED.get(target_pref, []):
+        return True
+
+    return False
+
+
+def filter_realistic_flows(flows: list, target_pref: str) -> list:
+    """
+    流入元リストから非現実的なデータを除外
+
+    Args:
+        flows: [{"source_pref": "...", "source_muni": "...", ...}, ...]
+        target_pref: 流入先の都道府県
+
+    Returns:
+        現実的な流入元のみのリスト
+    """
+    return [
+        f for f in flows
+        if is_realistic_flow(f.get("source_pref", ""), target_pref)
+    ]
+
 
 # CSVデータのグローバルキャッシュ（起動時に1回だけ読み込み）
 _csv_dataframe: Optional[pd.DataFrame] = None
@@ -203,6 +319,13 @@ def _lazy_init_turso():
     """Turso接続を遅延初期化（最初のクエリ時に呼び出し）"""
     global _HAS_TURSO, _HAS_LIBSQL_CLIENT, _TURSO_INIT_ERROR, _TURSO_INITIALIZED, TURSO_DATABASE_URL
 
+    # CSVモードの場合はTursoを使わない
+    if USE_CSV_MODE:
+        print(f"[TURSO] Skipped: USE_CSV_MODE=True")
+        _HAS_TURSO = False
+        _TURSO_INITIALIZED = True
+        return False
+
     if _TURSO_INITIALIZED:
         return _HAS_TURSO
 
@@ -268,10 +391,15 @@ _max_cache_items = 100  # メモリ最適化: 100件に削減（Render 512MB対�
 _ttl_minutes = 30  # メモリ最適化: 30分に短縮
 
 # 永続キャッシュ（TTLなし、明示的にクリアするまで保持）
+# filtered_data: LRU方式でメモリ管理（2026-01-15追加）
+# batch_cache: batch_stats/batch_flow/batch_persona等のLRU制御（2026-01-15追加）
+_FILTERED_DATA_MAX_SIZE = 100  # LRU上限（メモリ超過防止）
+_BATCH_CACHE_MAX_SIZE = 200  # batch_stats等のLRU上限（市区町村単位キャッシュ）
 _static_cache: dict = {
     "prefectures": None,  # 都道府県リスト
     "municipalities": {},  # 都道府県→市区町村リストのマッピング
-    "filtered_data": {},  # prefecture_municipality → DataFrame
+    "filtered_data": OrderedDict(),  # prefecture_municipality → DataFrame（LRU制御）
+    "batch_cache": OrderedDict(),  # batch_stats/flow/persona等（LRU制御）
 }
 _cache_initialized: bool = False
 
@@ -299,7 +427,8 @@ def set_current_job_type(job_type: str) -> None:
     _static_cache = {
         "prefectures": None,
         "municipalities": {},
-        "filtered_data": {},
+        "filtered_data": OrderedDict(),  # LRU制御用にOrderedDict
+        "batch_cache": OrderedDict(),  # batch_stats等のLRU制御
     }
     _cache = {}
     _cache_time = {}
@@ -313,7 +442,11 @@ def set_current_job_type(job_type: str) -> None:
         "total": len(PREFECTURE_ORDER),
         "errors": []
     }
-    print(f"[JOB_TYPE] All caches cleared including _preload_cache for job_type change")
+
+    # メモリ解放（LRUキャッシュクリア後のガベージコレクション）
+    import gc
+    gc.collect()
+    print(f"[JOB_TYPE] All caches cleared + gc.collect() for job_type change to '{job_type}'")
 
 
 def get_current_job_type() -> str:
@@ -745,17 +878,41 @@ def _set_cache(key: str, data):
 def clear_cache():
     """全キャッシュをクリア（永続キャッシュ含む）+ ガベージコレクション"""
     import gc
-    global _cache, _cache_time, _static_cache, _cache_initialized
+    global _cache, _cache_time, _static_cache, _cache_initialized, _preload_cache
     _cache = {}
     _cache_time = {}
     _static_cache = {
         "prefectures": None,
         "municipalities": {},
-        "filtered_data": {},
+        "filtered_data": OrderedDict(),  # LRU制御用にOrderedDict
+        "batch_cache": OrderedDict(),  # batch_stats等のLRU制御
     }
+    _preload_cache = {}  # プリロードキャッシュもクリア（防御的実装）
     _cache_initialized = False
     gc.collect()  # メモリ解放
-    print("[CACHE] All cache cleared + gc.collect()")
+    print("[CACHE] All cache cleared (including _preload_cache, batch_cache) + gc.collect()")
+
+
+def _set_batch_cache(cache_key: str, value) -> None:
+    """batch_cacheにLRU制御付きで値を設定（メモリ超過防止）"""
+    global _static_cache
+    # 既存キーの場合は末尾に移動（LRU更新）
+    if cache_key in _static_cache["batch_cache"]:
+        _static_cache["batch_cache"].move_to_end(cache_key)
+    _static_cache["batch_cache"][cache_key] = value
+    # LRU eviction: 上限超過時に最も古いエントリを削除（空の場合は何もしない）
+    while len(_static_cache["batch_cache"]) > _BATCH_CACHE_MAX_SIZE and _static_cache["batch_cache"]:
+        removed_key, _ = _static_cache["batch_cache"].popitem(last=False)
+        print(f"[CACHE] LRU evicted from batch_cache: {removed_key}")
+
+
+def _get_batch_cache(cache_key: str):
+    """batch_cacheから値を取得（LRU更新付き）"""
+    global _static_cache
+    if cache_key in _static_cache.get("batch_cache", {}):
+        _static_cache["batch_cache"].move_to_end(cache_key)  # LRU: 最近使用を末尾に
+        return _static_cache["batch_cache"][cache_key]
+    return None
 
 
 def refresh_all_cache():
@@ -1013,8 +1170,9 @@ def query_municipality(prefecture: str, municipality: str = None) -> pd.DataFram
     job_type = _current_job_type
     cache_key = f"{job_type}_{prefecture}_{municipality or 'ALL'}"
 
-    # 永続キャッシュから取得
+    # 永続キャッシュから取得（LRU制御）
     if cache_key in _static_cache.get("filtered_data", {}):
+        _static_cache["filtered_data"].move_to_end(cache_key)  # LRU: 最近使用を末尾に
         cached = _static_cache["filtered_data"][cache_key]
         # キャッシュヒットログは抑制（ノイズ削減）
         return cached
@@ -1028,11 +1186,13 @@ def query_municipality(prefecture: str, municipality: str = None) -> pd.DataFram
         sql = "SELECT * FROM job_seeker_data WHERE job_type = ? AND prefecture = ?"
         df = query_df(sql, (job_type, prefecture))
 
-    # 永続キャッシュに保存
-    if "filtered_data" not in _static_cache:
-        _static_cache["filtered_data"] = {}
+    # 永続キャッシュに保存（LRU制御）
     _static_cache["filtered_data"][cache_key] = df
-    print(f"[DB] Cached {len(df)} rows for {cache_key} (persistent)")
+    # LRU eviction: 上限超過時に最も古いエントリを削除
+    while len(_static_cache["filtered_data"]) > _FILTERED_DATA_MAX_SIZE:
+        removed_key, _ = _static_cache["filtered_data"].popitem(last=False)
+        print(f"[CACHE] LRU evicted from filtered_data: {removed_key}")
+    print(f"[DB] Cached {len(df)} rows for {cache_key} (LRU, max={_FILTERED_DATA_MAX_SIZE})")
     return df
 
 
@@ -1056,8 +1216,9 @@ def get_filtered_data(prefecture: str, municipality: str = None) -> pd.DataFrame
     # 永続キャッシュキーを生成（job_type含む）
     cache_key = f"{job_type}_{prefecture}_{municipality or 'ALL'}"
 
-    # 永続キャッシュから取得
+    # 永続キャッシュから取得（LRU制御）
     if cache_key in _static_cache.get("filtered_data", {}):
+        _static_cache["filtered_data"].move_to_end(cache_key)  # LRU: 最近使用を末尾に
         cached = _static_cache["filtered_data"][cache_key]
         # キャッシュヒットログは抑制（ノイズ削減）
         return cached
@@ -1073,11 +1234,13 @@ def get_filtered_data(prefecture: str, municipality: str = None) -> pd.DataFrame
         if municipality:
             df = df[df['municipality'] == municipality]
         result = df.copy()
-        # 永続キャッシュに保存
-        if "filtered_data" not in _static_cache:
-            _static_cache["filtered_data"] = {}
+        # 永続キャッシュに保存（LRU制御）
         _static_cache["filtered_data"][cache_key] = result
-        print(f"[CSV] Cached {len(result)} rows for {cache_key} (persistent)")
+        # LRU eviction: 上限超過時に最も古いエントリを削除
+        while len(_static_cache["filtered_data"]) > _FILTERED_DATA_MAX_SIZE:
+            removed_key, _ = _static_cache["filtered_data"].popitem(last=False)
+            print(f"[CACHE] LRU evicted from filtered_data: {removed_key}")
+        print(f"[CSV] Cached {len(result)} rows for {cache_key} (LRU, max={_FILTERED_DATA_MAX_SIZE})")
         return result
     elif _HAS_TURSO:
         return query_municipality(prefecture, municipality)
@@ -1259,9 +1422,10 @@ def _batch_stats_query(prefecture: str = None, municipality: str = None) -> dict
     job_type = _current_job_type
     cache_key = f"batch_stats_{job_type}_{prefecture or 'ALL'}_{municipality or 'ALL'}"
 
-    # 1. 静的キャッシュから取得（既に計算済みの場合）
-    if cache_key in _static_cache:
-        return _static_cache[cache_key]
+    # 1. batch_cacheから取得（LRU制御付き）
+    cached = _get_batch_cache(cache_key)
+    if cached is not None:
+        return cached
 
     # 2. 事前ロードキャッシュから取得（全カラム、DBアクセス不要）
     # 注: _preload_cacheは後方で定義されるが、実行時には存在する
@@ -1289,8 +1453,8 @@ def _batch_stats_query(prefecture: str = None, municipality: str = None) -> dict
                         "RESIDENCE_FLOW": df_all[df_all["row_type"] == "RESIDENCE_FLOW"].copy(),
                         "AGE_GENDER": df_all[df_all["row_type"] == "AGE_GENDER"].copy()
                     }
-                    # 静的キャッシュにも保存（次回高速化）
-                    _static_cache[cache_key] = result
+                    # batch_cacheに保存（LRU制御付き）
+                    _set_batch_cache(cache_key, result)
                     print(f"[DB] Batch stats from preload cache: {cache_key}")
                     return result
     except Exception as e:
@@ -1338,8 +1502,8 @@ def _batch_stats_query(prefecture: str = None, municipality: str = None) -> dict
                 "AGE_GENDER": df_all[df_all["row_type"] == "AGE_GENDER"].copy()
             }
 
-        # 永続キャッシュに保存
-        _static_cache[cache_key] = result
+        # batch_cacheに保存（LRU制御付き）
+        _set_batch_cache(cache_key, result)
         print(f"[DB] Batch stats cached: {cache_key} (SUMMARY:{len(result['SUMMARY'])}, FLOW:{len(result['RESIDENCE_FLOW'])}, AGE:{len(result['AGE_GENDER'])})")
 
         return result
@@ -1371,10 +1535,10 @@ def _batch_flow_query(municipality: str) -> dict:
     job_type = _current_job_type
     cache_key = f"batch_flow_{job_type}_{municipality}"
 
-    # 永続キャッシュから取得
-    if cache_key in _static_cache:
-        # キャッシュヒットログは抑制（ノイズ削減）
-        return _static_cache[cache_key]
+    # batch_cacheから取得（LRU制御付き）
+    cached = _get_batch_cache(cache_key)
+    if cached is not None:
+        return cached
 
     print(f"[DB] Batch flow query for {municipality} (job_type={job_type})...")
 
@@ -1418,8 +1582,8 @@ def _batch_flow_query(municipality: str) -> dict:
 
         result = {"sources": sources, "destinations": destinations}
 
-        # 永続キャッシュに保存
-        _static_cache[cache_key] = result
+        # batch_cacheに保存（LRU制御付き）
+        _set_batch_cache(cache_key, result)
         print(f"[DB] Batch flow cached: {cache_key} (sources:{len(sources)}, destinations:{len(destinations)})")
 
         return result
@@ -1453,10 +1617,10 @@ def _batch_persona_query(prefecture: str = None, municipality: str = None) -> di
     job_type = _current_job_type
     cache_key = f"batch_persona_{job_type}_{prefecture or 'ALL'}_{municipality or 'ALL'}"
 
-    # 永続キャッシュから取得
-    if cache_key in _static_cache:
-        # キャッシュヒットログは抑制（ノイズ削減）
-        return _static_cache[cache_key]
+    # batch_cacheから取得（LRU制御付き）
+    cached = _get_batch_cache(cache_key)
+    if cached is not None:
+        return cached
 
     print(f"[DB] Batch persona query for {prefecture or 'ALL'}/{municipality or 'ALL'} (job_type={job_type})...")
 
@@ -1491,8 +1655,8 @@ def _batch_persona_query(prefecture: str = None, municipality: str = None) -> di
                 "QUALIFICATION_PERSONA": df_all[df_all["row_type"] == "QUALIFICATION_PERSONA"].copy()
             }
 
-        # 永続キャッシュに保存
-        _static_cache[cache_key] = result
+        # batch_cacheに保存（LRU制御付き）
+        _set_batch_cache(cache_key, result)
         print(f"[DB] Batch persona cached: {cache_key} (AGE_GENDER_RESIDENCE:{len(result['AGE_GENDER_RESIDENCE'])}, QUALIFICATION_DETAIL:{len(result['QUALIFICATION_DETAIL'])}, QUALIFICATION_PERSONA:{len(result['QUALIFICATION_PERSONA'])})")
 
         return result
@@ -1518,6 +1682,59 @@ def get_national_stats() -> dict:
         }
     """
     print("[DEBUG] get_national_stats() called", flush=True)
+
+    # CSVモードの場合はCSVから計算
+    if USE_CSV_MODE:
+        print("[DEBUG] CSVモードで全国統計を計算", flush=True)
+        result = {
+            "desired_areas": 0.0,
+            "distance_km": 0.0,
+            "qualifications": 0.0,
+            "male_count": 0,
+            "female_count": 0,
+            "avg_age": None,
+            "age_distribution": {},
+            "age_gender_pyramid": {}
+        }
+        try:
+            df = _load_csv_data()
+            job_type = _current_job_type
+            df = df[df['job_type'] == job_type]
+            df_summary = df[df['row_type'] == 'SUMMARY']
+            print(f"[DEBUG] CSV SUMMARY rows: {len(df_summary)}", flush=True)
+
+            if not df_summary.empty:
+                if 'avg_desired_areas' in df_summary.columns:
+                    result["desired_areas"] = round(float(df_summary['avg_desired_areas'].mean() or 0), 2)
+                if 'avg_qualifications' in df_summary.columns:
+                    result["qualifications"] = round(float(df_summary['avg_qualifications'].mean() or 0), 2)
+                if 'male_count' in df_summary.columns:
+                    result["male_count"] = int(df_summary['male_count'].sum() or 0)
+                if 'female_count' in df_summary.columns:
+                    result["female_count"] = int(df_summary['female_count'].sum() or 0)
+                if 'avg_age' in df_summary.columns:
+                    valid_ages = df_summary[['avg_age', 'male_count', 'female_count']].dropna(subset=['avg_age'])
+                    if not valid_ages.empty:
+                        valid_ages = valid_ages.copy()
+                        valid_ages['total'] = valid_ages['male_count'].fillna(0) + valid_ages['female_count'].fillna(0)
+                        weighted_sum = (valid_ages['avg_age'] * valid_ages['total']).sum()
+                        total_count = valid_ages['total'].sum()
+                        if total_count > 0:
+                            result["avg_age"] = round(weighted_sum / total_count, 1)
+
+            # 年齢性別データ
+            df_age = df[df['row_type'] == 'AGE_GENDER']
+            if not df_age.empty and 'category1' in df_age.columns and 'category2' in df_age.columns:
+                age_dist = {}
+                for _, row in df_age.groupby('category1')['count'].sum().items():
+                    age_dist[_] = int(row)
+                result["age_distribution"] = age_dist
+
+            print(f"[DEBUG] CSV national stats: male={result['male_count']}, female={result['female_count']}, avg_age={result['avg_age']}", flush=True)
+        except Exception as e:
+            print(f"[ERROR] CSV national stats failed: {e}", flush=True)
+        return result
+
     # 遅延初期化を呼び出し（NiceGUI移行対応 2025-12-24）
     turso_init_result = _lazy_init_turso()
     print(f"[DEBUG] _lazy_init_turso() returned: {turso_init_result}", flush=True)
@@ -1531,6 +1748,7 @@ def get_national_stats() -> dict:
         "qualifications": 0.0,
         "male_count": 0,
         "female_count": 0,
+        "avg_age": None,  # SUMMARYから直接取得（年代分布からの推定ではなく実データ）
         "age_distribution": {},
         "age_gender_pyramid": {}  # 年齢×性別の実データ（推定ではなく事実）
     }
@@ -1573,7 +1791,17 @@ def get_national_stats() -> dict:
                 result["male_count"] = int(df_summary['male_count'].sum() or 0)
             if 'female_count' in df_summary.columns:
                 result["female_count"] = int(df_summary['female_count'].sum() or 0)
-            print(f"[DEBUG] get_national_stats result: desired_areas={result['desired_areas']}, qualifications={result['qualifications']}", flush=True)
+            # avg_age: SUMMARYの加重平均（人数で重み付け）
+            if 'avg_age' in df_summary.columns:
+                # 各市区町村のavg_ageを人数で加重平均
+                valid_ages = df_summary[['avg_age', 'male_count', 'female_count']].dropna(subset=['avg_age'])
+                if not valid_ages.empty:
+                    valid_ages['total'] = valid_ages['male_count'].fillna(0) + valid_ages['female_count'].fillna(0)
+                    weighted_sum = (valid_ages['avg_age'] * valid_ages['total']).sum()
+                    total_count = valid_ages['total'].sum()
+                    if total_count > 0:
+                        result["avg_age"] = round(weighted_sum / total_count, 1)
+            print(f"[DEBUG] get_national_stats result: desired_areas={result['desired_areas']}, qualifications={result['qualifications']}, avg_age={result['avg_age']}", flush=True)
 
         # RESIDENCE_FLOWから平均移動距離を計算
         df_flow = batch_data.get("RESIDENCE_FLOW", pd.DataFrame())
@@ -1686,6 +1914,7 @@ def get_prefecture_stats(prefecture: str) -> dict:
         "qualifications": 0.0,
         "male_count": 0,
         "female_count": 0,
+        "avg_age": None,  # SUMMARYから直接取得
         "age_distribution": {}
     }
 
@@ -1700,6 +1929,15 @@ def get_prefecture_stats(prefecture: str) -> dict:
             result["qualifications"] = round(float(df_summary['avg_qualifications'].mean() or 0), 2)
             result["male_count"] = int(df_summary['male_count'].sum() or 0)
             result["female_count"] = int(df_summary['female_count'].sum() or 0)
+            # avg_age: SUMMARYの加重平均（人数で重み付け）
+            if 'avg_age' in df_summary.columns:
+                valid_ages = df_summary[['avg_age', 'male_count', 'female_count']].dropna(subset=['avg_age'])
+                if not valid_ages.empty:
+                    valid_ages['total'] = valid_ages['male_count'].fillna(0) + valid_ages['female_count'].fillna(0)
+                    weighted_sum = (valid_ages['avg_age'] * valid_ages['total']).sum()
+                    total_count = valid_ages['total'].sum()
+                    if total_count > 0:
+                        result["avg_age"] = round(weighted_sum / total_count, 1)
 
         # RESIDENCE_FLOWから平均移動距離を計算
         df_flow = batch_data.get("RESIDENCE_FLOW", pd.DataFrame())
@@ -1751,14 +1989,14 @@ def get_all_prefectures_stats() -> dict:
     Returns:
         dict: {prefecture_name: stats_dict, ...}
     """
-    global _static_cache
-
     # キャッシュキーにjob_typeを含める（職種切り替え対応）
     job_type = _current_job_type
     cache_key = f"all_prefecture_stats_{job_type}"
-    if cache_key in _static_cache:
-        # キャッシュヒットログは抑制（ノイズ削減）
-        return _static_cache[cache_key]
+
+    # batch_cacheから取得（LRU制御付き）
+    cached = _get_batch_cache(cache_key)
+    if cached is not None:
+        return cached
 
     if not _HAS_TURSO:
         return {}
@@ -1769,7 +2007,8 @@ def get_all_prefectures_stats() -> dict:
     for pref in prefectures:
         result[pref] = get_prefecture_stats(pref)
 
-    _static_cache[cache_key] = result
+    # batch_cacheに保存（LRU制御付き）
+    _set_batch_cache(cache_key, result)
     print(f"[DB] Cached stats for {len(result)} prefectures")
     return result
 
@@ -1807,6 +2046,7 @@ def get_municipality_stats(prefecture: str, municipality: str) -> dict:
         qualifications = 0.0
         male_count = 0
         female_count = 0
+        avg_age = None  # SUMMARYから直接取得
 
         # SUMMARYから基本統計を計算（Python内で集計）
         df_summary = batch_data.get("SUMMARY", pd.DataFrame())
@@ -1816,6 +2056,10 @@ def get_municipality_stats(prefecture: str, municipality: str) -> dict:
             qualifications = float(row.get('avg_qualifications', 0) or 0)
             male_count = int(row.get('male_count', 0) or 0)
             female_count = int(row.get('female_count', 0) or 0)
+            # avg_age: SUMMARYから直接取得（年代分布からの推定ではなく実データ）
+            raw_avg_age = row.get('avg_age')
+            if raw_avg_age is not None and not pd.isna(raw_avg_age):
+                avg_age = round(float(raw_avg_age), 1)
 
         # RESIDENCE_FLOWから平均移動距離を計算
         distance_km = 0.0
@@ -1868,6 +2112,7 @@ def get_municipality_stats(prefecture: str, municipality: str) -> dict:
             "qualifications": round(qualifications, 2),
             "male_count": male_count,
             "female_count": female_count,
+            "avg_age": avg_age,  # SUMMARYから直接取得（年代分布推定ではなく実データ）
             "female_ratio": female_ratio,
             "age_distribution": age_distribution,
             "age_gender_pyramid": age_gender_pyramid  # 年齢×性別の実データ
@@ -3468,16 +3713,14 @@ def get_map_markers(prefecture: str = None) -> list:
     Returns:
         list: [{"name": "東京都", "lat": 35.68, "lng": 139.69, "count": 5000, "type": "prefecture"}, ...]
     """
-    global _static_cache
-
     try:
         # キャッシュキー生成（job_type含む）
         job_type = _current_job_type
         cache_key = f"map_markers_{job_type}_{prefecture or 'ALL'}"
 
-        # キャッシュヒット
-        if cache_key in _static_cache:
-            cached = _static_cache[cache_key]
+        # batch_cacheから取得（LRU制御付き）
+        cached = _get_batch_cache(cache_key)
+        if cached is not None:
             print(f"[DB] get_map_markers cache HIT: {len(cached)} markers")
             return cached
 
@@ -3533,8 +3776,8 @@ def get_map_markers(prefecture: str = None) -> list:
             except (ValueError, TypeError):
                 continue
 
-        # キャッシュに保存（パフォーマンス最適化 2025-12-29）
-        _static_cache[cache_key] = markers
+        # batch_cacheに保存（LRU制御付き）
+        _set_batch_cache(cache_key, markers)
         print(f"[DB] get_map_markers: {len(markers)} markers returned (cached)")
         return markers
 
@@ -3554,16 +3797,14 @@ def get_flow_lines(prefecture: str = None) -> list:
     Returns:
         list: [{"from_pref": "東京都", "to_pref": "神奈川県", "count": 100, ...}, ...]
     """
-    global _static_cache
-
     try:
         # キャッシュキー生成（job_type含む）
         job_type = _current_job_type
         cache_key = f"flow_lines_{job_type}_{prefecture or 'ALL'}"
 
-        # キャッシュヒット
-        if cache_key in _static_cache:
-            cached = _static_cache[cache_key]
+        # batch_cacheから取得（LRU制御付き）
+        cached = _get_batch_cache(cache_key)
+        if cached is not None:
             print(f"[DB] get_flow_lines cache HIT: {len(cached)} flows")
             return cached
 
@@ -3633,8 +3874,8 @@ def get_flow_lines(prefecture: str = None) -> list:
         flows.sort(key=lambda x: x['count'], reverse=True)
         result = flows[:100]
 
-        # キャッシュに保存（パフォーマンス最適化 2025-12-29）
-        _static_cache[cache_key] = result
+        # batch_cacheに保存（LRU制御付き）
+        _set_batch_cache(cache_key, result)
         print(f"[DB] get_flow_lines: {len(result)} flows returned (cached)")
         return result
 
@@ -4314,6 +4555,74 @@ def get_municipality_detail(prefecture: str, municipality: str) -> dict:
 
         # job_typeを取得（職種切り替え対応）
         job_type = _current_job_type
+
+        # CSVモード対応（2026-01-06）
+        if USE_CSV_MODE:
+            df = _load_csv_data()
+            if 'job_type' in df.columns:
+                df = df[df['job_type'] == job_type]
+            df = df[(df['prefecture'] == prefecture) & (df['municipality'] == municipality)]
+
+            # 年齢×性別データ
+            age_gender_data = df[df['row_type'] == 'AGE_GENDER']
+            if not age_gender_data.empty:
+                age_gender_df = age_gender_data.groupby(['category1', 'category2'])['count'].sum().reset_index()
+                age_gender_df.columns = ['age_group', 'gender', 'total']
+            else:
+                age_gender_df = pd.DataFrame()
+
+            # 雇用形態分布データ
+            ws_data = df[df['row_type'] == 'WORKSTYLE_DISTRIBUTION']
+            if not ws_data.empty:
+                ws_df = ws_data.groupby('category1')['count'].sum().reset_index()
+                ws_df.columns = ['workstyle', 'total']
+            else:
+                ws_df = pd.DataFrame()
+
+            # SUMMARY データ
+            summary_data = df[df['row_type'] == 'SUMMARY']
+            summary_df = summary_data.head(1) if not summary_data.empty else pd.DataFrame()
+
+            # 結果処理はDB処理と共通化
+            # 年齢×性別データの処理
+            if not age_gender_df.empty:
+                result['age_gender_pyramid'] = {}
+                result['age_distribution'] = {}
+                for _, row in age_gender_df.iterrows():
+                    age_group = row.get('age_group', '')
+                    gender = row.get('gender', '')
+                    total = int(row.get('total', 0) or 0)
+                    if age_group and gender and total > 0:
+                        if age_group not in result['age_gender_pyramid']:
+                            result['age_gender_pyramid'][age_group] = {'male': 0, 'female': 0}
+                        if '男' in str(gender):
+                            result['age_gender_pyramid'][age_group]['male'] = total
+                        elif '女' in str(gender):
+                            result['age_gender_pyramid'][age_group]['female'] = total
+                        if age_group not in result['age_distribution']:
+                            result['age_distribution'][age_group] = 0
+                        result['age_distribution'][age_group] += total
+
+            # 雇用形態分布の処理
+            if not ws_df.empty:
+                result['workstyle_distribution'] = {}
+                for _, row in ws_df.iterrows():
+                    workstyle = row.get('workstyle', '')
+                    total = int(row.get('total', 0) or 0)
+                    if workstyle and total > 0:
+                        result['workstyle_distribution'][workstyle] = total
+
+            # 性別比率と基本統計の処理
+            if not summary_df.empty:
+                row = summary_df.iloc[0]
+                male = int(float(row.get('male_count', 0) or 0))
+                female = int(float(row.get('female_count', 0) or 0))
+                result['gender_ratio'] = {'male': male, 'female': female}
+                result['avg_age'] = float(row.get('avg_age', 0) or 0)
+                result['avg_qualifications'] = float(row.get('avg_qualifications', 0) or 0)
+
+            print(f"[CSV] get_municipality_detail completed in {time.time() - start_time:.3f}s")
+            return result
 
         # 3つのクエリを定義（すべてにjob_typeフィルタを追加）
         age_gender_sql = """
