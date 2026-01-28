@@ -1513,7 +1513,7 @@ def _batch_stats_query(prefecture: str = None, municipality: str = None) -> dict
         return {"SUMMARY": pd.DataFrame(), "RESIDENCE_FLOW": pd.DataFrame(), "AGE_GENDER": pd.DataFrame()}
 
 
-def _batch_flow_query(municipality: str) -> dict:
+def _batch_flow_query(municipality: str, target_prefecture: str = None) -> dict:
     """人材フロー取得用バッチクエリ（1回のHTTP通信で流入元・流出先を同時取得）
 
     従来: get_flow_sources + get_flow_destinations で2回クエリ
@@ -1521,11 +1521,12 @@ def _batch_flow_query(municipality: str) -> dict:
 
     Args:
         municipality: 市区町村名（必須）
+        target_prefecture: 対象都道府県（フィルタ用）
 
     Returns:
         dict: {
-            "sources": list[dict],  # 流入元リスト [{"name": "本庄市", "count": 144}, ...]
-            "destinations": list[dict]  # 流出先リスト [{"name": "前橋市", "count": 406}, ...]
+            "sources": list[dict],  # 流入元リスト [{"name": "本庄市", "pref": "埼玉県", "count": 144}, ...]
+            "destinations": list[dict]  # 流出先リスト [{"name": "前橋市", "pref": "群馬県", "count": 406}, ...]
         }
     """
     if not _HAS_TURSO or not municipality:
@@ -1533,21 +1534,21 @@ def _batch_flow_query(municipality: str) -> dict:
 
     # キャッシュキー生成（job_type含む）
     job_type = _current_job_type
-    cache_key = f"batch_flow_{job_type}_{municipality}"
+    cache_key = f"batch_flow_{job_type}_{municipality}_{target_prefecture or 'all'}"
 
     # batch_cacheから取得（LRU制御付き）
     cached = _get_batch_cache(cache_key)
     if cached is not None:
         return cached
 
-    print(f"[DB] Batch flow query for {municipality} (job_type={job_type})...")
+    print(f"[DB] Batch flow query for {municipality} (job_type={job_type}, target_pref={target_prefecture})...")
 
     try:
-        # 1回のHTTP通信で関連データを全取得
+        # 1回のHTTP通信で関連データを全取得（都道府県情報を追加）
         # - 流入元: co_desired_municipality = municipality のレコード
         # - 流出先: municipality = municipality のレコード
         sql = """
-            SELECT municipality, co_desired_municipality, count
+            SELECT prefecture, municipality, desired_prefecture, co_desired_municipality, count
             FROM job_seeker_data
             WHERE job_type = ? AND row_type = 'DESIRED_AREA_PATTERN'
             AND (municipality = ? OR co_desired_municipality = ?)
@@ -1559,26 +1560,56 @@ def _batch_flow_query(municipality: str) -> dict:
 
         if not df_all.empty:
             # 流入元集計: co_desired_municipality = municipality のレコードから
-            # → 居住地(municipality)ごとに集計
+            # → 居住地(prefecture, municipality)ごとに集計
             df_inbound = df_all[
                 (df_all["co_desired_municipality"] == municipality) &
                 (df_all["municipality"] != municipality) &
                 (df_all["municipality"].notna())
             ]
             if not df_inbound.empty:
-                inbound_agg = df_inbound.groupby("municipality")["count"].sum().sort_values(ascending=False).head(5)
-                sources = [{"name": str(k), "count": int(v)} for k, v in inbound_agg.items()]
+                # 都道府県+市区町村でグループ化
+                inbound_agg = df_inbound.groupby(["prefecture", "municipality"])["count"].sum().reset_index()
+                inbound_agg = inbound_agg.sort_values("count", ascending=False).head(10)  # フィルタ前に多めに取得
+
+                for _, row in inbound_agg.iterrows():
+                    source_pref = str(row["prefecture"]) if pd.notna(row["prefecture"]) else ""
+                    source_muni = str(row["municipality"])
+                    # 現実的なフローのみ（target_prefectureが指定されている場合）
+                    if target_prefecture and source_pref:
+                        if not is_realistic_flow(source_pref, target_prefecture):
+                            continue
+                    sources.append({
+                        "name": source_muni,
+                        "pref": source_pref,
+                        "count": int(row["count"])
+                    })
+                sources = sources[:5]  # 上位5件に制限
 
             # 流出先集計: municipality = municipality のレコードから
-            # → 希望勤務地(co_desired_municipality)ごとに集計
+            # → 希望勤務地(desired_prefecture, co_desired_municipality)ごとに集計
             df_outbound = df_all[
                 (df_all["municipality"] == municipality) &
                 (df_all["co_desired_municipality"] != municipality) &
                 (df_all["co_desired_municipality"].notna())
             ]
             if not df_outbound.empty:
-                outbound_agg = df_outbound.groupby("co_desired_municipality")["count"].sum().sort_values(ascending=False).head(5)
-                destinations = [{"name": str(k), "count": int(v)} for k, v in outbound_agg.items()]
+                # 都道府県+市区町村でグループ化
+                outbound_agg = df_outbound.groupby(["desired_prefecture", "co_desired_municipality"])["count"].sum().reset_index()
+                outbound_agg = outbound_agg.sort_values("count", ascending=False).head(10)  # フィルタ前に多めに取得
+
+                for _, row in outbound_agg.iterrows():
+                    dest_pref = str(row["desired_prefecture"]) if pd.notna(row["desired_prefecture"]) else ""
+                    dest_muni = str(row["co_desired_municipality"])
+                    # 現実的なフローのみ（target_prefectureが指定されている場合）
+                    if target_prefecture and dest_pref:
+                        if not is_realistic_flow(target_prefecture, dest_pref):
+                            continue
+                    destinations.append({
+                        "name": dest_muni,
+                        "pref": dest_pref,
+                        "count": int(row["count"])
+                    })
+                destinations = destinations[:5]  # 上位5件に制限
 
         result = {"sources": sources, "destinations": destinations}
 
@@ -2866,20 +2897,21 @@ def get_flow_sources(prefecture: str = None, municipality: str = None, limit: in
     """流入元（どこから来るか）を取得（Turso用）
 
     最適化: _batch_flow_query()を使用して1回のHTTP通信で取得
+    フィルタ: 隣接県フィルタ適用（非現実的な遠方データを除外）
 
     Args:
-        prefecture: 都道府県名
+        prefecture: 都道府県名（フィルタ用）
         municipality: 市区町村名（必須）
         limit: 取得件数上限
 
     Returns:
-        list: [{"name": "本庄市", "count": 144}, ...]
+        list: [{"name": "本庄市", "pref": "埼玉県", "count": 144}, ...]
     """
     if not _HAS_TURSO or not municipality:
         return []
 
-    # バッチクエリから取得（キャッシュ済みなら即座に返却）
-    batch_data = _batch_flow_query(municipality)
+    # バッチクエリから取得（キャッシュ済みなら即座に返却、prefectureでフィルタ）
+    batch_data = _batch_flow_query(municipality, prefecture)
     return batch_data.get("sources", [])[:limit]
 
 
@@ -2887,20 +2919,21 @@ def get_flow_destinations(prefecture: str = None, municipality: str = None, limi
     """流出先（どこへ流れるか）を取得（Turso用）
 
     最適化: _batch_flow_query()を使用して1回のHTTP通信で取得
+    フィルタ: 隣接県フィルタ適用（非現実的な遠方データを除外）
 
     Args:
-        prefecture: 都道府県名
+        prefecture: 都道府県名（フィルタ用）
         municipality: 市区町村名（必須）
         limit: 取得件数上限
 
     Returns:
-        list: [{"name": "前橋市", "count": 406}, ...]
+        list: [{"name": "前橋市", "pref": "群馬県", "count": 406}, ...]
     """
     if not _HAS_TURSO or not municipality:
         return []
 
-    # バッチクエリから取得（キャッシュ済みなら即座に返却）
-    batch_data = _batch_flow_query(municipality)
+    # バッチクエリから取得（キャッシュ済みなら即座に返却、prefectureでフィルタ）
+    batch_data = _batch_flow_query(municipality, prefecture)
     return batch_data.get("destinations", [])[:limit]
 
 
@@ -2979,7 +3012,7 @@ def get_residence_flow_data(prefecture: str = None, municipality: str = None) ->
 
 
 def get_pref_flow_top10(prefecture: str = None) -> list:
-    """都道府県間フローTop10を取得
+    """都道府県間フローTop10を取得（隣接県フィルタ適用）
 
     Args:
         prefecture: 都道府県名（フィルタ用、Noneで全国）
@@ -3022,15 +3055,22 @@ def get_pref_flow_top10(prefecture: str = None) -> list:
         # 集計
         if count_col:
             agg = df_flow.groupby([origin_col, dest_col])[count_col].sum().reset_index()
-            agg = agg.sort_values(count_col, ascending=False).head(10)
+            agg = agg.sort_values(count_col, ascending=False).head(30)  # フィルタ前に多めに取得
 
             result = []
             for _, row in agg.iterrows():
+                origin = str(row[origin_col])
+                destination = str(row[dest_col])
+                # 現実的なフローのみ（隣接県フィルタ）
+                if not is_realistic_flow(origin, destination):
+                    continue
                 result.append({
-                    "origin": str(row[origin_col]),
-                    "destination": str(row[dest_col]),
+                    "origin": origin,
+                    "destination": destination,
                     "count": int(row[count_col])
                 })
+                if len(result) >= 10:  # 上位10件で終了
+                    break
             return result
         else:
             # count列がない場合は件数カウント
@@ -3052,14 +3092,14 @@ def get_pref_flow_top10(prefecture: str = None) -> list:
 
 
 def get_muni_flow_top10(prefecture: str = None, municipality: str = None) -> list:
-    """市区町村間フローTop10を取得
+    """市区町村間フローTop10を取得（隣接県フィルタ適用）
 
     Args:
-        prefecture: 都道府県名
+        prefecture: 都道府県名（希望勤務地フィルタ用）
         municipality: 市区町村名（フィルタ用）
 
     Returns:
-        list: [{"origin": "渋谷区", "destination": "新宿区", "count": 567}, ...]
+        list: [{"origin": "渋谷区", "origin_pref": "東京都", "destination": "新宿区", "destination_pref": "東京都", "count": 567}, ...]
     """
     print(f"[DB] get_muni_flow_top10 called: prefecture={prefecture}, municipality={municipality}")
     # 遅延初期化を呼び出し（NiceGUI移行対応 2025-12-24）
@@ -3077,13 +3117,18 @@ def get_muni_flow_top10(prefecture: str = None, municipality: str = None) -> lis
 
         # RESIDENCE_FLOWのカラム構造:
         # municipality = 現住所市区町村, desired_municipality = 希望勤務地市区町村
+        # prefecture = 現住所都道府県, desired_prefecture = 希望勤務地都道府県
         # count = 件数
         origin_col = "municipality"
         dest_col = "desired_municipality"
+        origin_pref_col = "prefecture"
+        dest_pref_col = "desired_prefecture"
         count_col = "count"
 
-        if origin_col not in df.columns or dest_col not in df.columns:
-            print(f"[DB] get_muni_flow_top10: Required columns not found. Available: {list(df.columns)}")
+        required_cols = [origin_col, dest_col, origin_pref_col, dest_pref_col]
+        missing_cols = [c for c in required_cols if c not in df.columns]
+        if missing_cols:
+            print(f"[DB] get_muni_flow_top10: Required columns not found: {missing_cols}. Available: {list(df.columns)}")
             return []
 
         # 異なる市区町村間のフローのみ（同じ市区町村は除外）
@@ -3098,31 +3143,41 @@ def get_muni_flow_top10(prefecture: str = None, municipality: str = None) -> lis
             print("[DB] get_muni_flow_top10: df_flow is empty after filtering")
             return []
 
-        # 集計
-        if count_col:
-            agg = df_flow.groupby([origin_col, dest_col])[count_col].sum().reset_index()
-            agg = agg.sort_values(count_col, ascending=False).head(10)
-
-            result = []
-            for _, row in agg.iterrows():
-                result.append({
-                    "origin": str(row[origin_col]),
-                    "destination": str(row[dest_col]),
-                    "count": int(row[count_col])
-                })
-            return result
+        # 集計（都道府県も含める）
+        group_cols = [origin_pref_col, origin_col, dest_pref_col, dest_col]
+        if count_col and count_col in df_flow.columns:
+            agg = df_flow.groupby(group_cols)[count_col].sum().reset_index()
         else:
-            agg = df_flow.groupby([origin_col, dest_col]).size().reset_index(name="count")
-            agg = agg.sort_values("count", ascending=False).head(10)
+            agg = df_flow.groupby(group_cols).size().reset_index(name="count")
+            count_col = "count"
 
-            result = []
-            for _, row in agg.iterrows():
-                result.append({
-                    "origin": str(row[origin_col]),
-                    "destination": str(row[dest_col]),
-                    "count": int(row["count"])
-                })
-            return result
+        # 隣接県フィルタを適用（多めに取得してフィルタ後にTop10）
+        agg = agg.sort_values(count_col, ascending=False).head(50)
+
+        filtered_rows = []
+        for _, row in agg.iterrows():
+            origin_pref = str(row[origin_pref_col]) if pd.notna(row[origin_pref_col]) else ""
+            dest_pref = str(row[dest_pref_col]) if pd.notna(row[dest_pref_col]) else ""
+            if is_realistic_flow(origin_pref, dest_pref):
+                filtered_rows.append(row)
+
+        print(f"[DB] get_muni_flow_top10: after realistic filter: {len(filtered_rows)} rows (from 50)")
+
+        if not filtered_rows:
+            print("[DB] get_muni_flow_top10: no realistic flows found")
+            return []
+
+        # Top10を返す
+        result = []
+        for row in filtered_rows[:10]:
+            result.append({
+                "origin": str(row[origin_col]),
+                "origin_pref": str(row[origin_pref_col]) if pd.notna(row[origin_pref_col]) else "",
+                "destination": str(row[dest_col]),
+                "destination_pref": str(row[dest_pref_col]) if pd.notna(row[dest_pref_col]) else "",
+                "count": int(row[count_col])
+            })
+        return result
 
     except Exception as e:
         print(f"[DB] get_muni_flow_top10 error: {e}")
