@@ -2317,15 +2317,14 @@ def dashboard_page() -> None:
                 # 求人データカード（シェア％・競争倍率）
                 # ==========================================
                 try:
-                    sd_metrics = get_supply_demand_metrics(pref_val, muni_val)
+                    sd_metrics = get_supply_demand_metrics(pref_val, muni_val, gap_stats=gap_stats)
                     if sd_metrics["has_data"]:
                         with ui.card().style(
-                            f"background-color: {CARD_BG}; border: 1px solid {ACCENT_5}; "
-                            f"border-radius: 12px; padding: 20px; margin-top: 16px; width: 100%"
+                            f"background-color: {CARD_BG}; border: 1px solid {BORDER_COLOR}; "
+                            f"border-radius: 10px; padding: 16px; margin-top: 12px; width: 100%"
                         ):
-                            ui.label("📊 求人・求職者シェア比較（一部媒体データ）").classes("text-base font-bold mb-1").style(f"color: {TEXT_COLOR}")
-                            ui.label("地域の求人シェアと求職者シェアを比較し、需給バランスを分析").style(
-                                f"color: {MUTED_COLOR}; font-size: 0.8rem; margin-bottom: 12px"
+                            ui.label("求人・求職者シェア比較（一部媒体データ）").classes("text-sm").style(
+                                f"color: {MUTED_COLOR}; margin-bottom: 8px"
                             )
 
                             with ui.row().classes("w-full gap-4 flex-wrap"):
@@ -2335,7 +2334,7 @@ def dashboard_page() -> None:
                                     f"border-radius: 10px; padding: 14px; flex: 1; min-width: 140px"
                                 ):
                                     ui.label("求人シェア").classes("text-sm").style(f"color: {MUTED_COLOR}")
-                                    ui.label(f"{sd_metrics['job_share_pct']:.2f}%").classes("text-2xl font-bold").style(f"color: {ACCENT_5}")
+                                    ui.label(f"{sd_metrics['job_share_pct']:.4f}%").classes("text-2xl font-bold").style(f"color: {ACCENT_5}")
                                     ui.label(f"({sd_metrics['job_count']:,} / {sd_metrics['job_total']:,}件)").style(
                                         f"color: {MUTED_COLOR}; font-size: 0.75rem"
                                     )
@@ -2346,22 +2345,22 @@ def dashboard_page() -> None:
                                     f"border-radius: 10px; padding: 14px; flex: 1; min-width: 140px"
                                 ):
                                     ui.label("求職者シェア").classes("text-sm").style(f"color: {MUTED_COLOR}")
-                                    ui.label(f"{sd_metrics['seeker_share_pct']:.2f}%").classes("text-2xl font-bold").style(f"color: {PRIMARY_COLOR}")
+                                    ui.label(f"{sd_metrics['seeker_share_pct']:.4f}%").classes("text-2xl font-bold").style(f"color: {PRIMARY_COLOR}")
                                     ui.label(f"({sd_metrics['seeker_count']:,} / {sd_metrics['seeker_total']:,}人)").style(
                                         f"color: {MUTED_COLOR}; font-size: 0.75rem"
                                     )
 
                                 # 競争倍率
                                 ratio = sd_metrics["competition_ratio"]
-                                # 1.0超=求職者過多(赤系)、1.0未満=求人過多(緑系)
-                                ratio_color = WARNING_COLOR if ratio > 1.2 else (ACCENT_5 if ratio < 0.8 else TEXT_COLOR)
-                                ratio_label = "求職者過多" if ratio > 1.2 else ("求人過多" if ratio < 0.8 else "均衡")
+                                # 1.5超=競争激化(赤系)、1.0未満=人材不足(緑系)、間=均衡
+                                ratio_color = WARNING_COLOR if ratio > 1.5 else (ACCENT_5 if ratio < 1.0 else TEXT_COLOR)
+                                ratio_label = "競争激化" if ratio > 1.5 else ("人材不足" if ratio < 1.0 else "均衡")
                                 with ui.card().style(
                                     f"background-color: {BG_COLOR}; border: 1px solid {BORDER_COLOR}; "
                                     f"border-radius: 10px; padding: 14px; flex: 1; min-width: 140px"
                                 ):
                                     ui.label("競争倍率").classes("text-sm").style(f"color: {MUTED_COLOR}")
-                                    ui.label(f"{ratio:.2f}倍").classes("text-2xl font-bold").style(f"color: {ratio_color}")
+                                    ui.label(f"{ratio:.4f}倍").classes("text-2xl font-bold").style(f"color: {ratio_color}")
                                     ui.label(f"({ratio_label})").style(
                                         f"color: {ratio_color}; font-size: 0.75rem"
                                     )

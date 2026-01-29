@@ -4844,6 +4844,8 @@ def get_job_openings(prefecture=None, municipality=None) -> dict:
             _set_cache(cache_key, empty_result)
             return empty_result
 
+        # Turso HTTP APIはtext型で返すためnumeric変換が必須
+        df["job_count"] = pd.to_numeric(df["job_count"], errors="coerce").fillna(0).astype(int)
         total = int(df["job_count"].sum())
         muni_dict = {}
         for _, row in df.iterrows():
@@ -4859,21 +4861,14 @@ def get_job_openings(prefecture=None, municipality=None) -> dict:
         return empty_result
 
 
-def get_supply_demand_metrics(prefecture=None, municipality=None) -> dict:
-    """需給指標を計算（求人データ + 求職者データ）
+def get_supply_demand_metrics(prefecture=None, municipality=None, gap_stats=None) -> dict:
+    """需給指標を計算（求人データ + GAP供給データ）
 
     求人数は一部媒体のデータのため、絶対数ではなく比率・シェア％で表示する。
+    求職者数はGAP行のsupply_count（get_gap_statsのsupply値）を使用。
 
-    Returns: {
-        "job_count": 選択地域の求人数,
-        "job_total": 全国の求人数（同職種）,
-        "job_share_pct": 求人シェア％（選択地域÷全国）,
-        "seeker_count": 選択地域の求職者数,
-        "seeker_total": 全国の求職者数（同職種）,
-        "seeker_share_pct": 求職者シェア％（選択地域÷全国）,
-        "competition_ratio": 競争倍率（求職者シェア÷求人シェア）,
-        "has_data": 求人データが存在するか
-    }
+    Args:
+        gap_stats: TAB4で既に取得済みのget_gap_stats()結果。supply値を流用する。
     """
     job_type = _current_job_type
     cache_key = f"supply_demand_{job_type}_{prefecture}_{municipality}"
@@ -4897,39 +4892,27 @@ def get_supply_demand_metrics(prefecture=None, municipality=None) -> dict:
         _set_cache(cache_key, empty_result)
         return empty_result
 
-    job_share_pct = round(job_count / job_total * 100, 2) if job_total > 0 else 0.0
+    job_share_pct = round(job_count / job_total * 100, 4) if job_total > 0 else 0.0
 
-    # 求職者数取得（選択地域 + 全国）
-    seeker_count = 0
+    # 求職者数: gap_statsのsupply値を使用（GAP行のsupply_count合計）
+    seeker_count = int(gap_stats.get("supply", 0)) if gap_stats else 0
+
+    # 全国の求職者数はGAP行のsupply_count合計
     seeker_total = 0
     try:
-        # 選択地域
-        sql = "SELECT SUM(CAST(count AS INTEGER)) as total FROM job_seeker_data WHERE row_type = 'SUMMARY' AND job_type = ?"
-        params = [job_type]
-        if prefecture and prefecture != "全国":
-            sql += " AND prefecture = ?"
-            params.append(prefecture)
-        if municipality and municipality != "すべて":
-            sql += " AND municipality = ?"
-            params.append(municipality)
-        df = query_df(sql, tuple(params))
-        if not df.empty and df.iloc[0]["total"] is not None:
-            seeker_count = int(df.iloc[0]["total"])
-
-        # 全国
-        sql_all = "SELECT SUM(CAST(count AS INTEGER)) as total FROM job_seeker_data WHERE row_type = 'SUMMARY' AND job_type = ?"
+        sql_all = "SELECT SUM(CAST(supply_count AS REAL)) as total FROM job_seeker_data WHERE row_type = 'GAP' AND job_type = ?"
         df_all = query_df(sql_all, (job_type,))
         if not df_all.empty and df_all.iloc[0]["total"] is not None:
-            seeker_total = int(df_all.iloc[0]["total"])
+            seeker_total = int(float(df_all.iloc[0]["total"]))
     except Exception as e:
-        print(f"[supply_demand] Seeker count error: {e}")
+        print(f"[supply_demand] Seeker total error: {e}")
 
-    seeker_share_pct = round(seeker_count / seeker_total * 100, 2) if seeker_total > 0 else 0.0
+    seeker_share_pct = round(seeker_count / seeker_total * 100, 4) if seeker_total > 0 else 0.0
 
     # 競争倍率 = 求職者シェア ÷ 求人シェア（>1.0なら求職者過多）
     competition_ratio = 0.0
     if job_share_pct > 0:
-        competition_ratio = round(seeker_share_pct / job_share_pct, 2)
+        competition_ratio = round(seeker_share_pct / job_share_pct, 4)
 
     result = {
         "job_count": job_count,
