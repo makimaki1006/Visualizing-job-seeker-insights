@@ -638,6 +638,23 @@ def create_tables(conn):
     """)
     c.execute("CREATE INDEX idx_seq_pref ON segment_exp_qual(job_type, employment_type, prefecture)")
 
+    # 勤務時間帯テーブル (v2.1)
+    c.execute("""
+        CREATE TABLE segment_work_schedule (
+            job_type         TEXT NOT NULL,
+            employment_type  TEXT NOT NULL,
+            prefecture       TEXT NOT NULL,
+            municipality     TEXT,
+            dimension        TEXT NOT NULL,
+            value            TEXT NOT NULL,
+            count            INTEGER NOT NULL,
+            ratio            REAL NOT NULL,
+            total            INTEGER NOT NULL
+        )
+    """)
+    c.execute("CREATE INDEX idx_sws_pref ON segment_work_schedule(job_type, employment_type, prefecture)")
+    c.execute("CREATE INDEX idx_sws_dim ON segment_work_schedule(job_type, employment_type, dimension)")
+
     c.execute("""
         CREATE TABLE segment_meta (
             key   TEXT PRIMARY KEY,
@@ -1062,6 +1079,46 @@ def aggregate_exp_qual(df, job_type, employment_type):
     return rows
 
 
+def aggregate_work_schedule(df, job_type, employment_type):
+    """勤務時間帯の地域別集約 (v2.1)"""
+    rows = []
+    dimensions = {
+        'shift_type': 'wh_shift_type',
+        'start_band': 'wh_start_band',
+        'end_band': 'wh_end_band',
+        'overtime': 'wh_overtime',
+    }
+
+    # 利用可能なdimensionだけ処理
+    avail = {dim: col for dim, col in dimensions.items() if col in df.columns}
+    if not avail:
+        return rows
+
+    # 都道府県レベル
+    for pref, pref_df in df.groupby('prefecture'):
+        total = len(pref_df)
+        for dim, col in avail.items():
+            for val, cnt in pref_df[col].value_counts().items():
+                if pd.isna(val) or str(val).strip() == '':
+                    continue
+                rows.append((job_type, employment_type, pref, None, dim, str(val), int(cnt), cnt / total, total))
+
+    # 市区町村レベル（10件以上）
+    for (pref, muni), muni_df in df.groupby(['prefecture', 'municipality']):
+        if len(muni_df) < 10:
+            continue
+        total = len(muni_df)
+        for dim, col in avail.items():
+            for val, cnt in muni_df[col].value_counts().items():
+                if pd.isna(val) or str(val).strip() == '':
+                    continue
+                if cnt < 2:
+                    continue
+                rows.append((job_type, employment_type, pref, muni, dim, str(val), int(cnt), cnt / total, total))
+
+    return rows
+
+
 def process_csv(csv_path, conn):
     """1つのCSVを読み込み、全集約を実行してDBに書き込み"""
     print(f"\n{'='*60}")
@@ -1220,6 +1277,16 @@ def process_csv(csv_path, conn):
     )
     print(f"  segment_exp_qual: {len(eq_rows):,}行")
 
+    # 12. 勤務時間帯集約 (v2.1)
+    ws_rows = []
+    for emp_type, group_df in groups:
+        ws_rows.extend(aggregate_work_schedule(group_df, job_type, emp_type))
+    conn.executemany(
+        "INSERT INTO segment_work_schedule VALUES (?,?,?,?,?,?,?,?,?)",
+        ws_rows
+    )
+    print(f"  segment_work_schedule: {len(ws_rows):,}行")
+
     conn.commit()
 
     elapsed = time.time() - t0
@@ -1273,7 +1340,7 @@ def verify_db(conn):
         'segment_tags', 'segment_tag_combos', 'segment_text_features',
         'segment_salary', 'segment_job_desc',
         'segment_age_decade', 'segment_gender_lifecycle', 'segment_exp_qual',
-        'segment_meta',
+        'segment_work_schedule', 'segment_meta',
     ]
     for table in tables:
         cnt = c.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
