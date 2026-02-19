@@ -1139,14 +1139,32 @@ class MapCompleteCompleteSheetGenerator:
                     ['residence_municipality', 'workstyle_category']
                 ).size().reset_index(name='count')
 
-                # mobility_typeと結合して分析
-                for _, row in pref_flow.iterrows():
+                # pref_flowを(residence_municipality, mobility_type)で集約して重複排除
+                agg_cols = {}
+                if 'avg_reference_distance_km' in pref_flow.columns:
+                    agg_cols['avg_reference_distance_km'] = 'mean'
+                if 'median_distance_km' in pref_flow.columns:
+                    agg_cols['median_distance_km'] = 'mean'
+                if 'min_distance_km' in pref_flow.columns:
+                    agg_cols['min_distance_km'] = 'min'
+                if 'max_distance_km' in pref_flow.columns:
+                    agg_cols['max_distance_km'] = 'max'
+
+                if agg_cols:
+                    pref_flow_agg = pref_flow.groupby(
+                        ['residence_municipality', 'mobility_type'], as_index=False
+                    ).agg(agg_cols)
+                else:
+                    pref_flow_agg = pref_flow.drop_duplicates(
+                        subset=['residence_municipality', 'mobility_type']
+                    )
+
+                for _, row in pref_flow_agg.iterrows():
                     municipality = row.get('residence_municipality', '')
                     mobility_type = row.get('mobility_type', '')
                     avg_distance = row.get('avg_reference_distance_km', None)
 
                     if municipality and mobility_type:
-                        # この市区町村の雇用形態分布を取得
                         muni_ws = residence_ws[residence_ws['residence_municipality'] == municipality]
 
                         for _, ws_row in muni_ws.iterrows():
