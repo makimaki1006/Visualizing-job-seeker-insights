@@ -145,6 +145,8 @@ def classify_csv(csv_path: Path, source_job_type: str, output_dir: Path) -> dict
         "wh_shift_type", "wh_start_hour", "wh_end_hour",
         "wh_start_band", "wh_end_band", "wh_break_minutes",
         "wh_overtime", "wh_has_night",
+        # 休日パターン (v2.2)
+        "hol_pattern", "hol_weekday_off", "hol_special",
     ]
 
     # 存在するカラムのみ選択

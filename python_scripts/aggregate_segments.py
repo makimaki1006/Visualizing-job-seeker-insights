@@ -44,6 +44,60 @@ from segment_classifier import TIER2_LABELS, TIER3_PATTERNS
 
 
 # ============================================================
+# 都道府県正規化
+# ============================================================
+PREFS_47 = [
+    '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
+    '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
+    '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県',
+    '岐阜県', '静岡県', '愛知県', '三重県', '滋賀県', '京都府', '大阪府',
+    '兵庫県', '奈良県', '和歌山県', '鳥取県', '島根県', '岡山県', '広島県',
+    '山口県', '徳島県', '香川県', '愛媛県', '高知県', '福岡県',
+    '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県',
+]
+_PREFS_SET = set(PREFS_47)
+_PREF_RE = re.compile(r'^(北海道|東京都|(?:大阪|京都)府|.{1,3}県)')
+_MUNI_PATTERNS = [
+    re.compile(r'^(.+?市.+?区)'),   # 政令指定都市
+    re.compile(r'^(.+?郡.+?[町村])'),  # 郡
+    re.compile(r'^(.+?[市区町村])'),    # 一般
+]
+
+
+def normalize_pref_muni(pref_val, muni_val):
+    """prefecture/municipality列を正規化
+
+    classified CSVのprefecture列に住所全体が入っている場合（13.9%）を修正。
+    municipality列に鉄道路線名やビル名が入っている場合も修正。
+
+    Returns:
+        (正規化済みprefecture, 正規化済みmunicipality)
+    """
+    pref = str(pref_val) if pd.notna(pref_val) else ''
+    muni = str(muni_val) if pd.notna(muni_val) else ''
+
+    # prefecture が47都道府県名なら正常
+    if pref in _PREFS_SET:
+        # municipalityが市区町村パターンでない場合は空に
+        if muni and not re.search(r'[市区町村郡]', muni):
+            return pref, ''
+        return pref, muni
+
+    # prefecture が住所全体の場合 → 都道府県と市区町村を抽出
+    m = _PREF_RE.match(pref)
+    if m:
+        extracted_pref = m.group(1)
+        rest = pref[len(extracted_pref):]
+        for pat in _MUNI_PATTERNS:
+            mm = pat.match(rest)
+            if mm:
+                return extracted_pref, mm.group(1)
+        return extracted_pref, ''
+
+    return pref, muni
+
+
+# ============================================================
 # 軸マッピング（CSVカラム名 → 軸コード）
 # ============================================================
 AXIS_MAP = {
@@ -467,6 +521,8 @@ def create_tables(conn):
     c.execute("DROP TABLE IF EXISTS segment_age_decade")
     c.execute("DROP TABLE IF EXISTS segment_gender_lifecycle")
     c.execute("DROP TABLE IF EXISTS segment_exp_qual")
+    c.execute("DROP TABLE IF EXISTS segment_holidays")
+    c.execute("DROP TABLE IF EXISTS segment_salary_shift")
 
     c.execute("""
         CREATE TABLE segment_prefecture (
@@ -654,6 +710,40 @@ def create_tables(conn):
     """)
     c.execute("CREATE INDEX idx_sws_pref ON segment_work_schedule(job_type, employment_type, prefecture)")
     c.execute("CREATE INDEX idx_sws_dim ON segment_work_schedule(job_type, employment_type, dimension)")
+
+    # 休日分析テーブル (v2.2)
+    c.execute("DROP TABLE IF EXISTS segment_holidays")
+    c.execute("""
+        CREATE TABLE segment_holidays (
+            job_type         TEXT NOT NULL,
+            employment_type  TEXT NOT NULL,
+            prefecture       TEXT NOT NULL,
+            municipality     TEXT,
+            dimension        TEXT NOT NULL,
+            value            TEXT NOT NULL,
+            count            INTEGER NOT NULL,
+            ratio            REAL NOT NULL,
+            total            INTEGER NOT NULL
+        )
+    """)
+    c.execute("CREATE INDEX idx_shol_pref ON segment_holidays(job_type, employment_type, prefecture)")
+
+    # 給与×シフト交差分析テーブル (v2.2)
+    c.execute("DROP TABLE IF EXISTS segment_salary_shift")
+    c.execute("""
+        CREATE TABLE segment_salary_shift (
+            job_type         TEXT NOT NULL,
+            employment_type  TEXT NOT NULL,
+            prefecture       TEXT NOT NULL,
+            salary_type      TEXT NOT NULL,
+            salary_band      TEXT NOT NULL,
+            shift_type       TEXT NOT NULL,
+            count            INTEGER NOT NULL,
+            salary_median    INTEGER,
+            total            INTEGER NOT NULL
+        )
+    """)
+    c.execute("CREATE INDEX idx_sss_pref ON segment_salary_shift(job_type, employment_type, prefecture)")
 
     c.execute("""
         CREATE TABLE segment_meta (
@@ -1119,6 +1209,111 @@ def aggregate_work_schedule(df, job_type, employment_type):
     return rows
 
 
+def aggregate_holidays(df, job_type, employment_type):
+    """休日パターンの地域別集約 (v2.2)"""
+    rows = []
+    dimensions = {
+        'hol_pattern': 'hol_pattern',
+        'weekday_off': 'hol_weekday_off',
+        'annual_holidays_band': None,  # 特殊処理
+    }
+
+    # annual_holidays を帯に分類
+    if 'annual_holidays' in df.columns:
+        bins = [0, 100, 105, 110, 115, 120, 999]
+        labels = ['<100', '100-104', '105-109', '110-114', '115-119', '120+']
+        df = df.copy()
+        df['_ah_band'] = pd.cut(
+            pd.to_numeric(df['annual_holidays'], errors='coerce'),
+            bins=bins, labels=labels, right=False
+        ).astype(str).replace('nan', '')
+        dimensions['annual_holidays_band'] = '_ah_band'
+
+    avail = {dim: col for dim, col in dimensions.items() if col and col in df.columns}
+    if not avail:
+        return rows
+
+    # 都道府県レベル
+    for pref, pref_df in df.groupby('prefecture'):
+        total = len(pref_df)
+        for dim, col in avail.items():
+            for val, cnt in pref_df[col].value_counts().items():
+                if pd.isna(val) or str(val).strip() == '' or str(val) == 'nan':
+                    continue
+                rows.append((job_type, employment_type, pref, None,
+                             dim, str(val), int(cnt), cnt / total, total))
+
+    # 市区町村レベル（10件以上）
+    for (pref, muni), muni_df in df.groupby(['prefecture', 'municipality']):
+        if len(muni_df) < 10:
+            continue
+        total = len(muni_df)
+        for dim, col in avail.items():
+            for val, cnt in muni_df[col].value_counts().items():
+                if pd.isna(val) or str(val).strip() == '' or str(val) == 'nan':
+                    continue
+                if cnt < 2:
+                    continue
+                rows.append((job_type, employment_type, pref, muni,
+                             dim, str(val), int(cnt), cnt / total, total))
+
+    return rows
+
+
+def aggregate_salary_shift(df, job_type, employment_type):
+    """給与×シフトタイプ交差分析の集約 (v2.2)"""
+    rows = []
+
+    if 'salary_type' not in df.columns or 'salary_min' not in df.columns:
+        return rows
+    if 'wh_shift_type' not in df.columns:
+        return rows
+
+    # 月給帯
+    monthly_bins = [0, 200000, 250000, 280000, 300000, 350000, 9999999]
+    monthly_labels = ['~20万', '20-25万', '25-28万', '28-30万', '30-35万', '35万+']
+    # 時給帯
+    hourly_bins = [0, 1200, 1400, 1600, 1800, 2000, 99999]
+    hourly_labels = ['~1200円', '1200-1400円', '1400-1600円', '1600-1800円', '1800-2000円', '2000円+']
+
+    df = df.copy()
+    df['salary_min_num'] = pd.to_numeric(df['salary_min'], errors='coerce')
+
+    for salary_type, st_label, bins, labels in [
+        ('月給', '月給', monthly_bins, monthly_labels),
+        ('時給', '時給', hourly_bins, hourly_labels),
+    ]:
+        mask = df['salary_type'] == salary_type
+        sub = df[mask & df['salary_min_num'].notna()].copy()
+        if len(sub) < 10:
+            continue
+
+        sub['_sal_band'] = pd.cut(
+            sub['salary_min_num'], bins=bins, labels=labels, right=False
+        ).astype(str)
+
+        # 都道府県レベル
+        for pref, pref_df in sub.groupby('prefecture'):
+            total = len(pref_df)
+            cross = pref_df.groupby(['_sal_band', 'wh_shift_type']).agg(
+                count=('salary_min_num', 'size'),
+                median=('salary_min_num', 'median'),
+            ).reset_index()
+            for _, r in cross.iterrows():
+                if r['count'] < 2:
+                    continue
+                shift = str(r['wh_shift_type'])
+                if pd.isna(shift) or shift.strip() == '':
+                    shift = '不明'
+                rows.append((
+                    job_type, employment_type, pref,
+                    st_label, str(r['_sal_band']), shift,
+                    int(r['count']), int(r['median']), total,
+                ))
+
+    return rows
+
+
 def process_csv(csv_path, conn):
     """1つのCSVを読み込み、全集約を実行してDBに書き込み"""
     print(f"\n{'='*60}")
@@ -1148,6 +1343,24 @@ def process_csv(csv_path, conn):
     if missing:
         print(f"  エラー: 必須カラム不足: {missing}")
         return job_type, 0
+
+    # 都道府県・市区町村正規化 (v2.2)
+    bad_before = (~df['prefecture'].isin(_PREFS_SET) & df['prefecture'].notna()).sum()
+    if bad_before > 0:
+        normalized = df.apply(
+            lambda r: normalize_pref_muni(r['prefecture'], r['municipality']),
+            axis=1,
+        )
+        df['prefecture'] = normalized.apply(lambda x: x[0])
+        df['municipality'] = normalized.apply(lambda x: x[1])
+        bad_after = (~df['prefecture'].isin(_PREFS_SET) & df['prefecture'].notna()).sum()
+        print(f"  都道府県正規化: {bad_before:,}行修正 → 残り{bad_after:,}行")
+    else:
+        print(f"  都道府県正規化: 不要（全行正常）")
+
+    # 空文字のprefectureを除去
+    df = df[df['prefecture'].isin(_PREFS_SET)]
+    print(f"  有効行数: {len(df):,}")
 
     # テキスト特徴抽出
     df = extract_text_features(df)
@@ -1287,6 +1500,26 @@ def process_csv(csv_path, conn):
     )
     print(f"  segment_work_schedule: {len(ws_rows):,}行")
 
+    # 13. 休日分析集約 (v2.2)
+    hol_rows = []
+    for emp_type, group_df in groups:
+        hol_rows.extend(aggregate_holidays(group_df, job_type, emp_type))
+    conn.executemany(
+        "INSERT INTO segment_holidays VALUES (?,?,?,?,?,?,?,?,?)",
+        hol_rows
+    )
+    print(f"  segment_holidays: {len(hol_rows):,}行")
+
+    # 14. 給与×シフト交差分析集約 (v2.2)
+    ss_rows = []
+    for emp_type, group_df in groups:
+        ss_rows.extend(aggregate_salary_shift(group_df, job_type, emp_type))
+    conn.executemany(
+        "INSERT INTO segment_salary_shift VALUES (?,?,?,?,?,?,?,?,?)",
+        ss_rows
+    )
+    print(f"  segment_salary_shift: {len(ss_rows):,}行")
+
     conn.commit()
 
     elapsed = time.time() - t0
@@ -1340,7 +1573,8 @@ def verify_db(conn):
         'segment_tags', 'segment_tag_combos', 'segment_text_features',
         'segment_salary', 'segment_job_desc',
         'segment_age_decade', 'segment_gender_lifecycle', 'segment_exp_qual',
-        'segment_work_schedule', 'segment_meta',
+        'segment_work_schedule', 'segment_holidays', 'segment_salary_shift',
+        'segment_meta',
     ]
     for table in tables:
         cnt = c.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]

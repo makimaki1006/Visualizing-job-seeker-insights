@@ -495,6 +495,69 @@ def parse_working_hours(text) -> dict:
 
 
 # ============================================================
+# 休日パターンパーサー (v2.2)
+# ============================================================
+
+def parse_holidays(holidays_text):
+    """休日テキストから休日パターンを抽出
+
+    Returns:
+        dict: {
+            'hol_pattern': str,  # 4週8休/完全週休2日/週休2日/シフト制/土日祝休/日曜固定休/その他
+            'hol_weekday_off': str,  # 土日/日曜/平日/不明
+            'hol_special': str,  # 年末年始,夏季,GW のカンマ区切り
+        }
+    """
+    if not isinstance(holidays_text, str) or not holidays_text.strip():
+        return {'hol_pattern': '', 'hol_weekday_off': '', 'hol_special': ''}
+
+    text = holidays_text
+
+    # 休日パターン判定（優先順）
+    pattern = 'その他'
+    if re.search(r'完全週休2日', text):
+        pattern = '完全週休2日'
+    elif re.search(r'4週[89]休', text):
+        pattern = '4週8休'
+    elif re.search(r'週休2日', text):
+        pattern = '週休2日'
+    elif re.search(r'土日祝(休|日)', text):
+        pattern = '土日祝休'
+    elif re.search(r'日曜(日)?(.{0,2})(休|固定)', text):
+        pattern = '日曜固定休'
+    elif re.search(r'シフト制', text):
+        pattern = 'シフト制'
+
+    # 曜日固定休の判定
+    weekday_off = '不明'
+    if re.search(r'土日(祝)?(.{0,2})(休|お休み)', text):
+        weekday_off = '土日'
+    elif re.search(r'日曜(日)?(.{0,2})(休|固定)', text):
+        weekday_off = '日曜'
+    elif re.search(r'平日(.{0,2})(休|お休み)', text):
+        weekday_off = '平日'
+
+    # 特別休暇
+    specials = []
+    if re.search(r'年末年始', text):
+        specials.append('年末年始')
+    if re.search(r'(お盆|夏季休暇|夏期休暇)', text):
+        specials.append('夏季')
+    if re.search(r'(GW|ゴールデンウィーク)', text):
+        specials.append('GW')
+    if re.search(r'(慶弔|冠婚葬祭)', text):
+        specials.append('慶弔')
+    if re.search(r'(リフレッシュ休暇|アニバーサリー)', text):
+        specials.append('リフレッシュ')
+
+    return {
+        'hol_pattern': pattern,
+        'hol_weekday_off': weekday_off,
+        'hol_special': ','.join(specials),
+    }
+
+
+# ============================================================
 # 年代セグメント検出 (v2.0)
 # ============================================================
 
@@ -942,5 +1005,11 @@ def analyze_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         wh_results = out['working_hours'].apply(parse_working_hours)
         wh_df = pd.DataFrame(wh_results.tolist(), index=out.index)
         out = pd.concat([out, wh_df], axis=1)
+
+    # 休日パターン抽出 (v2.2)
+    if 'holidays' in out.columns:
+        hol_results = out['holidays'].apply(parse_holidays)
+        hol_df = pd.DataFrame(hol_results.tolist(), index=out.index)
+        out = pd.concat([out, hol_df], axis=1)
 
     return out
