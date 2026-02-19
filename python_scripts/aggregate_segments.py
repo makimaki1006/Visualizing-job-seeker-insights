@@ -621,6 +621,7 @@ def create_tables(conn):
             job_type         TEXT NOT NULL,
             employment_type  TEXT NOT NULL,
             prefecture       TEXT NOT NULL,
+            municipality     TEXT,
             axis             TEXT NOT NULL,
             category         TEXT NOT NULL,
             count            INTEGER NOT NULL,
@@ -629,10 +630,10 @@ def create_tables(conn):
             salary_max_avg   INTEGER,
             salary_max_med   INTEGER,
             holidays_avg     REAL,
-            benefits_avg     REAL,
-            PRIMARY KEY (job_type, employment_type, prefecture, axis, category)
+            benefits_avg     REAL
         )
     """)
+    c.execute("CREATE INDEX idx_ssal_pref ON segment_salary(job_type, employment_type, prefecture, municipality)")
 
     c.execute("""
         CREATE TABLE segment_job_desc (
@@ -735,6 +736,7 @@ def create_tables(conn):
             job_type         TEXT NOT NULL,
             employment_type  TEXT NOT NULL,
             prefecture       TEXT NOT NULL,
+            municipality     TEXT,
             salary_type      TEXT NOT NULL,
             salary_band      TEXT NOT NULL,
             shift_type       TEXT NOT NULL,
@@ -991,8 +993,27 @@ def aggregate_job_desc(df, job_type, employment_type):
     return rows
 
 
+def _salary_stats_row(job_type, employment_type, pref, muni, axis_code, cat, sub_df,
+                       sal_min_col, sal_max_col, hol_col, ben_col):
+    """給与統計の1行を生成するヘルパー"""
+    cnt = len(sub_df)
+    s_min = sub_df[sal_min_col].dropna()
+    s_max = sub_df[sal_max_col].dropna()
+    hol = sub_df[hol_col].dropna() if hol_col in sub_df.columns else pd.Series(dtype=float)
+    ben = sub_df[ben_col].dropna() if ben_col in sub_df.columns else pd.Series(dtype=float)
+    return (
+        job_type, employment_type, pref, muni, axis_code, cat, cnt,
+        int(s_min.mean()) if len(s_min) > 0 else None,
+        int(s_min.median()) if len(s_min) > 0 else None,
+        int(s_max.mean()) if len(s_max) > 0 else None,
+        int(s_max.median()) if len(s_max) > 0 else None,
+        round(float(hol.mean()), 1) if len(hol) > 0 else None,
+        round(float(ben.mean()), 1) if len(ben) > 0 else None,
+    )
+
+
 def aggregate_salary(df, job_type, employment_type):
-    """セグメント別の給与統計"""
+    """セグメント別の給与統計（月給のみ対象）"""
     rows = []
     sal_min_col = 'salary_min'
     sal_max_col = 'salary_max'
@@ -1002,48 +1023,53 @@ def aggregate_salary(df, job_type, employment_type):
     if sal_min_col not in df.columns:
         return rows
 
+    # 月給のみフィルタ（時給混在による平均値低下を防止）
+    if 'salary_type' in df.columns:
+        df = df[df['salary_type'] == '月給'].copy()
+    if len(df) == 0:
+        return rows
+
     for pref, pref_df in df.groupby('prefecture'):
-        # 5軸のカテゴリ別
+        # 5軸のカテゴリ別（県レベル）
         for axis_code, col in AXIS_MAP.items():
             if col not in pref_df.columns:
                 continue
             for cat, cat_df in pref_df.groupby(col):
-                cnt = len(cat_df)
-                if cnt < 3:
+                if len(cat_df) < 3:
                     continue
-                s_min = cat_df[sal_min_col].dropna()
-                s_max = cat_df[sal_max_col].dropna()
-                hol = cat_df[hol_col].dropna() if hol_col in cat_df.columns else pd.Series(dtype=float)
-                ben = cat_df[ben_col].dropna() if ben_col in cat_df.columns else pd.Series(dtype=float)
-                rows.append((
-                    job_type, employment_type, pref, axis_code, cat, cnt,
-                    int(s_min.mean()) if len(s_min) > 0 else None,
-                    int(s_min.median()) if len(s_min) > 0 else None,
-                    int(s_max.mean()) if len(s_max) > 0 else None,
-                    int(s_max.median()) if len(s_max) > 0 else None,
-                    round(float(hol.mean()), 1) if len(hol) > 0 else None,
-                    round(float(ben.mean()), 1) if len(ben) > 0 else None,
+                rows.append(_salary_stats_row(
+                    job_type, employment_type, pref, None,
+                    axis_code, cat, cat_df,
+                    sal_min_col, sal_max_col, hol_col, ben_col,
                 ))
 
-        # Tier3パターン別
+        # Tier3パターン別（県レベル）
         if 'tier3_id' in pref_df.columns:
             for t3, t3_df in pref_df.groupby('tier3_id'):
-                cnt = len(t3_df)
-                if cnt < 3:
+                if len(t3_df) < 3:
                     continue
-                s_min = t3_df[sal_min_col].dropna()
-                s_max = t3_df[sal_max_col].dropna()
-                hol = t3_df[hol_col].dropna() if hol_col in t3_df.columns else pd.Series(dtype=float)
-                ben = t3_df[ben_col].dropna() if ben_col in t3_df.columns else pd.Series(dtype=float)
-                rows.append((
-                    job_type, employment_type, pref, 'tier3', t3, cnt,
-                    int(s_min.mean()) if len(s_min) > 0 else None,
-                    int(s_min.median()) if len(s_min) > 0 else None,
-                    int(s_max.mean()) if len(s_max) > 0 else None,
-                    int(s_max.median()) if len(s_max) > 0 else None,
-                    round(float(hol.mean()), 1) if len(hol) > 0 else None,
-                    round(float(ben.mean()), 1) if len(ben) > 0 else None,
+                rows.append(_salary_stats_row(
+                    job_type, employment_type, pref, None,
+                    'tier3', t3, t3_df,
+                    sal_min_col, sal_max_col, hol_col, ben_col,
                 ))
+
+        # 市区町村レベル（10件以上のみ）
+        if 'municipality' in pref_df.columns:
+            for muni, muni_df in pref_df.groupby('municipality'):
+                if len(muni_df) < 10:
+                    continue
+                for axis_code, col in AXIS_MAP.items():
+                    if col not in muni_df.columns:
+                        continue
+                    for cat, cat_df in muni_df.groupby(col):
+                        if len(cat_df) < 3:
+                            continue
+                        rows.append(_salary_stats_row(
+                            job_type, employment_type, pref, muni,
+                            axis_code, cat, cat_df,
+                            sal_min_col, sal_max_col, hol_col, ben_col,
+                        ))
 
     return rows
 
@@ -1306,10 +1332,32 @@ def aggregate_salary_shift(df, job_type, employment_type):
                 if pd.isna(shift) or shift.strip() == '':
                     shift = '不明'
                 rows.append((
-                    job_type, employment_type, pref,
+                    job_type, employment_type, pref, None,
                     st_label, str(r['_sal_band']), shift,
                     int(r['count']), int(r['median']), total,
                 ))
+
+        # 市区町村レベル（10件以上）
+        if 'municipality' in sub.columns:
+            for (pref, muni), muni_df in sub.groupby(['prefecture', 'municipality']):
+                if len(muni_df) < 10:
+                    continue
+                total = len(muni_df)
+                cross = muni_df.groupby(['_sal_band', 'wh_shift_type']).agg(
+                    count=('salary_min_num', 'size'),
+                    median=('salary_min_num', 'median'),
+                ).reset_index()
+                for _, r in cross.iterrows():
+                    if r['count'] < 2:
+                        continue
+                    shift = str(r['wh_shift_type'])
+                    if pd.isna(shift) or shift.strip() == '':
+                        shift = '不明'
+                    rows.append((
+                        job_type, employment_type, pref, muni,
+                        st_label, str(r['_sal_band']), shift,
+                        int(r['count']), int(r['median']), total,
+                    ))
 
     return rows
 
@@ -1445,7 +1493,7 @@ def process_csv(csv_path, conn):
     for emp_type, group_df in groups:
         sal_rows.extend(aggregate_salary(group_df, job_type, emp_type))
     conn.executemany(
-        "INSERT INTO segment_salary VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO segment_salary VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
         sal_rows
     )
     print(f"  segment_salary: {len(sal_rows):,}行")
@@ -1515,7 +1563,7 @@ def process_csv(csv_path, conn):
     for emp_type, group_df in groups:
         ss_rows.extend(aggregate_salary_shift(group_df, job_type, emp_type))
     conn.executemany(
-        "INSERT INTO segment_salary_shift VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO segment_salary_shift VALUES (?,?,?,?,?,?,?,?,?,?)",
         ss_rows
     )
     print(f"  segment_salary_shift: {len(ss_rows):,}行")

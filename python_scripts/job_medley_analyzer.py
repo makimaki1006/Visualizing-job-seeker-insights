@@ -495,6 +495,64 @@ def parse_working_hours(text) -> dict:
 
 
 # ============================================================
+# 雇用形態フォールバック抽出 (v1.0)
+# ============================================================
+
+def extract_employment_from_salary_text(text):
+    """給与テキストから雇用形態を抽出するフォールバック関数
+
+    正常なパターン: 【正職員】月給 186,000円 〜 281,800円
+    異常なパターン: 正職員 月給 175,000円 〜 246,000円
+
+    classified CSVで給与_雇用形態がNaN/空の行（住所形式行等）に対し、
+    給与テキストから雇用形態を復元するために使用する。
+    """
+    if pd.isna(text) or not str(text).strip():
+        return ''
+    text = str(text).strip()
+
+    # 墨付き括弧パターン（既存の正常パターン）
+    m = re.search(r'【(.+?)】', text)
+    if m:
+        return _normalize_employment_type(m.group(1))
+
+    # 括弧なしパターン: 行頭の雇用形態キーワード
+    patterns = [
+        '正職員', '正社員', 'パート・バイト', 'パート', 'バイト',
+        '契約職員', '契約社員', '業務委託', '派遣', 'アルバイト',
+    ]
+    for pat in patterns:
+        if text.startswith(pat):
+            return _normalize_employment_type(pat)
+
+    # 途中にキーワードがある場合
+    m2 = re.search(
+        r'(正職員|正社員|パート・バイト|パート|契約職員|契約社員|業務委託|派遣)',
+        text,
+    )
+    if m2:
+        return _normalize_employment_type(m2.group(1))
+
+    return ''
+
+
+def _normalize_employment_type(raw):
+    """雇用形態の表記ゆれを正規化"""
+    raw = raw.strip()
+    if raw in ('正職員', '正社員'):
+        return '正社員'
+    if raw in ('パート・バイト', 'パート', 'バイト', 'アルバイト'):
+        return 'パート・バイト'
+    if raw in ('契約職員', '契約社員'):
+        return '契約職員'
+    if raw == '業務委託':
+        return '業務委託'
+    if raw == '派遣':
+        return '派遣'
+    return raw
+
+
+# ============================================================
 # 休日パターンパーサー (v2.2)
 # ============================================================
 
@@ -947,6 +1005,22 @@ def analyze_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         out["employment_type"] = out["給与_雇用形態"].apply(clean_employment_type)
     else:
         out["employment_type"] = ""
+
+    # フォールバック: employment_typeが空/NaNの場合、給与テキストから復元
+    mask_empty = (
+        out["employment_type"].isna()
+        | (out["employment_type"] == '')
+        | (out["employment_type"] == 'nan')
+    )
+    salary_col = "給与" if "給与" in out.columns else None
+    if salary_col and mask_empty.any():
+        recovered = out.loc[mask_empty, salary_col].apply(
+            extract_employment_from_salary_text
+        )
+        out.loc[mask_empty, "employment_type"] = recovered
+        recovered_count = (recovered != '').sum()
+        if recovered_count > 0:
+            print(f"    employment_type復元: {recovered_count}/{mask_empty.sum()}件を給与テキストから復元")
 
     # 都道府県・市区町村
     if "アクセス" in out.columns:
