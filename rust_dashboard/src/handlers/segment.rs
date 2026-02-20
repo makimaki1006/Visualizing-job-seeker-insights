@@ -1271,14 +1271,26 @@ document.querySelectorAll('.seg-subtab').forEach(btn => {{
         const panel = document.getElementById('seg-panel-' + btn.dataset.panel);
         if (panel) {{
             panel.classList.remove('hidden');
-            // hidden解除後にHTMXリクエストを手動トリガー（未ロード時のみ）
-            if (panel.dataset.loaded !== 'true') {{
-                htmx.trigger(panel, 'revealed');
-                panel.dataset.loaded = 'true';
+            // フィルタ変更後または初回表示時: htmx.ajax()で確実にリロード
+            if (panel.getAttribute('data-loaded') !== 'true') {{
+                htmx.ajax('GET', panel.getAttribute('hx-get'), {{target: '#' + panel.id, swap: 'innerHTML'}});
+                panel.setAttribute('data-loaded', 'true');
             }}
         }}
     }});
 }});
+
+// フィルタ変更共通: 全パネルのURLを更新し、表示中パネルのみリロード
+function segReloadAfterFilter() {{
+    document.querySelectorAll('.seg-panel').forEach(function(p) {{
+        p.removeAttribute('data-loaded');
+    }});
+    var visible = document.querySelector('.seg-panel:not(.hidden)');
+    if (visible) {{
+        htmx.ajax('GET', visible.getAttribute('hx-get'), {{target: '#' + visible.id, swap: 'innerHTML'}});
+        visible.setAttribute('data-loaded', 'true');
+    }}
+}}
 
 // 雇用形態フィルタ変更
 document.getElementById('seg-emp-filter').addEventListener('change', function() {{
@@ -1287,13 +1299,8 @@ document.getElementById('seg-emp-filter').addEventListener('change', function() 
         var url = panel.getAttribute('hx-get');
         url = url.replace(/employment_type=[^&]*/, 'employment_type=' + emp);
         panel.setAttribute('hx-get', url);
-        panel.removeAttribute('data-loaded');
     }});
-    var visible = document.querySelector('.seg-panel:not(.hidden)');
-    if (visible) {{
-        htmx.ajax('GET', visible.getAttribute('hx-get'), {{target: visible, swap: 'innerHTML'}});
-        visible.dataset.loaded = 'true';
-    }}
+    segReloadAfterFilter();
 }});
 
 // 施設形態フィルタ変更
@@ -1307,13 +1314,8 @@ document.getElementById('seg-facility-filter').addEventListener('change', functi
             url = url + '&facility_type=' + ft;
         }}
         panel.setAttribute('hx-get', url);
-        panel.removeAttribute('data-loaded');
     }});
-    var visible = document.querySelector('.seg-panel:not(.hidden)');
-    if (visible) {{
-        htmx.ajax('GET', visible.getAttribute('hx-get'), {{target: visible, swap: 'innerHTML'}});
-        visible.dataset.loaded = 'true';
-    }}
+    segReloadAfterFilter();
 }});
 </script>"##,
         scope = escape_html(&scope_label),
