@@ -155,6 +155,10 @@ pub fn build_app(state: Arc<AppState>) -> Router {
             "/api/segment/salary_shift",
             get(handlers::segment::segment_salary_shift),
         )
+        .route(
+            "/api/segment/tag_combos",
+            get(handlers::segment::segment_tag_combos),
+        )
         .route("/api/status", get(api_status))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

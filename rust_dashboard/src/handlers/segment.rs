@@ -37,6 +37,7 @@ fn map_job_type_to_segment(job_type: &str) -> Option<&str> {
         "児童指導員" => Some("児童指導員"),
         "児童発達支援管理責任者" => Some("児童発達支援管理責任者"),
         "生活支援員" => Some("生活支援員"),
+        "管理職（介護）" => Some("介護職・ヘルパー"),
         _ => None,
     }
 }
@@ -945,13 +946,19 @@ pub async fn segment_text_features(
         categories.entry(cat).or_default().push((label, count, total));
     }
 
-    // カテゴリのテーマカラー
+    // カテゴリのテーマカラー（全11カテゴリ対応）
     let cat_colors = [
         ("施設形態", "#3b82f6"),
         ("勤務形態", "#10b981"),
-        ("教育研修", "#f59e0b"),
+        ("教育・研修", "#f59e0b"),
         ("福利厚生", "#8b5cf6"),
         ("訴求表現", "#ef4444"),
+        ("給与・報酬", "#22c55e"),
+        ("キャリア・成長", "#a855f7"),
+        ("通勤・立地", "#14b8a6"),
+        ("WLB", "#f97316"),
+        ("採用プロセス", "#ec4899"),
+        ("仕事内容分析", "#64748b"),
     ];
 
     let mut cat_charts = String::new();
@@ -1156,6 +1163,7 @@ pub async fn tab_segment(
         <button class="seg-subtab px-3 py-1.5 text-sm rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600" data-panel="workschedule">勤務時間帯</button>
         <button class="seg-subtab px-3 py-1.5 text-sm rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600" data-panel="holidays">休日分析</button>
         <button class="seg-subtab px-3 py-1.5 text-sm rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600" data-panel="salaryshift">給与×シフト</button>
+        <button class="seg-subtab px-3 py-1.5 text-sm rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600" data-panel="tagcombos">タグ組合せ</button>
     </div>
 
     <!-- パネル: 5軸分布 -->
@@ -1238,6 +1246,13 @@ pub async fn tab_segment(
     <!-- パネル: 給与×シフト -->
     <div id="seg-panel-salaryshift" class="seg-panel hidden"
          hx-get="/api/segment/salary_shift?prefecture={pref_enc}&municipality={muni_enc}&employment_type={emp_enc}"
+         hx-trigger="revealed" hx-swap="innerHTML">
+        <div class="text-center py-8"><span class="text-slate-400">読み込み中...</span></div>
+    </div>
+
+    <!-- パネル: タグ組合せ -->
+    <div id="seg-panel-tagcombos" class="seg-panel hidden"
+         hx-get="/api/segment/tag_combos?prefecture={pref_enc}&municipality={muni_enc}&employment_type={emp_enc}"
          hx-trigger="revealed" hx-swap="innerHTML">
         <div class="text-center py-8"><span class="text-slate-400">読み込み中...</span></div>
     </div>
@@ -3132,4 +3147,164 @@ fn build_salary_shift_charts(
         </script>
     </div>"##,
     )
+}
+
+// =============================================================
+// API: /api/segment/tag_combos - タグ組合せ分析
+// =============================================================
+
+pub async fn segment_tag_combos(
+    State(state): State<Arc<AppState>>,
+    session: Session,
+    Query(params): Query<SegmentParams>,
+) -> Html<String> {
+    let (job_type, sess_pref, sess_muni) = get_session_filters(&session).await;
+
+    let seg_db = match &state.segment_db {
+        Some(db) => db,
+        None => return Html(no_segment_data_html(&job_type)),
+    };
+
+    let seg_jt = match map_job_type_to_segment(&job_type) {
+        Some(jt) => jt,
+        None => return Html(no_segment_data_html(&job_type)),
+    };
+
+    let pref_raw = params.prefecture.as_deref().filter(|s| !s.is_empty()).unwrap_or(&sess_pref);
+    let muni_raw = params.municipality.as_deref().filter(|s| !s.is_empty()).unwrap_or(&sess_muni);
+
+    let emp = params.employment_type.as_deref().unwrap_or("");
+    let emp_type = if emp.is_empty() { "全て" } else { emp };
+
+    let (pref_resolved, muni_resolved, is_fallback) = resolve_municipality_fallback(
+        seg_db, "segment_tag_combos", seg_jt, emp_type, pref_raw, muni_raw,
+    );
+    let pref = pref_resolved.as_str();
+    let muni = muni_resolved.as_str();
+
+    // size別にデータ取得（size 2, 3, 4）
+    let mut all_combos: Vec<(String, i64, i64, i64)> = Vec::new(); // (combo, count, total, size)
+
+    for combo_size in [2, 3, 4] {
+        let (sql, p_count) = if !muni.is_empty() {
+            (format!(
+                "SELECT combo, SUM(count) as count, SUM(total) as total \
+                 FROM segment_tag_combos WHERE job_type = ? AND employment_type = ? \
+                 AND prefecture = ? AND municipality = ? AND combo_size = ? \
+                 GROUP BY combo ORDER BY count DESC LIMIT 10"),
+             5)
+        } else if !pref.is_empty() {
+            (format!(
+                "SELECT combo, SUM(count) as count, SUM(total) as total \
+                 FROM segment_tag_combos WHERE job_type = ? AND employment_type = ? \
+                 AND prefecture = ? AND municipality IS NULL AND combo_size = ? \
+                 GROUP BY combo ORDER BY count DESC LIMIT 10"),
+             4)
+        } else {
+            (format!(
+                "SELECT combo, SUM(count) as count, SUM(total) as total \
+                 FROM segment_tag_combos WHERE job_type = ? AND employment_type = ? \
+                 AND municipality IS NULL AND combo_size = ? \
+                 GROUP BY combo ORDER BY count DESC LIMIT 10"),
+             3)
+        };
+
+        let params_vec: Vec<String> = if p_count == 5 {
+            vec![seg_jt.to_string(), emp_type.to_string(), pref.to_string(), muni.to_string(), combo_size.to_string()]
+        } else if p_count == 4 {
+            vec![seg_jt.to_string(), emp_type.to_string(), pref.to_string(), combo_size.to_string()]
+        } else {
+            vec![seg_jt.to_string(), emp_type.to_string(), combo_size.to_string()]
+        };
+
+        let params_ref: Vec<&dyn rusqlite::types::ToSql> = params_vec.iter().map(|s| s as &dyn rusqlite::types::ToSql).collect();
+
+        if let Ok(rows) = seg_db.query(&sql, &params_ref) {
+            for row in &rows {
+                let combo = row.get("combo").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let count = row.get("count").and_then(|v| v.as_i64()).unwrap_or(0);
+                let total = row.get("total").and_then(|v| v.as_i64()).unwrap_or(1).max(1);
+                all_combos.push((combo, count, total, combo_size));
+            }
+        }
+    }
+
+    // サイズ別にチャートHTML生成
+    let size_colors = [
+        (2, "#3b82f6", "2タグ組合せ"),
+        (3, "#10b981", "3タグ組合せ"),
+        (4, "#f59e0b", "4タグ組合せ"),
+    ];
+
+    let mut charts_html = String::new();
+
+    for (size, color, title) in &size_colors {
+        let items: Vec<&(String, i64, i64, i64)> = all_combos.iter()
+            .filter(|(_, _, _, s)| *s == *size)
+            .collect();
+
+        if items.is_empty() {
+            continue;
+        }
+
+        let labels: Vec<String> = items.iter()
+            .map(|(c, _, _, _)| format!(r#""{}""#, escape_html(c)))
+            .collect();
+        let values: Vec<String> = items.iter()
+            .map(|(_, count, total, _)| format!("{:.1}", *count as f64 / *total as f64 * 100.0))
+            .collect();
+        let item_count = items.len();
+        let bar_h = if item_count <= 3 { 55 } else if item_count <= 5 { 45 } else { 38 };
+
+        charts_html.push_str(&format!(
+            r##"<div class="stat-card">
+                <h4 class="text-sm text-slate-400 mb-2">{title} TOP{top_n}</h4>
+                <div class="echart" style="height:{height}px;" data-chart-config='{{
+                    "tooltip": {{"trigger": "axis", "axisPointer": {{"type": "shadow"}}, "formatter": "{{b}}: {{c}}%"}},
+                    "xAxis": {{"type": "value", "axisLabel": {{"color": "#94a3b8", "formatter": "{{value}}%"}}, "max": 100}},
+                    "yAxis": {{"type": "category", "data": [{labels}], "inverse": true, "axisLabel": {{"color": "#94a3b8", "fontSize": 11, "width": 200, "overflow": "truncate"}}}},
+                    "series": [{{
+                        "type": "bar", "data": [{values}],
+                        "itemStyle": {{"color": "{color}", "borderRadius": [0,4,4,0]}},
+                        "barWidth": "70%",
+                        "label": {{"show": true, "position": "right", "formatter": "{{c}}%", "color": "#94a3b8", "fontSize": 11}}
+                    }}],
+                    "grid": {{"left": "35%", "right": "12%", "top": "8px", "bottom": "8px", "containLabel": false}}
+                }}'></div>
+            </div>"##,
+            title = title,
+            top_n = item_count,
+            height = (item_count * bar_h).max(180),
+            labels = labels.join(","),
+            values = values.join(","),
+            color = color,
+        ));
+    }
+
+    if charts_html.is_empty() {
+        charts_html = r#"<div class="stat-card"><p class="text-slate-400 text-center py-4">タグ組合せデータがありません</p></div>"#.to_string();
+    }
+
+    let fallback_note = if is_fallback {
+        r#"<div class="text-xs text-amber-400 mb-2">※ 市区町村データなし → 都道府県レベルで表示</div>"#
+    } else {
+        ""
+    };
+
+    let html = format!(
+        r##"<div class="space-y-4">
+        <div class="flex items-center gap-2 mb-4">
+            <h3 class="text-lg font-bold text-white">タグ組合せ分析</h3>
+            <span class="text-xs text-slate-400">よく一緒に出現するタグの組合せ</span>
+        </div>
+        {fallback_note}
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {charts_html}
+        </div>
+    </div>"##,
+        fallback_note = fallback_note,
+        charts_html = charts_html,
+    );
+
+    Html(html)
 }
