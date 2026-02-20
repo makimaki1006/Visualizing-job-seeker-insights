@@ -266,19 +266,32 @@ def extract_benefits_flags(row: pd.Series) -> dict:
 # 仕事内容分析（v1.2新機能）
 # ============================================================
 
-# 業務カテゴリの定義（7種）
+# 業務カテゴリの定義（10種 v2.4拡張）
 JOB_DESC_CATEGORIES = {
     "直接介護・看護": [
         r'身体介護', r'入浴(介助|支援)', r'食事(介助|支援)', r'排(せつ|泄)(介助|支援)',
-        r'バイタル', r'点滴', r'採血', r'注射', r'褥瘡', r'服薬(管理|介助)',
+        r'バイタル(サイン|チェック|測定)?', r'点滴', r'採血', r'注射', r'褥瘡',
+        r'服薬(管理|指導|介助)',
+        # v2.4追加: 看護・医療業務キーワード
+        r'看護業務', r'看護師業務', r'訪問看護', r'訪問入浴',
+        r'医療処置', r'医療行為', r'健康(管理|観察|チェック)',
+        r'透析', r'穿刺', r'返血', r'シャント',
+        r'配薬', r'与薬', r'吸引', r'経管栄養',
+        r'創傷(処置|ケア)', r'ストーマ', r'カテーテル',
+        r'血糖(測定|チェック)', r'インスリン',
     ],
     "間接業務": [
         r'記録(業務|作成)', r'書類(作成|業務)', r'事務(作業|業務)', r'電話対応',
         r'レセプト', r'請求(業務|事務)', r'データ入力',
+        # v2.4追加
+        r'受付(業務)?', r'予約(管理|受付)',
+        r'在庫管理', r'物品(管理|発注)',
     ],
     "相談支援": [
         r'相談(支援|業務|対応)', r'ケアマネジメント', r'ケアプラン',
         r'アセスメント', r'退院(支援|調整)', r'生活相談',
+        # v2.4追加
+        r'サービス(担当者会議|調整)', r'退院(支援|調整)',
     ],
     "リハビリ": [
         r'リハビリ(テーション)?', r'機能(訓練|回復)', r'理学療法', r'作業療法',
@@ -295,6 +308,35 @@ JOB_DESC_CATEGORIES = {
     "調理": [
         r'調理(業務|補助)?', r'配(膳|食)', r'厨房', r'栄養(管理|指導)',
     ],
+    # v2.4新規カテゴリ
+    "健診・検診": [
+        r'健(康)?診(業務)?', r'検診', r'人間ドック',
+        r'心電図', r'視力検査', r'聴力検査',
+        r'問診', r'保健指導',
+    ],
+    "美容・自費診療": [
+        r'美容(施術|カウンセリング|注射|外来|皮膚)', r'脱毛',
+        r'アートメイク', r'ヒアルロン酸', r'ボトックス',
+        r'レーザー(治療|施術)', r'点滴(バー|ルーム)',
+    ],
+    "産業保健": [
+        r'産業(保健|看護)', r'健康(経営|管理室)',
+        r'ストレスチェック', r'衛生(管理|委員会)',
+        r'メンタルヘルス', r'復職支援',
+    ],
+}
+
+# v2.4: service_typeからjd_primary_taskを推定するフォールバック辞書
+_SERVICE_TYPE_TO_JD = {
+    r'訪問看護': '直接介護・看護',
+    r'病院|クリニック|診療所|医院': '直接介護・看護',
+    r'介護.{0,3}(施設|事業所)|老人ホーム|デイサービス|グループホーム': '直接介護・看護',
+    r'保育(園|所)|幼稚園|認定こども園': '保育',
+    r'歯科(診療所|医院|クリニック)': '間接業務',
+    r'健診|検診|人間ドック': '健診・検診',
+    r'美容(クリニック|皮膚科|外科)': '美容・自費診療',
+    r'薬局|ドラッグストア': '間接業務',
+    r'(居宅|地域包括)': '相談支援',
 }
 
 # トーン検出パターン
@@ -323,6 +365,16 @@ def analyze_job_description(row: pd.Series) -> dict:
                 break
 
     primary = matched_cats[0] if matched_cats else ''
+
+    # v2.4: service_typeフォールバック（パターンマッチが空の場合）
+    if not primary:
+        svc = row.get('service_type')
+        if isinstance(svc, str) and svc.strip():
+            for svc_pat, jd_cat in _SERVICE_TYPE_TO_JD.items():
+                if re.search(svc_pat, svc):
+                    primary = jd_cat
+                    matched_cats.append(jd_cat)
+                    break
 
     # トーン分析
     casual_count = sum(1 for p in _TONE_CASUAL if re.search(p, desc))
@@ -452,12 +504,28 @@ def parse_working_hours(text) -> dict:
     elif end_hours:
         wh_end_hour = max(end_hours)
 
+    # v2.4: 番号付き複数シフト → シフト制
+    if shift_type is None:
+        numbered_shifts = re.findall(r'[（(]?\s*[①-⑩\d]\s*[）)]', text)
+        if len(numbered_shifts) >= 2:
+            shift_type = 'シフト制'
+
+    # v2.4: 変形労働時間制 → シフト制
+    if shift_type is None and re.search(r'変形労働時間', text):
+        shift_type = 'シフト制'
+
+    # v2.4: 「～の間でX時間」パターン → シフト制
+    if shift_type is None and re.search(r'\d{1,2}:\d{2}.*の間で\d時間', text):
+        shift_type = 'シフト制'
+
     # シフト形態が未決定の場合、時刻パターン数から判定
     if shift_type is None:
         if len(time_ranges) == 1:
             shift_type = '固定時間'
         elif len(time_ranges) == 0:
             shift_type = '不明'
+        elif len(time_ranges) >= 2:
+            shift_type = 'シフト制'  # v2.4: 2つ以上の時間帯 → シフト制
         else:
             shift_type = '不明'
 
@@ -497,13 +565,28 @@ def parse_working_hours(text) -> dict:
     break_match = _RE_BREAK.search(text)
     wh_break_minutes = int(break_match.group(1)) if break_match else np.nan
 
-    # --- 残業状況 ---
-    if re.search(r'残業\s*(なし|ゼロ|0)', text):
+    # --- 残業状況 (v2.4拡張) ---
+    if re.search(r'(残業|時間外(労働)?)\s*(なし|ゼロ|0)', text):
         overtime = '残業なし'
-    elif re.search(r'残業\s*(ほぼ\s*なし|少な)', text):
+    elif re.search(r'(残業|時間外(労働)?)\s*(ほぼ\s*なし|少な)', text):
         overtime = '残業ほぼなし'
+    elif re.search(r'(残業|時間外(労働)?)\s*月\s*(平均\s*)?\d{1,2}\s*時間', text):
+        # 時間数で分類
+        m_ot = re.search(r'(残業|時間外(労働)?)\s*月\s*(平均\s*)?(\d{1,2})\s*時間', text)
+        if m_ot:
+            ot_hours = int(m_ot.group(4))
+            if ot_hours <= 5:
+                overtime = '残業ほぼなし'
+            elif ot_hours <= 20:
+                overtime = '月20h以内'
+            else:
+                overtime = '残業あり'
+        else:
+            overtime = '月20h以内'
     elif re.search(r'残業\s*月\s*20\s*時間\s*以内', text):
         overtime = '月20h以内'
+    elif re.search(r'(時間外(労働)?\s*あり|超過勤務)', text):
+        overtime = '残業あり'
     elif re.search(r'時間外', text):
         overtime = '残業あり'
     else:
@@ -597,6 +680,8 @@ def parse_holidays(holidays_text):
         return {'hol_pattern': '', 'hol_weekday_off': '', 'hol_special': ''}
 
     text = holidays_text
+    # v2.4: 漢数字→算用数字の正規化
+    text = text.replace('二日', '2日').replace('三日', '3日')
 
     # 休日パターン判定（優先順）
     pattern = 'その他'
@@ -613,6 +698,25 @@ def parse_holidays(holidays_text):
     elif re.search(r'シフト制', text):
         pattern = 'シフト制'
 
+    # v2.4: 「その他」のフォールバック追加パターン
+    if pattern == 'その他':
+        # 月X日休み → 4週8休換算
+        if re.search(r'月[89]\d?\s*日?(以上)?\s*(の?\s*)?休', text):
+            pattern = '4週8休'
+        elif re.search(r'月10\s*日?(以上)?\s*(の?\s*)?休', text):
+            pattern = '4週8休'
+        elif re.search(r'月[67]\s*日?(以上)?\s*(の?\s*)?休', text):
+            pattern = 'シフト制'
+        # 勤務パターン (3勤1休, 4勤2休)
+        elif re.search(r'[34]勤[12]休', text):
+            pattern = '4週8休'
+        # シフト関連
+        elif re.search(r'シフトによる|ローテーション', text):
+            pattern = 'シフト制'
+        # パート応相談
+        elif re.search(r'週[1-3]日.{0,5}(OK|可|勤務|から)|応相談', text):
+            pattern = 'パート応相談'
+
     # 曜日固定休の判定
     weekday_off = '不明'
     if re.search(r'土日(祝)?(.{0,2})(休|お休み)', text):
@@ -621,6 +725,11 @@ def parse_holidays(holidays_text):
         weekday_off = '日曜'
     elif re.search(r'平日(.{0,2})(休|お休み)', text):
         weekday_off = '平日'
+    # v2.4: クリニック系の曜日固定休
+    elif re.search(r'水曜.{0,5}(休|午後休)', text):
+        weekday_off = '水曜'
+    elif re.search(r'木曜.{0,5}(休|午後休)', text):
+        weekday_off = '木曜'
 
     # 特別休暇
     specials = []
@@ -910,6 +1019,11 @@ def detect_gender_lifecycle(row: pd.Series) -> dict:
     stages_str = ','.join(sorted_stages)
     primary_stage = sorted_stages[0] if sorted_stages else ''
 
+    # v2.4: lifecycleからの性別推定（genderが空の場合のフォールバック）
+    if gender == '' and primary_stage in ('結婚・出産期', '育児期', '復職期'):
+        gender = 'female_leaning'
+        f_score += 1
+
     return {
         'gender_female_score': f_score,
         'gender_male_score': m_score,
@@ -924,9 +1038,9 @@ def detect_gender_lifecycle(row: pd.Series) -> dict:
 # ============================================================
 
 def detect_experience_qualification(row: pd.Series) -> dict:
-    """未経験/有経験 × 有資格/無資格の4象限分類 v2.3
+    """未経験/有経験 × 有資格/無資格の4象限分類 v2.4
 
-    v2.3: 判定パターン大幅拡張 + 複数フィールド活用 + タグ連動
+    v2.4: 資格名パターン30種+拡張、短文req判定、service_type活用
     目標: 「条件不明」38% → 15%以下
 
     Returns:
@@ -938,11 +1052,33 @@ def detect_experience_qualification(row: pd.Series) -> dict:
     jd = str(row.get('job_description', ''))
     headline = str(row.get('headline', ''))
     tags_str = str(row.get('tags', ''))
+    service_type = str(row.get('service_type', ''))
 
     # 主要判定フィールド（応募要件 + 歓迎要件）
     combined = req + ' ' + welcome
     # 補助判定フィールド（仕事内容 + 研修 + 見出し）
     extended = combined + ' ' + jd + ' ' + edu + ' ' + headline
+
+    # ────────────────────────────────
+    # 資格名マスター（30種+）
+    # ────────────────────────────────
+    _QUAL_NAMES = (
+        r'正看護師|准看護師|看護師免許|看護師資格|看護師'
+        r'|保健師|助産師|認定看護師|専門看護師'
+        r'|介護福祉士|社会福祉士|精神保健福祉士'
+        r'|ケアマネジャー|ケアマネ|介護支援専門員'
+        r'|初任者研修|実務者研修'
+        r'|理学療法士|作業療法士|言語聴覚士'
+        r'|管理栄養士|栄養士|調理師'
+        r'|歯科衛生士|歯科技工士'
+        r'|薬剤師|登録販売者'
+        r'|柔道整復師|あん摩マッサージ指圧師|鍼灸師'
+        r'|臨床検査技師|診療放射線技師|臨床工学技士'
+        r'|児童指導員|保育士'
+        r'|社会福祉主事|相談支援専門員'
+        r'|児童指導員任用資格|児童発達支援管理責任者'
+        r'|サービス管理責任者|サービス提供責任者'
+    )
 
     # ────────────────────────────────
     # 未経験判定（拡張版）
@@ -982,16 +1118,17 @@ def detect_experience_qualification(row: pd.Series) -> dict:
     is_experienced = any(re.search(p, combined) for p in experienced_patterns)
 
     # ────────────────────────────────
-    # 資格要否判定（拡張版）
+    # 資格要否判定（v2.4大幅拡張）
     # ────────────────────────────────
     no_qual_patterns = [
         r'無資格.{0,3}(可|OK|歓迎|の方|でも)',
         r'資格.{0,3}(不問|なし.{0,3}可|不要|なくても|問いません|問わず)',
         r'資格.{0,3}(取得支援|取得.{0,3}(サポート|補助|制度))',
-        r'(学歴|資格).{0,3}不問',
+        # v2.4: 「学歴不問」は資格不問とは別概念 → 学歴を除外
+        r'資格.{0,3}不問',
     ]
-    # タグからの補完
-    if '無資格可' in tags_str or '資格不問' in tags_str or '学歴不問' in tags_str:
+    # タグからの補完（v2.4: 資格名が応募要件にある場合はno_qualにしない）
+    if ('無資格可' in tags_str or '資格不問' in tags_str) and not qual_name_in_req:
         no_qual_patterns.append(r'.')  # 強制マッチ
 
     requires_qual_patterns = [
@@ -999,25 +1136,51 @@ def detect_experience_qualification(row: pd.Series) -> dict:
         r'(資格|免許).{0,3}(必須|要|お持ちの方|保有者|をお持ち)',
         r'以下.{0,5}(資格|免許)',
         r'いずれか.{0,5}(資格|免許)',
-        # 具体的な資格名（応募要件に記載の場合は資格必須と判定）
-        r'(介護福祉士|初任者研修|実務者研修|正看護師|准看護師|保育士|栄養士'
-        r'|管理栄養士|理学療法士|作業療法士|言語聴覚士|社会福祉士'
-        r'|精神保健福祉士|ケアマネ|介護支援専門員|薬剤師|歯科衛生士'
-        r'|柔道整復師|あん摩マッサージ|鍼灸師|児童指導員任用資格'
-        r').{0,5}(必須|必要|要|お持ちの方|以上|保有)',
+        # 具体的な資格名 + 必須系キーワード
+        r'(' + _QUAL_NAMES + r').{0,5}(必須|必要|要|お持ちの方|以上|保有)',
     ]
     # 資格名が応募要件に明示的に記載されている場合も資格必須と推定
-    qual_name_in_req = bool(re.search(
-        r'(介護福祉士|初任者研修|実務者研修|正看護師|准看護師|保育士'
-        r'|管理栄養士|理学療法士|作業療法士|言語聴覚士|社会福祉士'
-        r'|ケアマネ|介護支援専門員|薬剤師|歯科衛生士)', req
-    ))
+    qual_name_in_req = bool(re.search(r'(' + _QUAL_NAMES + r')', req))
 
     no_qual = any(re.search(p, combined) for p in no_qual_patterns)
     req_qual = any(re.search(p, combined) for p in requires_qual_patterns)
     # 応募要件に資格名があり、「無資格可」が明示されていない場合は資格必須と推定
     if not req_qual and not no_qual and qual_name_in_req:
         req_qual = True
+
+    # ────────────────────────────────
+    # v2.4: 短文requirements + 資格名 → 経験不問・資格必要と推定
+    # 「正看護師」のような資格名のみ記述を救済
+    # ────────────────────────────────
+    if not is_inexperienced and not is_experienced and qual_name_in_req:
+        req_stripped = req.strip()
+        if len(req_stripped) <= 30:
+            # 経験条件の言及がなく短文 → 経験不問（資格のみ記載）と推定
+            if not re.search(r'経験.{0,3}(年|以上|必須|必要|者)', req):
+                is_inexperienced = True
+
+    # ────────────────────────────────
+    # v2.4: service_typeコンテキスト活用
+    # 法令上の資格要件がある施設形態から推定
+    # ────────────────────────────────
+    if not req_qual and not no_qual:
+        if re.search(r'訪問看護', service_type):
+            req_qual = True  # 訪問看護ステーション → 看護師免許必須
+        elif re.search(r'保育(園|所)|幼稚園|認定こども園', service_type):
+            req_qual = True  # 保育施設 → 保育士 or 看護師
+        elif re.search(r'薬局|ドラッグストア', service_type):
+            req_qual = True
+        elif re.search(r'歯科', service_type):
+            req_qual = True
+        elif re.search(r'病院|クリニック|診療所|医院', service_type):
+            req_qual = True  # 医療機関 → 原則資格必要
+
+    # ────────────────────────────────
+    # v2.4: req_qualがTrueの場合、no_qualを上書き
+    # （資格名が明示的に要求されている場合、一般的な「学歴不問」等に負けない）
+    # ────────────────────────────────
+    if req_qual and no_qual:
+        no_qual = False
 
     # ────────────────────────────────
     # 4象限分類（フォールバック付き）

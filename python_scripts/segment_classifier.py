@@ -300,19 +300,20 @@ class Tier2Scorer:
     # 軸D: 求職動機・訴求軸
     # ──────────────────────────────────
     def score_D1(self):
-        """収入アップ訴求"""
+        """収入アップ訴求 (v2.4: 閾値引上げで偏重是正)"""
         s = 0
-        s += 1 * self._txt_count([r'想定年収', r'モデル年収', r'年収\d{3}万'])  # v1.1: 2→1（大半の求人にある）
-        s += 2 * self._txt_count([r'高(給|収入|年収|時給)', r'インセンティブ', r'歩合'])  # v1.1: 明示的高収入のみ+2
+        s += 1 * self._txt_count([r'想定年収', r'モデル年収', r'年収\d{3}万'])
+        s += 2 * self._txt_count([r'高(給|収入|年収|時給)', r'インセンティブ', r'歩合'])
         s += self._txt_count([r'お祝い金', r'入社祝', r'支度金'])
         bonus_months = self._val('bonus_count', 0)
-        if bonus_months >= 4: s += 1  # v1.1: 3→4に厳格化
-        # v1.2: 給与数値による判定
+        if bonus_months >= 4: s += 1
+        # v2.4: 給与閾値引上げ（看護師月給中央値=260,000を考慮）
         salary_min = self._val('salary_min', 0)
         salary_max = self._val('salary_max', 0)
-        if salary_min >= 300000: s += 2
-        elif salary_min >= 250000: s += 1
-        if salary_max >= 400000: s += 1
+        if salary_min >= 350000: s += 2    # v2.4: 300K→350K（上位25%）
+        elif salary_min >= 300000: s += 1  # v2.4: 250K→300K（上位50%）
+        # 250,000は中央値以下のため加点なし
+        if salary_max >= 450000: s += 1    # v2.4: 400K→450K
         return s
 
     def score_D2(self):
@@ -328,20 +329,24 @@ class Tier2Scorer:
         return s
 
     def score_D3(self):
-        """理念・やりがい訴求"""
+        """理念・やりがい訴求 (v2.4: テキストマッチ+1底上げ)"""
         s = 0
-        s += self._txt_count([r'理念', r'ビジョン', r'ミッション', r'社会貢献',
+        count = self._txt_count([r'理念', r'ビジョン', r'ミッション', r'社会貢献',
                               r'地域.{0,5}(貢献|密着|支え)', r'やりがい', r'想い', r'志',
                               r'未来', r'100年', r'その人らしく'])
+        if count > 0:
+            s += count + 1  # v2.4: 1個でも2点に（底上げ）
         return s
 
     def score_D4(self):
-        """職場環境・人間関係訴求"""
+        """職場環境・人間関係訴求 (v2.4: テキストマッチ+1底上げ)"""
         s = 0
-        s += self._txt_count([r'アットホーム', r'風通し.{0,5}良', r'チームワーク',
+        count = self._txt_count([r'アットホーム', r'風通し.{0,5}良', r'チームワーク',
                               r'人間関係.{0,5}良', r'相談.{0,5}(できる|しやすい)',
                               r'先輩.{0,5}(サポート|フォロー)', r'仲間', r'雰囲気.{0,5}良',
                               r'話しやすい', r'意見.{0,5}(出せる|言える|反映)'])
+        if count > 0:
+            s += count + 1  # v2.4: 1個でも2点に（底上げ）
         return s
 
     def score_D5(self):
@@ -354,7 +359,7 @@ class Tier2Scorer:
         return s
 
     def score_D6(self):
-        """成長・スキルアップ訴求"""
+        """成長・スキルアップ訴求 (v2.4: education閾値緩和)"""
         s = 0
         s += self._txt_count([r'研修.{0,5}(充実|豊富|10|多数)', r'e-?ラーニング',
                               r'キャリアパス.{0,5}(2|3|複数)', r'資格取得.{0,5}(支援|補助|制度)',
@@ -362,7 +367,7 @@ class Tier2Scorer:
                               r'成長.{0,5}(できる|環境|実感)'])
         edu_len = len(str(self._r_get('education_training', '')))
         if edu_len > 300: s += 2
-        elif edu_len > 150: s += 1
+        elif edu_len > 100: s += 1  # v2.4: 150→100に緩和
         return s
 
     def score_D7(self):
@@ -395,27 +400,26 @@ class Tier2Scorer:
         return s
 
     def score_E2(self):
-        """積極採用（間口広め）"""
+        """積極採用（間口広め） (v2.4: 複数名募集・増員検出追加)"""
         s = 0
-        # v1.1: 個別タグの加点を条件付きに（全部あるだけでは積極とは言えない）
         open_tags = sum([self._tag('未経験可'), self._tag('ブランク可'),
                          self._tag('40代活躍'), self._tag('50代活躍')])
-        if open_tags >= 3: s += 2  # v1.1: 3つ以上で初めて加点
+        if open_tags >= 3: s += 2
         elif open_tags >= 2: s += 1
         content_score = self._val('content_richness_score', 0)
-        if content_score >= 9: s += 2  # v1.1: 7→9に引き上げ
-        elif content_score >= 6: s += 1  # v1.1: 4→6
+        if content_score >= 9: s += 2
+        elif content_score >= 6: s += 1
         tag_count = len(str(self.tags).split(','))
-        if tag_count >= 20: s += 1  # v1.1: 15→20に引き上げ
-        # v1.2: コンテンツ品質の定性評価
+        if tag_count >= 20: s += 1
         desc_len = len(str(self._r_get('job_description', '')))
         if desc_len >= 500: s += 1
         s += self._txt_count([r'動画', r'インタビュー', r'スタッフの声', r'先輩社員'])
+        # v2.4: 複数名募集・増員の検出
+        s += self._txt_count([r'(複数|[2-9])\s*名?\s*(募集|採用|枠)', r'増員'])
         return s
 
     def score_E3(self):
-        """通常採用"""
-        # v2.3: 固定値→動的化（E5偏重是正: 普通の求人をE3に引き上げ）
+        """通常採用 (v2.4: v2.3ベース維持 + 微拡張)"""
         s = 3
         content_score = self._val('content_richness_score', 0)
         if 4 <= content_score <= 6: s += 1
@@ -439,9 +443,7 @@ class Tier2Scorer:
         return s
 
     def score_E5(self):
-        """欠員補充・静かな募集"""
-        # v2.3: 複合条件に厳格化（QUIET_POST 42.9%→15-20%目標）
-        # photo_countは常に0のため判定から除外
+        """欠員補充・静かな募集 (v2.4: 閾値1段階厳格化)"""
         content_score = self._val('content_richness_score', 0)
         tag_count = len(str(self.tags).split(','))
         desc_len = len(str(self._r_get('job_description', '')))
@@ -457,6 +459,7 @@ class Tier2Scorer:
         if appeal_count == 0: low_quality_flags += 1
         if benefits_len < 20: low_quality_flags += 1
 
+        # v2.3維持（4→4点, 3→2点, 2→1点）+ v2.4微調整不要
         if low_quality_flags >= 4: return 4
         if low_quality_flags >= 3: return 2
         if low_quality_flags >= 2: return 1
