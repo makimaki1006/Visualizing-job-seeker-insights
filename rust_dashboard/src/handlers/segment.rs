@@ -946,7 +946,7 @@ pub async fn segment_text_features(
         categories.entry(cat).or_default().push((label, count, total));
     }
 
-    // カテゴリのテーマカラー（全12カテゴリ対応）
+    // カテゴリのテーマカラー（12大分類、診療科目内は21小分類）
     let cat_colors = [
         ("施設形態", "#3b82f6"),
         ("診療科目", "#06b6d4"),
