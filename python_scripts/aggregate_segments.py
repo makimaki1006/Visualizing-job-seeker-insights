@@ -113,17 +113,41 @@ AXIS_MAP = {
 # フリーテキスト分類辞書
 # ============================================================
 TEXT_FEATURE_DICT = {
-    # --- 施設形態 ---
-    'facility_hospital': {
+    # --- 施設形態（v2.3: 病院/クリニック細分化、サ高住追加） ---
+    'facility_hospital_general': {
         'category': '施設形態',
-        'label': '病院',
-        'patterns': [r'病院', r'総合病院', r'大学病院', r'急性期病院'],
+        'label': '総合病院・大学病院',
+        'patterns': [r'総合病院', r'大学病院', r'医療センター', r'中核病院', r'基幹病院'],
         'fields': ['service_type', 'facility_name', 'job_description'],
+    },
+    'facility_hospital_acute': {
+        'category': '施設形態',
+        'label': '急性期病院',
+        'patterns': [r'急性期(病院|病棟)', r'救急(病院|指定)', r'二次救急', r'三次救急'],
+        'fields': ['service_type', 'facility_name', 'job_description'],
+    },
+    'facility_hospital_chronic': {
+        'category': '施設形態',
+        'label': '慢性期・療養病院',
+        'patterns': [r'慢性期', r'療養(型|病院|病棟)', r'回復期(リハ|病院|病棟)', r'地域包括ケア病棟'],
+        'fields': ['service_type', 'facility_name', 'job_description'],
+    },
+    'facility_hospital_psych': {
+        'category': '施設形態',
+        'label': '精神科病院',
+        'patterns': [r'精神科病院', r'精神(病院|医療センター)', r'こころ.{0,3}(病院|医療)'],
+        'fields': ['service_type', 'facility_name', 'job_description'],
+    },
+    'facility_hospital_other': {
+        'category': '施設形態',
+        'label': '病院（その他）',
+        'patterns': [r'(?<!大学)(?<!総合)(?<!急性期)(?<!精神科)病院'],
+        'fields': ['service_type', 'facility_name'],
     },
     'facility_clinic': {
         'category': '施設形態',
         'label': 'クリニック・診療所',
-        'patterns': [r'クリニック', r'診療所', r'医院'],
+        'patterns': [r'クリニック', r'診療所', r'医院(?!名)'],
         'fields': ['service_type', 'facility_name', 'job_description'],
     },
     'facility_visiting': {
@@ -153,7 +177,19 @@ TEXT_FEATURE_DICT = {
     'facility_yuuryou': {
         'category': '施設形態',
         'label': '有料老人ホーム',
-        'patterns': [r'有料老人ホーム', r'住宅型有料', r'介護付有料'],
+        'patterns': [r'有料老人ホーム', r'住宅型有料', r'介護付(き)?有料'],
+        'fields': ['service_type', 'facility_name', 'job_description'],
+    },
+    'facility_sakouju': {
+        'category': '施設形態',
+        'label': 'サ高住',
+        'patterns': [r'サービス付き高齢者', r'サ(高住|付き)', r'サ高住'],
+        'fields': ['service_type', 'facility_name', 'job_description'],
+    },
+    'facility_shoukibo': {
+        'category': '施設形態',
+        'label': '小規模多機能',
+        'patterns': [r'小規模多機能', r'看護小規模多機能', r'看多機'],
         'fields': ['service_type', 'facility_name', 'job_description'],
     },
     'facility_hoiku': {
@@ -167,6 +203,81 @@ TEXT_FEATURE_DICT = {
         'label': '障害福祉',
         'patterns': [r'障(害|がい)(者|児)', r'就労(継続|移行)', r'放課後.{0,3}デイ', r'生活介護'],
         'fields': ['service_type', 'facility_name', 'job_description'],
+    },
+    # --- 診療科目（v2.3新設: 看護師・医療職向け） ---
+    'dept_internal': {
+        'category': '診療科目',
+        'label': '内科系',
+        'patterns': [r'内科', r'消化器(科|内科)', r'循環器(科|内科)', r'呼吸器(科|内科)',
+                     r'糖尿病(科|内科)', r'腎臓(科|内科)', r'血液(科|内科)', r'神経内科'],
+        'fields': ['service_type', 'job_description', 'headline'],
+    },
+    'dept_surgery': {
+        'category': '診療科目',
+        'label': '外科系',
+        'patterns': [r'外科', r'整形外科', r'脳(神経)?外科', r'心臓(血管)?外科',
+                     r'消化器外科', r'泌尿器科', r'形成外科'],
+        'fields': ['service_type', 'job_description', 'headline'],
+    },
+    'dept_pediatrics': {
+        'category': '診療科目',
+        'label': '小児科',
+        'patterns': [r'小児科', r'小児(外科|循環器)', r'NICU', r'新生児'],
+        'fields': ['service_type', 'job_description', 'headline'],
+    },
+    'dept_obstetrics': {
+        'category': '診療科目',
+        'label': '産婦人科',
+        'patterns': [r'産婦人科', r'産科', r'婦人科', r'周産期', r'分娩'],
+        'fields': ['service_type', 'job_description', 'headline'],
+    },
+    'dept_psychiatry': {
+        'category': '診療科目',
+        'label': '精神科・心療内科',
+        'patterns': [r'精神科', r'心療内科', r'メンタル(クリニック|ヘルス)'],
+        'fields': ['service_type', 'job_description', 'headline'],
+    },
+    'dept_dermatology': {
+        'category': '診療科目',
+        'label': '皮膚科・眼科・耳鼻科',
+        'patterns': [r'皮膚科', r'眼科', r'耳鼻(咽喉)?科', r'アレルギー科'],
+        'fields': ['service_type', 'job_description', 'headline'],
+    },
+    'dept_dental': {
+        'category': '診療科目',
+        'label': '歯科',
+        'patterns': [r'歯科', r'歯科(医院|クリニック|診療所)', r'矯正歯科', r'口腔外科'],
+        'fields': ['service_type', 'facility_name', 'job_description', 'headline'],
+    },
+    'dept_rehab': {
+        'category': '診療科目',
+        'label': 'リハビリ科',
+        'patterns': [r'リハビリ(テーション)?(科|部門|センター)', r'理学療法', r'作業療法', r'言語聴覚'],
+        'fields': ['service_type', 'job_description', 'headline'],
+    },
+    'dept_dialysis': {
+        'category': '診療科目',
+        'label': '透析',
+        'patterns': [r'透析', r'人工透析', r'腹膜透析', r'血液透析'],
+        'fields': ['service_type', 'job_description', 'headline'],
+    },
+    'dept_oncology': {
+        'category': '診療科目',
+        'label': '腫瘍・がん',
+        'patterns': [r'腫瘍(科|内科)', r'がん(センター|治療)', r'放射線(科|治療)', r'緩和ケア', r'ホスピス'],
+        'fields': ['service_type', 'job_description', 'headline'],
+    },
+    'dept_emergency': {
+        'category': '診療科目',
+        'label': '救急',
+        'patterns': [r'救急(科|部門|センター|外来)', r'ER', r'ICU', r'CCU', r'HCU'],
+        'fields': ['service_type', 'job_description', 'headline'],
+    },
+    'dept_homecare': {
+        'category': '診療科目',
+        'label': '在宅医療',
+        'patterns': [r'在宅(医療|診療)', r'往診', r'訪問診療', r'ターミナル(ケア)?'],
+        'fields': ['service_type', 'job_description', 'headline'],
     },
     # --- 勤務形態 ---
     'work_nightshift': {
