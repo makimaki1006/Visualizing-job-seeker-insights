@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ジョブメドレー求人 階層型セグメント分類エンジン v1.1
+ジョブメドレー求人 階層型セグメント分類エンジン v2.3
 
 v1.0: 初版 - 5軸×22中分類×20パターン
 v1.1: 354,290件の実データフィードバックによるチューニング
@@ -10,11 +10,18 @@ v1.1: 354,290件の実データフィードバックによるチューニング
   - D1抑制: 想定年収 2→1、明示的高収入のみ高加点
   - E2抑制: タグ条件15→20、コンテンツ閾値7→9、E3ベース2→3
   - Tier3辞書: 20→41パターンに拡張（カバレッジ46.5%→推定79%）
+v2.3: スコアリング偏重是正 + タグ検出強化
+  - E5厳格化: QUIET_POST 42.9%→目標15-20%（複合条件3項目以上要求）
+  - E3動的化: 通常求人（content4-6,desc100-500字,タグ6-14）でE3=6点
+  - C3上限制限: タグ重み減、テキスト上限4、全体上限8点
+  - A1汎用タグ依存低減: 未経験可 2→1、全体上限8点
+  - 属性活用拡大: C1(service_type), C2(overtime/shift), D2(3点揃い), E4(exp_qual)
+  - Tier3: 47パターン（+6 AUTO頻出パターン名前付き化）
 
 辞書ドキュメントに基づく3層分類:
   Tier1 (大分類): 5軸
   Tier2 (中分類): 22種
-  Tier3 (小分類): 41パターン（20初期 + 21データドリブン追加）
+  Tier3 (小分類): 47パターン（20初期 + 21データドリブン + 6 v2.3追加）
 
 依存: job_medley_analyzer.py の出力CSV（256属性抽出済み）
 """
@@ -62,11 +69,11 @@ class Tier2Scorer:
         req_years = self._val('required_experience_years', 0)
         if req_years > 0: return -99
         s = 0
-        s += 2 * self._tag('未経験可')
+        s += 1 * self._tag('未経験可')  # v2.3: 2→1（65%超の求人に存在する汎用タグ）
         s += 2 * self._tag('無資格可')
         s += self._tag('資格不問')
         s += self._tag('学歴不問')
-        s += 2 * self._tag('新卒可')  # 新卒可は未経験の強シグナル
+        s += 2 * self._tag('新卒可')
         s += self._txt_count([r'一から', r'イチから', r'ゼロから', r'初めての方', r'はじめての方'])
         s += self._txt_count([r'丁寧に.{0,5}教え', r'安心してスタート', r'しっかり(サポート|フォロー)'])
         # v2.0: exp_qual_segment活用
@@ -76,7 +83,7 @@ class Tier2Scorer:
         # 必須資格がある場合は A2 に流す
         has_required_cert = self._txt_count([r'(介護福祉士|初任者研修|実務者研修|正看護師|保育士).{0,5}(必須|必要)'])
         if has_required_cert > 0: s -= 3
-        return s
+        return min(s, 8)  # v2.3: 全体上限8点
 
     def score_A2(self):
         """未経験可（資格あり）"""
@@ -224,6 +231,9 @@ class Tier2Scorer:
                               r'管理職', r'リーダー', r'ステップアップ'])
         edu_len = len(str(self._r_get('education_training', '')))
         if edu_len > 300: s += 1
+        # v2.3: service_type活用（病院/大規模施設はキャリア志向の場）
+        svc = str(self._r_get('service_type', ''))
+        if re.search(r'病院|総合病院|大学病院|医療センター', svc): s += 1
         return s
 
     def score_C2(self):
@@ -241,23 +251,29 @@ class Tier2Scorer:
         s += self._txt_count([r'フレックス(タイム)?', r'時差出勤'])
         annual_h = self._val('annual_holidays')
         if pd.notna(annual_h) and annual_h >= 120: s += 1
+        # v2.3: 勤務時間帯属性活用
+        overtime = str(self._r_get('wh_overtime', ''))
+        if overtime in ('残業なし', '残業ほぼなし'): s += 1
+        shift_type = str(self._r_get('wh_shift_type', ''))
+        if shift_type in ('日勤のみ', '固定時間'): s += 1
         return s
 
     def score_C3(self):
         """子育て・家庭両立型"""
         s = 0
-        s += 3 * self._tag('主夫・主婦OK')  # v1.1: 2→3に引き上げ
-        s += 2 * self._tag('育児支援あり')  # v1.1: 1→2
-        s += 2 * self._tag('家庭都合休OK')  # v1.1: 1→2
-        s += self._txt_count([r'主婦', r'主夫', r'扶養内', r'扶養範囲', r'家庭と両立',
+        # v2.3: タグ重みを抑制（C3スコア過大防止）
+        s += 2 * self._tag('主夫・主婦OK')   # v2.3: 3→2
+        s += 1 * self._tag('育児支援あり')   # v2.3: 2→1
+        s += 1 * self._tag('家庭都合休OK')   # v2.3: 2→1
+        s += min(self._txt_count([r'主婦', r'主夫', r'扶養内', r'扶養範囲', r'家庭と両立',
                               r'子育て(しながら|中|ママ)', r'育児中', r'時短勤務',
                               r'お子さん.{0,5}(いる|いらっしゃる)', r'託児',
-                              r'産(前|後)休暇', r'育(児|休)', r'ママ(さん)?歓迎'])  # v1.1: パターン追加
+                              r'産(前|後)休暇', r'育(児|休)', r'ママ(さん)?歓迎']), 4)  # v2.3: テキスト上限4
         # v2.0: lifecycle_primary活用
         lcp = str(self._r_get('lifecycle_primary', ''))
-        if lcp in ('育児期', '結婚・出産期'): s += 3
+        if lcp in ('育児期', '結婚・出産期'): s += 2  # v2.3: 3→2
         elif lcp == '復職期': s += 1
-        return s
+        return min(s, 8)  # v2.3: 全体上限8点
 
     def score_C4(self):
         """Wワーク・副業・短時間"""
@@ -305,6 +321,10 @@ class Tier2Scorer:
         s += self._txt_count([r'上場', r'大手', r'全国\d+.{0,3}(事業所|拠点|施設)',
                               r'創業\d+年', r'設立\d+年', r'安定(した|の)(経営|基盤|運営)',
                               r'退職金', r'永年勤続', r'持株会'])
+        # v2.3: 退職金+賞与+社保完備の3点揃いは安定性の強シグナル
+        stability_flags = (self._val('has_退職金', 0) + self._val('has_賞与', 0)
+                           + self._val('has_社会保険完備', 0))
+        if stability_flags >= 3: s += 2
         return s
 
     def score_D3(self):
@@ -395,7 +415,15 @@ class Tier2Scorer:
 
     def score_E3(self):
         """通常採用"""
-        return 3  # v1.1: 2→3に引き上げ（E2からの受け皿）
+        # v2.3: 固定値→動的化（E5偏重是正: 普通の求人をE3に引き上げ）
+        s = 3
+        content_score = self._val('content_richness_score', 0)
+        if 4 <= content_score <= 6: s += 1
+        desc_len = len(str(self._r_get('job_description', '')))
+        if 100 <= desc_len < 500: s += 1
+        tag_count = len(str(self.tags).split(','))
+        if 6 <= tag_count <= 14: s += 1
+        return s
 
     def score_E4(self):
         """厳選採用"""
@@ -405,25 +433,34 @@ class Tier2Scorer:
         s += self._txt_count([r'面(接|談)\s*(2|２|3|３)\s*回', r'適性検査', r'書類選考',
                               r'筆記試験'])
         if not self._tag('未経験可'): s += 1
+        # v2.3: exp_qual_segment活用（経験者・資格必須は厳選度が高い）
+        eqs = str(self._r_get('exp_qual_segment', ''))
+        if eqs == '経験者・資格必須': s += 2
         return s
 
     def score_E5(self):
         """欠員補充・静かな募集"""
-        s = 0
+        # v2.3: 複合条件に厳格化（QUIET_POST 42.9%→15-20%目標）
+        # photo_countは常に0のため判定から除外
         content_score = self._val('content_richness_score', 0)
-        if content_score <= 3: s += 2
-        photo_count = self._val('photo_count', 0)
-        if pd.notna(photo_count) and photo_count <= 2: s += 1
         tag_count = len(str(self.tags).split(','))
-        if tag_count <= 5: s += 1
         desc_len = len(str(self._r_get('job_description', '')))
-        if desc_len < 100: s += 1
-        # v1.2: 訴求表現の乏しさ検出
+        benefits_len = len(str(self._r_get('benefits', '')))
         appeal_patterns = [r'アットホーム', r'風通し', r'チームワーク', r'やりがい',
                            r'成長', r'充実', r'安心', r'地域密着', r'理念']
         appeal_count = self._txt_count(appeal_patterns)
-        if appeal_count == 0: s += 1
-        return s
+
+        low_quality_flags = 0
+        if content_score <= 2: low_quality_flags += 1
+        if tag_count <= 3: low_quality_flags += 1
+        if desc_len < 50: low_quality_flags += 1
+        if appeal_count == 0: low_quality_flags += 1
+        if benefits_len < 20: low_quality_flags += 1
+
+        if low_quality_flags >= 4: return 4
+        if low_quality_flags >= 3: return 2
+        if low_quality_flags >= 2: return 1
+        return 0
 
     # ──────────────────────────────────
     # 全軸スコアリング
@@ -793,6 +830,51 @@ TIER3_PATTERNS = [
         'label': 'シニアで子育て中の方の復帰を支援する職場',
         'label_short': '復職×シニア×子育て',
         'label_proposal': '子育て中のシニア世代が復帰しやすい求人',
+    },
+    # ═══════════════════════════════════════════════════
+    # v2.3: 頻出AUTOパターンの名前付き化（AUTO比率8.8%→4-5%目標）
+    # ═══════════════════════════════════════════════════
+    {
+        'id': 'FRESH_WLB_CAREER',
+        'conditions': {'A': ['A1'], 'B': ['B2'], 'C': ['C2']},
+        'label': '未経験の若手がWLB重視で成長できる職場',
+        'label_short': '未経験×若手×WLB',
+        'label_proposal': '未経験の若手がWLBを重視しながら成長できる求人',
+    },
+    {
+        'id': 'MID_CAREER_WLB',
+        'conditions': {'A': ['A4'], 'B': ['B3'], 'C': ['C2']},
+        'label': '即戦力ミドルがWLB重視で活躍できる職場',
+        'label_short': '即戦力×ミドル×WLB',
+        'label_proposal': '即戦力のミドル世代がWLB重視で活躍できる求人',
+    },
+    {
+        'id': 'ANYONE_STABLE_CAREER',
+        'conditions': {'A': ['A1', 'A2'], 'B': ['B5'], 'C': ['C5']},
+        'label': '年齢不問で未経験から安定長期就業できる職場',
+        'label_short': '未経験×年齢不問×安定長期',
+        'label_proposal': '年齢不問で未経験者が安定して長く働ける求人',
+    },
+    {
+        'id': 'EXPERT_INCOME_WLB',
+        'conditions': {'A': ['A4'], 'D': ['D1'], 'C': ['C2']},
+        'label': '即戦力が高収入とWLBを両立できるポジション',
+        'label_short': '即戦力×高収入×WLB',
+        'label_proposal': '即戦力の経験者が高収入でWLBも実現できる求人',
+    },
+    {
+        'id': 'MID_STABLE_ENV',
+        'conditions': {'A': ['A4'], 'B': ['B3'], 'D': ['D4']},
+        'label': '即戦力ミドルが職場環境を重視して活躍できる職場',
+        'label_short': '即戦力×ミドル×環境重視',
+        'label_proposal': '即戦力のミドル世代向けの環境重視型求人',
+    },
+    {
+        'id': 'FRESH_MAMA_WLB',
+        'conditions': {'A': ['A1', 'A2'], 'C': ['C3'], 'D': ['D4', 'D7']},
+        'label': '未経験ママがWLB重視で子育てしながら働ける職場',
+        'label_short': '未経験×子育て×環境・待遇重視',
+        'label_proposal': '未経験の子育て中の方が環境・待遇重視で働ける求人',
     },
 ]
 
