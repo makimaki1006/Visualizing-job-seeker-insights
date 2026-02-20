@@ -924,43 +924,125 @@ def detect_gender_lifecycle(row: pd.Series) -> dict:
 # ============================================================
 
 def detect_experience_qualification(row: pd.Series) -> dict:
-    """未経験/有経験 × 有資格/無資格の4象限分類
+    """未経験/有経験 × 有資格/無資格の4象限分類 v2.3
+
+    v2.3: 判定パターン大幅拡張 + 複数フィールド活用 + タグ連動
+    目標: 「条件不明」38% → 15%以下
 
     Returns:
         dict with keys: exp_qual_segment, is_inexperienced, requires_qualification
     """
     req = str(row.get('requirements', ''))
     welcome = str(row.get('welcome_requirements', ''))
+    edu = str(row.get('education_training', ''))
+    jd = str(row.get('job_description', ''))
+    headline = str(row.get('headline', ''))
+    tags_str = str(row.get('tags', ''))
+
+    # 主要判定フィールド（応募要件 + 歓迎要件）
     combined = req + ' ' + welcome
+    # 補助判定フィールド（仕事内容 + 研修 + 見出し）
+    extended = combined + ' ' + jd + ' ' + edu + ' ' + headline
 
-    # 未経験判定
-    is_inexperienced = bool(re.search(r'未経験.{0,3}(歓迎|可|OK|者)', combined))
-
-    # 資格要否判定
-    no_qual_patterns = [
-        r'無資格.{0,3}(可|OK|歓迎)',
-        r'資格.{0,3}(不問|なし.{0,3}可|不要)',
-        r'資格.{0,3}なくても',
+    # ────────────────────────────────
+    # 未経験判定（拡張版）
+    # ────────────────────────────────
+    inexperienced_patterns = [
+        r'未経験.{0,3}(歓迎|可|OK|者|の方|から|でも)',
+        r'経験.{0,3}(不問|不要|なし.{0,3}(可|OK)|なくても|問いません|問わず)',
+        r'(新卒|第二新卒).{0,5}(歓迎|可|OK|募集|採用)',
+        r'初心者.{0,3}(OK|可|歓迎|から|でも)',
+        r'(一から|イチから|ゼロから|ゼロ.{0,3}スタート)',
+        r'(丁寧に|しっかり|イチから).{0,5}(教え|指導|研修|サポート)',
+        r'(はじめての方|初めての方).{0,3}(歓迎|OK|でも|も安心)',
+        r'ブランク.{0,3}(OK|可|歓迎|ある方|の方)',
     ]
+    is_inexperienced = any(re.search(p, combined) for p in inexperienced_patterns)
+    # タグからの補完（extract_tags()で検出済み）
+    if not is_inexperienced and '未経験可' in tags_str:
+        is_inexperienced = True
+    # 補助フィールドからの弱い推定（応募要件に経験条件がない場合のみ）
+    if not is_inexperienced and not re.search(r'経験.{0,3}(年|以上|必須|必要|者)', combined):
+        extended_inexperienced = [
+            r'(丁寧に|しっかり|イチから).{0,5}(教え|指導|研修|サポート)',
+            r'研修.{0,3}(充実|制度|あり|体制|プログラム)',
+            r'(安心して|安心の).{0,3}(スタート|始められ|働け)',
+        ]
+        if any(re.search(p, extended) for p in extended_inexperienced):
+            is_inexperienced = True
+
+    # ────────────────────────────────
+    # 経験者要求判定
+    # ────────────────────────────────
+    experienced_patterns = [
+        r'(実務)?経験.{0,3}(\d+年|年以上|必須|者|ある方)',
+        r'即戦力',
+        r'経験者.{0,3}(歓迎|優遇|募集|のみ)',
+    ]
+    is_experienced = any(re.search(p, combined) for p in experienced_patterns)
+
+    # ────────────────────────────────
+    # 資格要否判定（拡張版）
+    # ────────────────────────────────
+    no_qual_patterns = [
+        r'無資格.{0,3}(可|OK|歓迎|の方|でも)',
+        r'資格.{0,3}(不問|なし.{0,3}可|不要|なくても|問いません|問わず)',
+        r'資格.{0,3}(取得支援|取得.{0,3}(サポート|補助|制度))',
+        r'(学歴|資格).{0,3}不問',
+    ]
+    # タグからの補完
+    if '無資格可' in tags_str or '資格不問' in tags_str or '学歴不問' in tags_str:
+        no_qual_patterns.append(r'.')  # 強制マッチ
+
     requires_qual_patterns = [
         r'(要|必須).{0,5}(資格|免許)',
-        r'(資格|免許).{0,3}(必須|要|お持ちの方)',
+        r'(資格|免許).{0,3}(必須|要|お持ちの方|保有者|をお持ち)',
         r'以下.{0,5}(資格|免許)',
         r'いずれか.{0,5}(資格|免許)',
+        # 具体的な資格名（応募要件に記載の場合は資格必須と判定）
+        r'(介護福祉士|初任者研修|実務者研修|正看護師|准看護師|保育士|栄養士'
+        r'|管理栄養士|理学療法士|作業療法士|言語聴覚士|社会福祉士'
+        r'|精神保健福祉士|ケアマネ|介護支援専門員|薬剤師|歯科衛生士'
+        r'|柔道整復師|あん摩マッサージ|鍼灸師|児童指導員任用資格'
+        r').{0,5}(必須|必要|要|お持ちの方|以上|保有)',
     ]
+    # 資格名が応募要件に明示的に記載されている場合も資格必須と推定
+    qual_name_in_req = bool(re.search(
+        r'(介護福祉士|初任者研修|実務者研修|正看護師|准看護師|保育士'
+        r'|管理栄養士|理学療法士|作業療法士|言語聴覚士|社会福祉士'
+        r'|ケアマネ|介護支援専門員|薬剤師|歯科衛生士)', req
+    ))
 
     no_qual = any(re.search(p, combined) for p in no_qual_patterns)
     req_qual = any(re.search(p, combined) for p in requires_qual_patterns)
+    # 応募要件に資格名があり、「無資格可」が明示されていない場合は資格必須と推定
+    if not req_qual and not no_qual and qual_name_in_req:
+        req_qual = True
 
-    # 4象限分類
+    # ────────────────────────────────
+    # 4象限分類（フォールバック付き）
+    # ────────────────────────────────
     if is_inexperienced and no_qual:
         segment = '未経験・無資格OK'
     elif is_inexperienced and (req_qual or not no_qual):
         segment = '未経験歓迎・資格必要'
     elif not is_inexperienced and no_qual:
         segment = '経験者・無資格可'
-    elif not is_inexperienced and req_qual:
+    elif (not is_inexperienced and req_qual) or (is_experienced and req_qual):
         segment = '経験者・資格必須'
+    elif is_experienced and not no_qual:
+        # 経験者要求があり無資格OKでなければ経験者・資格必須寄り
+        segment = '経験者・資格必須'
+    elif not is_inexperienced and not req_qual and not no_qual:
+        # どちらとも判定できない場合のフォールバック
+        # 研修制度が充実 → 未経験寄り
+        if len(edu) > 100 or re.search(r'研修.{0,5}(充実|あり|制度)', extended):
+            segment = '未経験歓迎・資格必要'
+        # 給与が低め or 簡単な仕事 → 未経験寄り
+        elif re.search(r'(簡単|シンプル|単純|難しくない|誰でも)', extended):
+            segment = '未経験・無資格OK'
+        else:
+            segment = '条件不明'
     else:
         segment = '条件不明'
 
