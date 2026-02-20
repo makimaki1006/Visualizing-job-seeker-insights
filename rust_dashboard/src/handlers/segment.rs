@@ -946,9 +946,10 @@ pub async fn segment_text_features(
         categories.entry(cat).or_default().push((label, count, total));
     }
 
-    // カテゴリのテーマカラー（全11カテゴリ対応）
+    // カテゴリのテーマカラー（全12カテゴリ対応）
     let cat_colors = [
         ("施設形態", "#3b82f6"),
+        ("診療科目", "#06b6d4"),
         ("勤務形態", "#10b981"),
         ("教育・研修", "#f59e0b"),
         ("福利厚生", "#8b5cf6"),
