@@ -19,8 +19,12 @@ pub struct AppConfig {
     pub local_db_path: String,
     /// セグメント分析DBパス
     pub segment_db_path: String,
+    /// ジオコード済み求人DBパス
+    pub geocoded_db_path: String,
     /// キャッシュTTL（秒）
     pub cache_ttl_secs: u64,
+    /// キャッシュ最大エントリ数
+    pub cache_max_entries: usize,
     /// レート制限: 最大試行回数
     pub rate_limit_max_attempts: u32,
     /// レート制限: ロックアウト秒数
@@ -48,10 +52,16 @@ impl AppConfig {
                 .unwrap_or_else(|_| "data/job_postings_minimal.db".to_string()),
             segment_db_path: env::var("SEGMENT_DB_PATH")
                 .unwrap_or_else(|_| "data/segment_summary.db".to_string()),
+            geocoded_db_path: env::var("GEOCODED_DB_PATH")
+                .unwrap_or_else(|_| "data/geocoded_postings.db".to_string()),
             cache_ttl_secs: env::var("CACHE_TTL_SECS")
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(1800), // 30分
+            cache_max_entries: env::var("CACHE_MAX_ENTRIES")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(2000),
             rate_limit_max_attempts: env::var("RATE_LIMIT_MAX_ATTEMPTS")
                 .ok()
                 .and_then(|v| v.parse().ok())
@@ -78,8 +88,8 @@ mod tests {
         for key in &[
             "PORT", "TURSO_DATABASE_URL", "TURSO_AUTH_TOKEN",
             "AUTH_PASSWORD", "AUTH_PASSWORD_HASH", "ALLOWED_DOMAINS",
-            "LOCAL_DB_PATH", "SEGMENT_DB_PATH", "CACHE_TTL_SECS",
-            "RATE_LIMIT_MAX_ATTEMPTS", "RATE_LIMIT_LOCKOUT_SECONDS",
+            "LOCAL_DB_PATH", "SEGMENT_DB_PATH", "GEOCODED_DB_PATH", "CACHE_TTL_SECS",
+            "CACHE_MAX_ENTRIES", "RATE_LIMIT_MAX_ATTEMPTS", "RATE_LIMIT_LOCKOUT_SECONDS",
         ] {
             env::remove_var(key);
         }

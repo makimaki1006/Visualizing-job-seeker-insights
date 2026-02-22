@@ -13,8 +13,10 @@ use axum::{
     Router,
 };
 use std::sync::Arc;
+use tower_http::compression::CompressionLayer;
 use tower_http::services::ServeDir;
-use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
+use tower_http::set_header::SetResponseHeaderLayer;
+use tower_sessions::{Expiry, MemoryStore, Session, SessionManagerLayer};
 
 use auth::{
     require_auth, validate_email_domain, verify_password,
@@ -31,6 +33,7 @@ pub struct AppState {
     pub turso: TursoClient,
     pub local_db: Option<db::local_sqlite::LocalDb>,
     pub segment_db: Option<db::local_sqlite::LocalDb>,
+    pub geocoded_db: Option<db::local_sqlite::LocalDb>,
     pub cache: AppCache,
     pub rate_limiter: auth::session::RateLimiter,
 }
@@ -38,7 +41,9 @@ pub struct AppState {
 /// アプリケーションRouter構築（統合テストでも使用）
 pub fn build_app(state: Arc<AppState>) -> Router {
     let session_store = MemoryStore::default();
-    let session_layer = SessionManagerLayer::new(session_store).with_secure(false);
+    let session_layer = SessionManagerLayer::new(session_store)
+        .with_secure(false)
+        .with_expiry(Expiry::OnInactivity(time::Duration::hours(24)));
 
     let protected_routes = Router::new()
         .route("/", get(dashboard_page))
@@ -51,6 +56,14 @@ pub fn build_app(state: Arc<AppState>) -> Router {
         .route("/tab/balance", get(handlers::balance::tab_balance))
         .route("/tab/workstyle", get(handlers::workstyle::tab_workstyle))
         .route("/tab/jobmap", get(handlers::jobmap::tab_jobmap))
+        .route("/api/jobmap/markers", get(handlers::jobmap::jobmap_markers))
+        .route("/api/jobmap/detail/{id}", get(handlers::jobmap::jobmap_detail))
+        .route("/api/jobmap/stats", post(handlers::jobmap::jobmap_stats))
+        .route("/api/jobmap/municipalities", get(handlers::jobmap::jobmap_municipalities))
+        .route("/api/jobmap/region/summary", get(handlers::jobmap::region_summary))
+        .route("/api/jobmap/region/age_gender", get(handlers::jobmap::region_age_gender))
+        .route("/api/jobmap/region/posting_stats", get(handlers::jobmap::region_posting_stats))
+        .route("/api/jobmap/region/segments", get(handlers::jobmap::region_segments))
         .route(
             "/tab/talentmap",
             get(handlers::talentmap::tab_talentmap),
@@ -155,14 +168,18 @@ pub fn build_app(state: Arc<AppState>) -> Router {
             "/api/segment/salary_shift",
             get(handlers::segment::segment_salary_shift),
         )
-        .route(
-            "/api/segment/tag_combos",
-            get(handlers::segment::segment_tag_combos),
-        )
         .route("/api/status", get(api_status))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,
+        ));
+
+    // 静的ファイル配信（Cache-Control付き、別Router）
+    let static_router = Router::new()
+        .nest_service("/static", ServeDir::new("static").precompressed_gzip())
+        .layer(SetResponseHeaderLayer::if_not_present(
+            http::header::CACHE_CONTROL,
+            http::HeaderValue::from_static("public, max-age=86400"),
         ));
 
     Router::new()
@@ -170,9 +187,13 @@ pub fn build_app(state: Arc<AppState>) -> Router {
         .route("/login", get(login_page).post(login_submit))
         .route("/logout", get(logout))
         .merge(protected_routes)
-        .nest_service("/static", ServeDir::new("static"))
         .with_state(state)
-        .layer(session_layer)
+        .merge(static_router)
+        .layer(
+            tower::ServiceBuilder::new()
+                .layer(session_layer)
+                .layer(CompressionLayer::new())
+        )
 }
 
 // --- ミドルウェア ---
@@ -513,12 +534,22 @@ async fn api_status(
 
     let segment_db_ok = state.segment_db.is_some();
 
+    let geocoded_db_ok = state.geocoded_db.is_some();
+    let geocoded_db_count = if let Some(db) = &state.geocoded_db {
+        db.query_scalar::<i64>("SELECT COUNT(*) FROM postings", &[])
+            .unwrap_or(0)
+    } else {
+        0
+    };
+
     axum::response::Json(serde_json::json!({
         "turso_connected": turso_ok,
         "turso_url": turso_url_masked,
         "local_db_loaded": local_db_ok,
         "local_db_rows": local_db_count,
         "segment_db_loaded": segment_db_ok,
+        "geocoded_db_loaded": geocoded_db_ok,
+        "geocoded_db_rows": geocoded_db_count,
         "status": if turso_ok && local_db_ok { "healthy" } else { "degraded" }
     }))
 }

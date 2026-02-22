@@ -33,6 +33,7 @@ async fn main() {
     decompress_geojson_if_needed();
     decompress_db_if_needed(&config.local_db_path);
     decompress_db_if_needed(&config.segment_db_path);
+    decompress_db_if_needed(&config.geocoded_db_path);
 
     let local_db = match LocalDb::new(&config.local_db_path) {
         Ok(db) => {
@@ -56,7 +57,28 @@ async fn main() {
         }
     };
 
-    let cache = AppCache::new(config.cache_ttl_secs, 100);
+    let geocoded_db = match LocalDb::new(&config.geocoded_db_path) {
+        Ok(db) => {
+            tracing::info!("Geocoded postings SQLite loaded: {}", config.geocoded_db_path);
+            // パフォーマンス向上: インデックス自動作成
+            let idx_sqls = [
+                "CREATE INDEX IF NOT EXISTS idx_postings_job_pref ON postings (job_type, prefecture)",
+                "CREATE INDEX IF NOT EXISTS idx_postings_job_lat_lng ON postings (job_type, lat, lng)",
+            ];
+            for sql in &idx_sqls {
+                if let Err(e) = db.execute(sql, &[]) {
+                    tracing::warn!("Index creation failed: {e}");
+                }
+            }
+            Some(db)
+        }
+        Err(e) => {
+            tracing::warn!("Geocoded postings SQLite not available: {e}");
+            None
+        }
+    };
+
+    let cache = AppCache::new(config.cache_ttl_secs, config.cache_max_entries);
     let rate_limiter = RateLimiter::new(config.rate_limit_max_attempts, config.rate_limit_lockout_secs);
 
     let state = Arc::new(AppState {
@@ -64,6 +86,7 @@ async fn main() {
         turso,
         local_db,
         segment_db,
+        geocoded_db,
         cache,
         rate_limiter,
     });
