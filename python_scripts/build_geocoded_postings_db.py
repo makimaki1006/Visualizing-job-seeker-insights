@@ -35,6 +35,15 @@ VALID_PREFECTURES = {
     "福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県",
 }
 
+# 政令指定都市・合併市（「XX市YY区」が正当な市区町村名）
+SEIREI_CITIES = {
+    "札幌市", "仙台市", "さいたま市", "千葉市", "横浜市", "川崎市", "相模原市",
+    "新潟市", "静岡市", "浜松市", "名古屋市", "京都市", "大阪市", "堺市",
+    "神戸市", "岡山市", "広島市", "北九州市", "福岡市", "熊本市",
+    # 合併市の旧区
+    "姫路市", "南相馬市", "上越市", "奥州市", "伊達市",
+}
+
 # classified CSV の最新日付のファイルを使用
 CLASSIFIED_DIR = os.path.join(os.path.dirname(__file__), "data", "classified")
 GEOCODED_PATH = os.path.join(os.path.dirname(__file__), "data", "geocoded_addresses_all.csv")
@@ -138,6 +147,43 @@ def normalize_address(addr):
     # 連続空白→1つ
     addr = re.sub(r"\s+", " ", addr)
     return addr
+
+
+def normalize_municipality(muni):
+    """市区町村名を正規化: 住所詳細（番地・ビル名等）を除去して市区町村名のみ返す"""
+    if not muni:
+        return ""
+    muni = muni.strip()
+
+    # Step 1: 「XX市」を抽出
+    m_city = re.match(r"^(.+?市)", muni)
+    if m_city:
+        city = m_city.group(1)
+        rest = muni[len(city):].strip()
+        # 政令指定都市/合併市 + 区 → 「XX市YY区」
+        if city in SEIREI_CITIES and rest:
+            m_ku = re.match(r"^(.+?区)", rest)
+            if m_ku:
+                return city + m_ku.group(1)
+        return city
+
+    # Step 2: 「XX郡XX町/村」（「XX郡」の後に市が来ない場合のみ）
+    m = re.match(r"^(.+?郡)\s*([^市]+?(?:町|村))(?:\s|$)", muni)
+    if m:
+        return m.group(1) + m.group(2)
+
+    # Step 3: 特別区「XX区」（東京23区等）
+    m = re.match(r"^(.+?区)", muni)
+    if m:
+        return m.group(1)
+
+    # Step 4: 「XX町」「XX村」
+    m = re.match(r"^(.+?(?:町|村))(?:\s|$)", muni)
+    if m:
+        return m.group(1)
+
+    # どのパターンにもマッチしない（バス路線名等のゴミデータ）→ 空文字
+    return ""
 
 
 def build_address_to_geocode_map(geocoded_path):
@@ -265,10 +311,13 @@ def process_classified_files(classified_files, addr_to_geo, conn):
                     total_skipped_bad_pref += 1
                     continue
 
+                # 市区町村名の正規化（住所詳細の除去）
+                municipality = normalize_municipality(row.get("municipality", ""))
+
                 batch.append((
                     db_job_type,
                     prefecture,
-                    row.get("municipality", ""),
+                    municipality,
                     row.get("facility_name", ""),
                     row.get("service_type", ""),
                     row.get("employment_type", ""),
