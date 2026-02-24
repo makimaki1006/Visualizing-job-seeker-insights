@@ -225,7 +225,7 @@ def process_classified_files(classified_files, addr_to_geo, conn):
         rows_skipped = 0
         batch = []
 
-        with open(fpath, "r", encoding="utf-8") as f:
+        with open(fpath, "r", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 total_rows += 1
