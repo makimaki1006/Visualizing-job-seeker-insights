@@ -75,6 +75,16 @@ JOB_TYPE_MAPPING = {
     "幼稚園教諭": "幼稚園教諭",
 }
 
+# 全32個のhas_*フラグ名（DB投入順序を定義）
+HAS_FLAG_NAMES = [
+    "has_社会保険完備", "has_賞与", "has_交通費支給", "has_退職金", "has_住宅手当",
+    "has_資格手当", "has_夜勤手当", "has_資格取得支援", "has_研修制度", "has_育児支援",
+    "has_車通勤可", "has_制服貸与", "has_食事補助", "has_健康診断", "has_インフルエンザ補助",
+    "has_お祝い金", "has_永年勤続", "has_持株会", "has_福利厚生サービス",
+    "has_テレワーク", "has_フレックス", "has_残業文化なし", "has_社員割引", "has_配偶者手当", "has_子ども手当",
+    "has_年休120", "has_ブランクOK", "has_未経験OK", "has_正社員登用", "has_復職支援", "has_こども園", "has_時短勤務",
+]
+
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS postings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,7 +115,52 @@ CREATE TABLE IF NOT EXISTS postings (
     lat REAL,
     lng REAL,
     geocode_confidence INTEGER,
-    geocode_level INTEGER
+    geocode_level INTEGER,
+    -- v2.5追加: 分析用カラム
+    annual_holidays INTEGER,
+    benefits_score INTEGER,
+    content_richness_score INTEGER,
+    text_entropy REAL,
+    kanji_ratio REAL,
+    -- Tier1セグメント
+    tier1_experience TEXT,
+    tier1_career_stage TEXT,
+    tier1_lifestyle TEXT,
+    tier1_appeal TEXT,
+    tier1_urgency TEXT,
+    -- has_*フラグ（32種）
+    has_社会保険完備 INTEGER DEFAULT 0,
+    has_賞与 INTEGER DEFAULT 0,
+    has_交通費支給 INTEGER DEFAULT 0,
+    has_退職金 INTEGER DEFAULT 0,
+    has_住宅手当 INTEGER DEFAULT 0,
+    has_資格手当 INTEGER DEFAULT 0,
+    has_夜勤手当 INTEGER DEFAULT 0,
+    has_資格取得支援 INTEGER DEFAULT 0,
+    has_研修制度 INTEGER DEFAULT 0,
+    has_育児支援 INTEGER DEFAULT 0,
+    has_車通勤可 INTEGER DEFAULT 0,
+    has_制服貸与 INTEGER DEFAULT 0,
+    has_食事補助 INTEGER DEFAULT 0,
+    has_健康診断 INTEGER DEFAULT 0,
+    has_インフルエンザ補助 INTEGER DEFAULT 0,
+    has_お祝い金 INTEGER DEFAULT 0,
+    has_永年勤続 INTEGER DEFAULT 0,
+    has_持株会 INTEGER DEFAULT 0,
+    has_福利厚生サービス INTEGER DEFAULT 0,
+    has_テレワーク INTEGER DEFAULT 0,
+    has_フレックス INTEGER DEFAULT 0,
+    has_残業文化なし INTEGER DEFAULT 0,
+    has_社員割引 INTEGER DEFAULT 0,
+    has_配偶者手当 INTEGER DEFAULT 0,
+    has_子ども手当 INTEGER DEFAULT 0,
+    has_年休120 INTEGER DEFAULT 0,
+    has_ブランクOK INTEGER DEFAULT 0,
+    has_未経験OK INTEGER DEFAULT 0,
+    has_正社員登用 INTEGER DEFAULT 0,
+    has_復職支援 INTEGER DEFAULT 0,
+    has_こども園 INTEGER DEFAULT 0,
+    has_時短勤務 INTEGER DEFAULT 0
 );
 """
 
@@ -122,9 +177,19 @@ INSERT INTO postings (
     headline, job_description, requirements, benefits, working_hours,
     holidays, education_training, access, special_holidays, tags,
     tier3_label_short, exp_qual_segment, hol_pattern, wh_shift_type,
-    lat, lng, geocode_confidence, geocode_level
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-"""
+    lat, lng, geocode_confidence, geocode_level,
+    annual_holidays, benefits_score, content_richness_score,
+    text_entropy, kanji_ratio,
+    tier1_experience, tier1_career_stage, tier1_lifestyle, tier1_appeal, tier1_urgency,
+    has_社会保険完備, has_賞与, has_交通費支給, has_退職金, has_住宅手当,
+    has_資格手当, has_夜勤手当, has_資格取得支援, has_研修制度, has_育児支援,
+    has_車通勤可, has_制服貸与, has_食事補助, has_健康診断, has_インフルエンザ補助,
+    has_お祝い金, has_永年勤続, has_持株会, has_福利厚生サービス,
+    has_テレワーク, has_フレックス, has_残業文化なし, has_社員割引, has_配偶者手当, has_子ども手当,
+    has_年休120, has_ブランクOK, has_未経験OK, has_正社員登用, has_復職支援, has_こども園, has_時短勤務
+) VALUES ({})
+""".format(", ".join(["?"] * 70))
+
 
 
 def safe_int(val, default=0):
@@ -133,6 +198,19 @@ def safe_int(val, default=0):
         return default
     try:
         return int(float(val))
+    except (ValueError, TypeError):
+        return default
+
+
+def safe_float(val, default=0.0):
+    """文字列を安全にfloatに変換（NaN防御付き）"""
+    if not val or val == "":
+        return default
+    try:
+        result = float(val)
+        if result != result:  # NaN判定（math.isnan相当、import不要）
+            return default
+        return result
     except (ValueError, TypeError):
         return default
 
@@ -298,6 +376,17 @@ def process_classified_files(classified_files, addr_to_geo, conn):
                     geo = addr_to_geo.get(norm_addr)
                     if geo:
                         lat, lng, conf, lvl = geo
+                    else:
+                        # フォールバック: 都道府県名から始まる部分を抽出してマッチング
+                        # CSISに送った住所はクリーニング済みなので、access列のプレフィックスを除去
+                        for pref in VALID_PREFECTURES:
+                            idx = norm_addr.find(pref)
+                            if idx > 0:
+                                extracted = normalize_address(norm_addr[idx:])
+                                geo = addr_to_geo.get(extracted)
+                                if geo:
+                                    lat, lng, conf, lvl = geo
+                                break
 
                 if lat is None:
                     rows_skipped += 1
@@ -343,6 +432,19 @@ def process_classified_files(classified_files, addr_to_geo, conn):
                     lng,
                     conf,
                     lvl,
+                    # v2.5追加: 分析用カラム
+                    safe_int(row.get("annual_holidays")),
+                    safe_int(row.get("benefits_score")),
+                    safe_int(row.get("content_richness_score")),
+                    safe_float(row.get("text_entropy")),
+                    safe_float(row.get("kanji_ratio")),
+                    row.get("tier1_experience", ""),
+                    row.get("tier1_career_stage", ""),
+                    row.get("tier1_lifestyle", ""),
+                    row.get("tier1_appeal", ""),
+                    row.get("tier1_urgency", ""),
+                    # has_*フラグ（32種）
+                    *[safe_int(row.get(f, 0)) for f in HAS_FLAG_NAMES],
                 ))
                 rows_inserted += 1
 
