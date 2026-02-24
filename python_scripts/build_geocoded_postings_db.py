@@ -23,6 +23,18 @@ import sqlite3
 import sys
 import time
 
+# 有効な47都道府県
+VALID_PREFECTURES = {
+    "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
+    "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
+    "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県",
+    "岐阜県", "静岡県", "愛知県", "三重県",
+    "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県",
+    "鳥取県", "島根県", "岡山県", "広島県", "山口県",
+    "徳島県", "香川県", "愛媛県", "高知県",
+    "福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県",
+}
+
 # classified CSV の最新日付のファイルを使用
 CLASSIFIED_DIR = os.path.join(os.path.dirname(__file__), "data", "classified")
 GEOCODED_PATH = os.path.join(os.path.dirname(__file__), "data", "geocoded_addresses_all.csv")
@@ -211,6 +223,7 @@ def process_classified_files(classified_files, addr_to_geo, conn):
     cursor = conn.cursor()
     total_inserted = 0
     total_skipped_no_coord = 0
+    total_skipped_bad_pref = 0
     total_rows = 0
 
     for job_name, fpath in sorted(classified_files.items()):
@@ -223,6 +236,7 @@ def process_classified_files(classified_files, addr_to_geo, conn):
 
         rows_inserted = 0
         rows_skipped = 0
+        rows_bad_pref = 0
         batch = []
 
         with open(fpath, "r", encoding="utf-8-sig") as f:
@@ -244,9 +258,16 @@ def process_classified_files(classified_files, addr_to_geo, conn):
                     total_skipped_no_coord += 1
                     continue
 
+                # 都道府県バリデーション（gapデータのパース不良を除外）
+                prefecture = row.get("prefecture", "")
+                if prefecture not in VALID_PREFECTURES:
+                    rows_bad_pref += 1
+                    total_skipped_bad_pref += 1
+                    continue
+
                 batch.append((
                     db_job_type,
-                    row.get("prefecture", ""),
+                    prefecture,
                     row.get("municipality", ""),
                     row.get("facility_name", ""),
                     row.get("service_type", ""),
@@ -285,9 +306,12 @@ def process_classified_files(classified_files, addr_to_geo, conn):
         conn.commit()
 
         total_inserted += rows_inserted
-        print(f"    → 投入: {rows_inserted:,} 件, スキップ(座標なし): {rows_skipped:,} 件")
+        skip_parts = [f"座標なし: {rows_skipped:,}"]
+        if rows_bad_pref > 0:
+            skip_parts.append(f"都道府県不正: {rows_bad_pref:,}")
+        print(f"    → 投入: {rows_inserted:,} 件, スキップ({', '.join(skip_parts)})")
 
-    return total_inserted, total_skipped_no_coord, total_rows
+    return total_inserted, total_skipped_no_coord, total_skipped_bad_pref, total_rows
 
 
 def compress_db(db_path, gz_path):
@@ -331,7 +355,7 @@ def main():
     conn.execute(CREATE_TABLE_SQL)
     conn.commit()
 
-    total_inserted, total_skipped, total_rows = process_classified_files(
+    total_inserted, total_skipped, total_bad_pref, total_rows = process_classified_files(
         classified_files, addr_to_geo, conn
     )
 
@@ -353,6 +377,7 @@ def main():
     print(f"  総CSV行数:       {total_rows:,}")
     print(f"  DB投入行数:       {total_inserted:,}")
     print(f"  座標なしスキップ: {total_skipped:,}")
+    print(f"  都道府県不正スキップ: {total_bad_pref:,}")
     print(f"  座標カバー率:     {total_inserted / total_rows * 100:.1f}%" if total_rows > 0 else "  N/A")
     print(f"  DB ファイル:      {DB_PATH}")
     print(f"  GZ ファイル:      {GZ_PATH}")
