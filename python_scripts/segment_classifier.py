@@ -229,7 +229,7 @@ class Tier2Scorer:
         """フルタイム・キャリア志向"""
         s = 0
         emp = str(self._r_get('employment_type', ''))
-        if '正職員' in emp or '正社員' in emp: s += 2
+        if '正社員' in emp: s += 2
         s += self._tag('資格取得支援')
         s += self._tag('研修制度あり')
         s += self._txt_count([r'キャリアアップ', r'キャリアパス', r'スキルアップ', r'昇格', r'昇進',

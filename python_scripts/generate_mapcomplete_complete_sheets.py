@@ -21,7 +21,7 @@ def normalize_workstyle(workstyle_str):
     """
     雇用形態を3カテゴリに正規化
 
-    正職員 → 正職員
+    正社員 → 正社員
     パート・バイト → パート
     契約職員、業務委託 → その他
 
@@ -37,8 +37,8 @@ def normalize_workstyle(workstyle_str):
         workstyle = workstyle.split(',')[0].strip()
 
     # カテゴリ正規化
-    if '正職員' in workstyle:
-        return '正職員'
+    if '正社員' in workstyle or '正職員' in workstyle:
+        return '正社員'
     elif 'パート' in workstyle or 'バイト' in workstyle:
         return 'パート'
     else:
@@ -852,7 +852,7 @@ class MapCompleteCompleteSheetGenerator:
         # ============================================================
         # 15-25. WORKSTYLE関連（雇用形態クロス分析）- 2025-12-25追加
         # ============================================================
-        # 雇用形態（正職員/パート/その他）を軸とした多次元分析
+        # 雇用形態（正社員/パート/その他）を軸とした多次元分析
         # ApplicantsとDesiredWorkを結合して希望勤務地別に集計
 
         applicants = self.phase_data.get('phase1', {}).get('Applicants')
