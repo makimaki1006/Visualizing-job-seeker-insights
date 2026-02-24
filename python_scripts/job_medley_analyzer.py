@@ -659,7 +659,7 @@ def _normalize_employment_type(raw):
         return '業務委託'
     if raw == '派遣':
         return '派遣'
-    return raw
+    return ''
 
 
 # ============================================================

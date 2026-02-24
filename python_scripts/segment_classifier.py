@@ -59,6 +59,11 @@ class Tier2Scorer:
     def _val(self, col, default=0):
         v = self.r.get(col)
         if pd.isna(v): return default
+        if isinstance(default, (int, float)) and isinstance(v, str):
+            try:
+                return type(default)(v)
+            except (ValueError, TypeError):
+                return default
         return v
 
     # ──────────────────────────────────
