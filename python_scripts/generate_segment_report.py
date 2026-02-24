@@ -83,7 +83,7 @@ def load_all():
             "E2_pct": (df["tier1_urgency"] == "E2").sum() / n * 100,
             "dict_match_pct": (df["tier3_match_score"] > 0).sum() / n * 100,
             "avg_benefits": df["benefits_score"].mean(),
-            "正社員_pct": (df["employment_type"] == "正社員").sum() / n * 100,
+            "正職員_pct": (df["employment_type"] == "正職員").sum() / n * 100,
             "パート_pct": (df["employment_type"] == "パート・バイト").sum() / n * 100,
         }
         job_summaries.append(summary)
@@ -133,7 +133,7 @@ def generate_report(combined, job_summaries, out_path):
         p("\n" + "=" * 80)
         p("2. 職種別プロファイル (件数順, 最頻Tier1コード)")
         p("=" * 80)
-        header = f"  {'職種':<26} {'件数':>7} {'A':>3} {'B':>3} {'C':>3} {'D':>3} {'E':>3} {'辞書%':>6} {'正社%':>5} {'福利':>4}"
+        header = f"  {'職種':<26} {'件数':>7} {'A':>3} {'B':>3} {'C':>3} {'D':>3} {'E':>3} {'辞書%':>6} {'正職%':>5} {'福利':>4}"
         p(header)
         p("  " + "-" * 73)
         for s in sorted(job_summaries, key=lambda x: -x["count"]):
@@ -141,7 +141,7 @@ def generate_report(combined, job_summaries, out_path):
               f"{s['top_A']:>3} {s['top_B']:>3} {s['top_C']:>3} "
               f"{s['top_D']:>3} {s['top_E']:>3} "
               f"{s['dict_match_pct']:>5.1f}% "
-              f"{s['正社員_pct']:>4.0f}% "
+              f"{s['正職員_pct']:>4.0f}% "
               f"{s['avg_benefits']:>4.1f}")
 
         # ===== 3. 未経験歓迎度ランキング =====
@@ -284,9 +284,9 @@ def generate_report(combined, job_summaries, out_path):
         most_benefits = max(job_summaries, key=lambda x: x["avg_benefits"])
         p(f"  最も福利厚生充実: {most_benefits['job_type']} (平均スコア {most_benefits['avg_benefits']:.1f})")
 
-        # 最も正社員率の高い職種
-        most_seisha = max(job_summaries, key=lambda x: x["正社員_pct"])
-        p(f"  最も正社員率高: {most_seisha['job_type']} (正社員率 {most_seisha['正社員_pct']:.1f}%)")
+        # 最も正職員率の高い職種
+        most_seisha = max(job_summaries, key=lambda x: x["正職員_pct"])
+        p(f"  最も正職員率高: {most_seisha['job_type']} (正職員率 {most_seisha['正職員_pct']:.1f}%)")
 
         # 最もパート率の高い職種
         most_part = max(job_summaries, key=lambda x: x["パート_pct"])

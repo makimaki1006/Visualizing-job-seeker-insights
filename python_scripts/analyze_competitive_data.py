@@ -441,9 +441,9 @@ def analyze_salary(conn: sqlite3.Connection) -> dict:
         if len(valid_max) > 0:
             job_emp_stats[key]["salary_max"] = _salary_stats(valid_max)
 
-    # (2) 職種×都道府県の給与統計（正社員のみ）
+    # (2) 職種×都道府県の給与統計（正職員のみ）
     print("  職種×都道府県 集計中...")
-    seishoku = df[df["employment_type"] == "正社員"]
+    seishoku = df[df["employment_type"] == "正職員"]
     job_pref_stats = {}
     for (job_type, pref), group in seishoku.groupby(["job_type", "prefecture"]):
         key = f"{job_type}|{pref}"
@@ -550,8 +550,8 @@ def analyze_prefecture_clusters(conn: sqlite3.Connection) -> dict:
         # 平均給与（salary_min）
         avg_salary = pref_df["salary_min"].mean()
 
-        # 正社員比率
-        seishoku_ratio = len(pref_df[pref_df["employment_type"] == "正社員"]) / n
+        # 正職員比率
+        seishoku_ratio = len(pref_df[pref_df["employment_type"] == "正職員"]) / n
 
         # 未経験OK率（NULLでないもの対象）
         # ここではDB全体からinexperienced_okを取得する必要がある

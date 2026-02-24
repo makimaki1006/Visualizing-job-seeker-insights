@@ -126,10 +126,10 @@ def create_prefecture_summary(jm_data):
     # 雇用形態構成
     workstyle = df.groupby(['residence_prefecture', 'desired_workstyle']).size().unstack(fill_value=0)
     total = workstyle.sum(axis=1)
-    if '正社員' in workstyle.columns:
-        workstyle['fulltime_ratio'] = workstyle['正社員'] / total * 100
-    elif '正職員' in workstyle.columns:
+    if '正職員' in workstyle.columns:
         workstyle['fulltime_ratio'] = workstyle['正職員'] / total * 100
+    elif '正社員' in workstyle.columns:
+        workstyle['fulltime_ratio'] = workstyle['正社員'] / total * 100
         pref_summary = pref_summary.merge(
             workstyle[['fulltime_ratio']].reset_index().rename(columns={'residence_prefecture': 'prefecture'}),
             on='prefecture',
