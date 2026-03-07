@@ -28,22 +28,30 @@ DB_PATH = r"C:/Users/fuji1/AppData/Local/Temp/rust-dashboard-deploy/data/geocode
 MIN_SAMPLE_SIZE = 10
 
 # Zipf推定に使う最小ランク数
-MIN_RANKS_FOR_ZIPF = 5
+# N<10では対数線形回帰が不安定なため、10以上を要求する
+MIN_RANKS_FOR_ZIPF = 10
 
 
 # ---------------------------------------------------------------------------
 # ユーティリティ関数
 # ---------------------------------------------------------------------------
 
-def compute_gini(values: list[float]) -> float:
+def compute_gini(values: list[float]) -> Optional[float]:
     """ジニ係数を計算する。
 
     G = (2 * sum(i * x_i)) / (n * sum(x_i)) - (n + 1) / n
     ここで x_i は昇順ソート済み、i は 1-indexed。
     完全平等 = 0、完全不平等 = 1。
+
+    N < MIN_SAMPLE_SIZE の場合は統計的に無意味なため None を返す。
+    N < 2 の場合も None を返す（ジニ係数は定義不能）。
     """
     if not values or len(values) < 2:
-        return 0.0
+        return None
+
+    # サンプル数が少なすぎる場合は統計的に信頼できない
+    if len(values) < MIN_SAMPLE_SIZE:
+        return None
 
     sorted_vals = sorted(values)
     n = len(sorted_vals)
@@ -57,7 +65,12 @@ def compute_gini(values: list[float]) -> float:
 
 
 def compute_shannon_entropy(counts: dict[str, int]) -> float:
-    """シャノンエントロピー H = -sum(p_i * log2(p_i)) を計算する。"""
+    """シャノンエントロピー H = -sum(p_i * log2(p_i)) を計算する。
+
+    単位: bits (log2)。
+    注意: Python側はlog2を正とする。Rust側（analytics.rs）もlog2に統一すべき。
+    lnを使うとnat単位になり、値が異なるため混在禁止。
+    """
     total = sum(counts.values())
     if total == 0:
         return 0.0
@@ -227,18 +240,33 @@ def compute_a1_salary(conn: sqlite3.Connection) -> int:
         # salary_min のリスト（ソート済み）
         sal_mins = sorted(v[0] for v in data_list)
 
+        # percentile系統計は外れ値に頑健なため元データで計算
         mean_val = sum(sal_mins) / n
         median_val = safe_median(sal_mins)
         p25_val = compute_percentile(sal_mins, 25.0)
         p75_val = compute_percentile(sal_mins, 75.0)
         p90_val = compute_percentile(sal_mins, 90.0)
 
-        # 標準偏差（サンプル標準偏差: /(n-1) ベッセル補正）
-        variance = sum((x - mean_val) ** 2 for x in sal_mins) / (n - 1)
+        # 外れ値除外（IQR法: Q1-1.5*IQR 〜 Q3+1.5*IQR）
+        # Gini係数とstdは外れ値に非常に敏感なため、フィルタ済みデータで計算
+        iqr = p75_val - p25_val
+        lower_bound = p25_val - 1.5 * iqr
+        upper_bound = p75_val + 1.5 * iqr
+        sal_mins_filtered = [v for v in sal_mins if lower_bound <= v <= upper_bound]
+
+        # フィルタ後のサンプル数チェック
+        if len(sal_mins_filtered) < MIN_SAMPLE_SIZE:
+            skipped += 1
+            continue
+
+        # 標準偏差（サンプル標準偏差: /(n-1) ベッセル補正）- フィルタ済みデータ
+        n_filtered = len(sal_mins_filtered)
+        mean_filtered = sum(sal_mins_filtered) / n_filtered
+        variance = sum((x - mean_filtered) ** 2 for x in sal_mins_filtered) / (n_filtered - 1)
         std_val = math.sqrt(variance)
 
-        # ジニ係数
-        gini_val = compute_gini(sal_mins)
+        # ジニ係数 - フィルタ済みデータ（外れ値に敏感なため）
+        gini_val = compute_gini(sal_mins_filtered)
 
         # salary_max の分析
         ranges = [v[1] - v[0] for v in data_list if v[1] > 0]
@@ -254,7 +282,7 @@ def compute_a1_salary(conn: sqlite3.Connection) -> int:
             round(p75_val, 1),
             round(p90_val, 1),
             round(std_val, 1),
-            round(gini_val, 4),
+            round(gini_val, 4) if gini_val is not None else None,
             round(has_range_pct, 1),
             round(range_median, 1) if range_median is not None else None,
         ))

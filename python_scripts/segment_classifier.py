@@ -379,10 +379,10 @@ class Tier2Scorer:
         """条件・待遇訴求"""
         s = 0
         benefits_score = self._val('benefits_score', 0)
-        # v1.2: 閾値をフラグ数増加(19→25)に合わせ上方調整
-        if benefits_score >= 15: s += 3
-        elif benefits_score >= 11: s += 2
-        elif benefits_score >= 7: s += 1
+        # v2.5: 閾値をフラグ数増加(25→32)に合わせ上方調整
+        if benefits_score >= 19: s += 3
+        elif benefits_score >= 14: s += 2
+        elif benefits_score >= 9: s += 1
         s += self._txt_count([r'福利厚生.{0,5}充実', r'待遇.{0,5}充実', r'手当.{0,5}充実',
                               r'ベネフィットステーション', r'リロクラブ'])
         return s
@@ -477,6 +477,8 @@ class Tier2Scorer:
         results = {}
 
         # 軸A
+        # タイブレーク: 同スコアの場合、辞書定義順で先のカテゴリを優先
+        # （例: A1とA2が同点ならA1が選ばれる = より未経験寄りを優先）
         a_scores = {
             'A1': self.score_A1(), 'A2': self.score_A2(), 'A3': self.score_A3(),
             'A4': self.score_A4(), 'A5': self.score_A5(),
@@ -486,6 +488,7 @@ class Tier2Scorer:
         results['tier2_A_score'] = max(a_scores.values())
 
         # 軸B
+        # タイブレーク: 同スコアの場合、辞書定義順で先のカテゴリを優先
         b_scores = {
             'B1': self.score_B1(), 'B2': self.score_B2(), 'B3': self.score_B3(),
             'B4': self.score_B4(), 'B5': self.score_B5(),
@@ -495,6 +498,7 @@ class Tier2Scorer:
         results['tier2_B_score'] = max(b_scores.values())
 
         # 軸C
+        # タイブレーク: 同スコアの場合、辞書定義順で先のカテゴリを優先
         c_scores = {
             'C1': self.score_C1(), 'C2': self.score_C2(), 'C3': self.score_C3(),
             'C4': self.score_C4(), 'C5': self.score_C5(),
@@ -504,6 +508,7 @@ class Tier2Scorer:
         results['tier2_C_score'] = max(c_scores.values())
 
         # 軸D
+        # タイブレーク: 同スコアの場合、辞書定義順で先のカテゴリを優先
         d_scores = {
             'D1': self.score_D1(), 'D2': self.score_D2(), 'D3': self.score_D3(),
             'D4': self.score_D4(), 'D5': self.score_D5(), 'D6': self.score_D6(),
@@ -514,6 +519,7 @@ class Tier2Scorer:
         results['tier2_D_score'] = max(d_scores.values())
 
         # 軸E
+        # タイブレーク: 同スコアの場合、辞書定義順で先のカテゴリを優先
         e_scores = {
             'E1': self.score_E1(), 'E2': self.score_E2(), 'E3': self.score_E3(),
             'E4': self.score_E4(), 'E5': self.score_E5(),
