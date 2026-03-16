@@ -899,7 +899,7 @@ def main() -> None:
         "--job-type", nargs="+", metavar="JT",
         help="対象職種（複数指定可、省略で全職種）例: --job-type 介護職 看護師",
     )
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
     target_jt = args.job_type
 
     # UTF-8出力設定
