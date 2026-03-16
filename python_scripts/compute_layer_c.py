@@ -1,13 +1,15 @@
 """
 Layer C: セグメンテーション（k-meansクラスタリング）
 
-16次元特徴量ベクトルを構築し、職種別にMiniBatchKMeansでクラスタリングする。
+16次元特徴量ベクトルを構築し、職種別 × 雇用形態別にMiniBatchKMeansでクラスタリングする。
 結果は geocoded_postings.db に3テーブルとして格納する。
 
 出力テーブル:
-  - layer_c_clusters:          各求人のクラスタ割当
-  - layer_c_cluster_profiles:  クラスタプロファイル要約
-  - layer_c_region_heatmap:    セグメント×地域ヒートマップ
+  - layer_c_clusters:          各求人のクラスタ割当（employment_type別）
+  - layer_c_cluster_profiles:  クラスタプロファイル要約（employment_type別）
+  - layer_c_region_heatmap:    セグメント×地域ヒートマップ（employment_type別）
+
+雇用形態別分離: 全体/正職員/パートの3セグメントで独立にクラスタリング
 
 使用法:
   python compute_layer_c.py
@@ -27,7 +29,7 @@ import pandas as pd
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import RobustScaler
 
 # --------------------------------------------------------------------------- #
 # 定数
@@ -37,52 +39,34 @@ DB_PATH_DEFAULT = (
     r"\data\geocoded_postings.db"
 )
 
+# 雇用形態セグメント
+EMPLOYMENT_TYPES = ["全体", "正職員", "パート・バイト"]
+
 RANDOM_STATE = 42
 K_CANDIDATES = [3, 4, 5, 6, 7]
-SILHOUETTE_THRESHOLD = 0.15       # 全候補がこれ未満なら k=4 にフォールバック
+SILHOUETTE_THRESHOLD_MIN = 0.10   # シルエットスコアの絶対閾値（これ未満はk=4にフォールバック）
 MIN_POSTINGS_FOR_CLUSTERING = 100  # これ未満の職種はクラスタリングをスキップ
 PCA_COMPONENTS = 4                 # has_*フラグのPCA圧縮次元数
 HOURLY_TO_MONTHLY = 173            # 時給→月給変換係数（月間所定労働時間）
 
-# クラスタラベル生成用の特徴量名（日本語）
-FEATURE_LABELS_JP = [
-    "給与水準",           # 0: salary_min_normalized
-    "給与レンジ幅",       # 1: salary_range_ratio
-    "テキスト情報量",     # 2: text_entropy
-    "漢字比率",           # 3: kanji_ratio
-    "福利厚生スコア",     # 4: benefits_score
-    "求人充実度",         # 5: content_richness_score
-    "年間休日数",         # 6: annual_holidays_numeric
-    "給与レンジ有",       # 7: has_salary_range
-    "休日記載有",         # 8: has_holidays_specified
-    "正職員",             # 9: is_fulltime
-    "月給制",             # 10: is_monthly_salary
-    "福利PCA1",           # 11: pca_0
-    "福利PCA2",           # 12: pca_1
-    "福利PCA3",           # 13: pca_2
-    "福利PCA4",           # 14: pca_3
-    "休日カテゴリ",       # 15: holidays_category_score
-]
-
-# 特徴量の内部名（英語）
-FEATURE_NAMES_EN = [
-    "salary_min_normalized",
-    "salary_range_ratio",
-    "text_entropy",
-    "kanji_ratio",
-    "benefits_score",
-    "content_richness_score",
-    "annual_holidays_numeric",
-    "has_salary_range",
-    "has_holidays_specified",
-    "is_fulltime",
-    "is_monthly_salary",
-    "pca_0",
-    "pca_1",
-    "pca_2",
-    "pca_3",
-    "holidays_category_score",
-]
+# 特徴量の英語名→日本語ラベルマッピング（動的特徴量数に対応）
+FEATURE_LABEL_MAP = {
+    "salary_min_normalized": "給与水準",
+    "salary_range_ratio": "給与レンジ幅",
+    "text_entropy": "テキスト情報量",
+    "kanji_ratio": "漢字比率",
+    "benefits_score": "福利厚生スコア",
+    "content_richness_score": "求人充実度",
+    "annual_holidays_numeric": "年間休日数",
+    "has_salary_range": "給与レンジ有",
+    "has_holidays_specified": "休日記載有",
+    "is_fulltime": "正職員",
+    "is_monthly_salary": "月給制",
+    "pca_0": "福利PCA1",
+    "pca_1": "福利PCA2",
+    "pca_2": "福利PCA3",
+    "pca_3": "福利PCA4",
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -95,10 +79,7 @@ def log(msg: str) -> None:
 
 
 def holidays_to_category_score(val: int) -> int:
-    """年間休日の数値をカテゴリスコアに変換する。
-
-    120+ → 4, 105-119 → 3, 96-104 → 2, <96 → 1, 記載なし(0) → 0
-    """
+    """年間休日の数値をカテゴリスコアに変換する。"""
     if val <= 0:
         return 0
     if val >= 120:
@@ -124,7 +105,7 @@ def holidays_to_category_label(val: int) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# DB スキーマ操作
+# DB スキーマ操作 - employment_type カラム追加
 # --------------------------------------------------------------------------- #
 def get_has_flag_columns(conn: sqlite3.Connection) -> list[str]:
     """postingsテーブルから has_* カラム名を動的に取得する。"""
@@ -143,10 +124,11 @@ def drop_and_create_tables(conn: sqlite3.Connection) -> None:
 
     conn.execute("""
         CREATE TABLE layer_c_clusters (
-            posting_id      INTEGER NOT NULL,
-            job_type        TEXT NOT NULL,
-            cluster_id      INTEGER NOT NULL,
-            cluster_label   TEXT NOT NULL,
+            posting_id         INTEGER NOT NULL,
+            job_type           TEXT NOT NULL,
+            employment_type    TEXT NOT NULL DEFAULT '全体',
+            cluster_id         INTEGER NOT NULL,
+            cluster_label      TEXT NOT NULL,
             distance_to_center REAL NOT NULL
         )
     """)
@@ -154,6 +136,7 @@ def drop_and_create_tables(conn: sqlite3.Connection) -> None:
     conn.execute("""
         CREATE TABLE layer_c_cluster_profiles (
             job_type              TEXT NOT NULL,
+            employment_type       TEXT NOT NULL DEFAULT '全体',
             cluster_id            INTEGER NOT NULL,
             cluster_label         TEXT NOT NULL,
             size                  INTEGER NOT NULL,
@@ -169,25 +152,26 @@ def drop_and_create_tables(conn: sqlite3.Connection) -> None:
             dominant_employment   TEXT,
             feature_means         TEXT,
             description           TEXT,
-            PRIMARY KEY (job_type, cluster_id)
+            PRIMARY KEY (job_type, employment_type, cluster_id)
         )
     """)
 
     conn.execute("""
         CREATE TABLE layer_c_region_heatmap (
-            job_type      TEXT NOT NULL,
-            prefecture    TEXT NOT NULL,
-            cluster_id    INTEGER NOT NULL,
-            cluster_label TEXT NOT NULL,
-            count         INTEGER NOT NULL,
-            pct           REAL NOT NULL,
-            national_pct  REAL NOT NULL,
-            deviation     REAL NOT NULL
+            job_type        TEXT NOT NULL,
+            employment_type TEXT NOT NULL DEFAULT '全体',
+            prefecture      TEXT NOT NULL,
+            cluster_id      INTEGER NOT NULL,
+            cluster_label   TEXT NOT NULL,
+            count           INTEGER NOT NULL,
+            pct             REAL NOT NULL,
+            national_pct    REAL NOT NULL,
+            deviation       REAL NOT NULL
         )
     """)
 
     conn.commit()
-    log("出力テーブル3個を作成完了")
+    log("出力テーブル3個を作成完了（employment_type対応）")
 
 
 def create_indexes(conn: sqlite3.Connection) -> None:
@@ -197,16 +181,16 @@ def create_indexes(conn: sqlite3.Connection) -> None:
         "ON layer_c_clusters(posting_id)"
     )
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_lc_clusters_jobtype "
-        "ON layer_c_clusters(job_type)"
+        "CREATE INDEX IF NOT EXISTS idx_lc_clusters_jt_emp "
+        "ON layer_c_clusters(job_type, employment_type)"
     )
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_lc_profiles_jobtype "
-        "ON layer_c_cluster_profiles(job_type)"
+        "CREATE INDEX IF NOT EXISTS idx_lc_profiles_jt_emp "
+        "ON layer_c_cluster_profiles(job_type, employment_type)"
     )
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_lc_heatmap_jobtype_pref "
-        "ON layer_c_region_heatmap(job_type, prefecture)"
+        "CREATE INDEX IF NOT EXISTS idx_lc_heatmap_jt_emp_pref "
+        "ON layer_c_region_heatmap(job_type, employment_type, prefecture)"
     )
     conn.commit()
     log("インデックス作成完了")
@@ -219,10 +203,16 @@ def load_job_type_data(
     conn: sqlite3.Connection,
     job_type: str,
     has_cols: list[str],
+    employment_type: str = "全体",
 ) -> pd.DataFrame:
-    """指定職種のデータをDataFrameとして読み込む。"""
-    # has_*カラムはダブルクォートでエスケープ（日本語カラム名対応）
+    """指定職種・雇用形態のデータをDataFrameとして読み込む。"""
     has_col_sql = ", ".join(f'"{c}"' for c in has_cols)
+
+    emp_where = ""
+    params: tuple = (job_type,)
+    if employment_type != "全体":
+        emp_where = " AND employment_type = ?"
+        params = (job_type, employment_type)
 
     query = f"""
         SELECT
@@ -241,25 +231,17 @@ def load_job_type_data(
             annual_holidays,
             {has_col_sql}
         FROM postings
-        WHERE job_type = ?
+        WHERE job_type = ?{emp_where}
     """
-    df = pd.read_sql_query(query, conn, params=(job_type,))
+    df = pd.read_sql_query(query, conn, params=params)
     return df
 
 
 def impute_missing_values(df: pd.DataFrame, job_type: str) -> pd.DataFrame:
-    """欠損値を補完する。
-
-    戦略:
-      - salary_min (0値): salary_type別の中央値で補完
-      - text_entropy (0値): 職種別中央値で補完
-      - benefits_score (0値): 0で補完（既にデフォルト0）
-      - content_richness_score (0値): 職種別中央値で補完
-      - annual_holidays (0値): 補完しない（カテゴリ「記載なし」として扱う）
-    """
+    """欠損値を補完する。"""
     # salary_min: salary_type別中央値
     for st in df["salary_type"].unique():
-        if not st:  # 空文字列
+        if not st:
             continue
         mask = (df["salary_min"] <= 0) & (df["salary_type"] == st)
         if mask.any():
@@ -270,7 +252,7 @@ def impute_missing_values(df: pd.DataFrame, job_type: str) -> pd.DataFrame:
             if pd.notna(median_val) and median_val > 0:
                 df.loc[mask, "salary_min"] = median_val
 
-    # salary_type自体が空の場合、月給の中央値で補完
+    # salary_type自体が空の場合
     mask_empty_st = (df["salary_min"] <= 0) & (
         (df["salary_type"] == "") | df["salary_type"].isna()
     )
@@ -298,10 +280,9 @@ def impute_missing_values(df: pd.DataFrame, job_type: str) -> pd.DataFrame:
         if pd.notna(median_cr):
             df.loc[mask_cr, "content_richness_score"] = median_cr
         else:
-            # 全て0の場合は0のまま
             df.loc[mask_cr, "content_richness_score"] = 0
 
-    # benefits_score: 0で補完（既にデフォルト0だが安全のため）
+    # benefits_score: 0で補完
     df["benefits_score"] = df["benefits_score"].fillna(0)
 
     return df
@@ -311,30 +292,23 @@ def build_feature_matrix(
     df: pd.DataFrame,
     has_cols: list[str],
     pca_model: PCA | None = None,
+    employment_type: str = "全体",
 ) -> tuple[np.ndarray, PCA, list[str]]:
-    """16次元特徴量行列を構築する。
+    """特徴量行列を構築する。
 
-    Args:
-        df: 補完済みデータフレーム
-        has_cols: has_*カラム名リスト
-        pca_model: 事前学習済みPCAモデル（Noneなら新規学習）
-
-    Returns:
-        (features, pca_model, feature_names)
-        features: (n_samples, 16) のnumpy配列
-        pca_model: 学習済みPCAモデル
-        feature_names: 特徴量名リスト
+    employment_type が "全体" 以外の場合、is_fulltime と is_monthly_salary は
+    分散がほぼゼロになるため特徴量から除外する。
     """
     n = len(df)
 
-    # --- 連続特徴量 (7) ---
+    # 雇用形態別セグメントでは is_fulltime / is_monthly_salary を除外
+    exclude_emp_features = (employment_type != "全体")
 
-    # 1. salary_min_normalized: 時給は月給換算
+    # --- 連続特徴量 (7) ---
     salary_normalized = df["salary_min"].values.astype(np.float64).copy()
     is_hourly = (df["salary_type"] == "時給").values
     salary_normalized[is_hourly] *= HOURLY_TO_MONTHLY
 
-    # 2. salary_range_ratio
     s_min = df["salary_min"].values.astype(np.float64)
     s_max = df["salary_max"].values.astype(np.float64)
     salary_range_ratio = np.zeros(n, dtype=np.float64)
@@ -342,47 +316,25 @@ def build_feature_matrix(
     salary_range_ratio[valid_range] = (
         (s_max[valid_range] - s_min[valid_range]) / s_min[valid_range]
     )
-    # 異常値を抑制（レンジ比率が5以上は外れ値）
     salary_range_ratio = np.clip(salary_range_ratio, 0.0, 5.0)
 
-    # 3. text_entropy
     text_entropy = df["text_entropy"].values.astype(np.float64)
-
-    # 4. kanji_ratio
     kanji_ratio = df["kanji_ratio"].values.astype(np.float64)
-
-    # 5. benefits_score
     benefits_score = df["benefits_score"].values.astype(np.float64)
-
-    # 6. content_richness_score
     content_richness = df["content_richness_score"].values.astype(np.float64)
 
-    # 7. annual_holidays_numeric
-    # 記載ありの中央値を欠損補完用に計算
     hol_values = df["annual_holidays"].values.astype(np.float64)
     hol_valid = hol_values[hol_values > 0]
     hol_median = float(np.median(hol_valid)) if len(hol_valid) > 0 else 110.0
     annual_holidays_num = hol_values.copy()
     annual_holidays_num[annual_holidays_num <= 0] = hol_median
 
-    # --- バイナリ特徴量 (5) ---
-
-    # 8. has_salary_range
+    # --- バイナリ特徴量 ---
     has_salary_range = (s_max > 0).astype(np.float64)
-
-    # 9. has_holidays_specified
     has_holidays = (hol_values > 0).astype(np.float64)
 
-    # 10. is_fulltime
-    is_fulltime = (df["employment_type"] == "正職員").values.astype(np.float64)
-
-    # 11. is_monthly_salary
-    is_monthly = (df["salary_type"] == "月給").values.astype(np.float64)
-
     # --- PCA圧縮 has_*フラグ (4) ---
-    # has_*フラグは全て0/1バイナリなのでPCA前のスケーリングは不要
     has_matrix = df[has_cols].values.astype(np.float64)
-    # NaN値を0で補完
     has_matrix = np.nan_to_num(has_matrix, nan=0.0)
 
     if pca_model is None:
@@ -391,14 +343,8 @@ def build_feature_matrix(
     else:
         pca_components = pca_model.transform(has_matrix)
 
-    # --- 休日カテゴリスコア (1) ---
-    holidays_cat_score = np.array(
-        [holidays_to_category_score(int(v)) for v in hol_values],
-        dtype=np.float64,
-    )
-
-    # 結合
-    features = np.column_stack([
+    # 特徴量スタックとカラム名リストを動的に構築
+    feature_arrays = [
         salary_normalized,      # 0
         salary_range_ratio,     # 1
         text_entropy,           # 2
@@ -408,13 +354,35 @@ def build_feature_matrix(
         annual_holidays_num,    # 6
         has_salary_range,       # 7
         has_holidays,           # 8
-        is_fulltime,            # 9
-        is_monthly,             # 10
-        pca_components,         # 11-14 (4列)
-        holidays_cat_score,     # 15
-    ])
+    ]
+    feature_names = [
+        "salary_min_normalized",
+        "salary_range_ratio",
+        "text_entropy",
+        "kanji_ratio",
+        "benefits_score",
+        "content_richness_score",
+        "annual_holidays_numeric",
+        "has_salary_range",
+        "has_holidays_specified",
+    ]
 
-    return features, pca_model, FEATURE_NAMES_EN
+    if not exclude_emp_features:
+        # 全体セグメントのみ is_fulltime / is_monthly_salary を含める
+        is_fulltime = (df["employment_type"] == "正職員").values.astype(np.float64)
+        is_monthly = (df["salary_type"] == "月給").values.astype(np.float64)
+        feature_arrays.extend([is_fulltime, is_monthly])
+        feature_names.extend(["is_fulltime", "is_monthly_salary"])
+    else:
+        log(f"  雇用形態別セグメント: is_fulltime, is_monthly_salary を除外")
+
+    # PCA成分を追加
+    feature_arrays.append(pca_components)
+    feature_names.extend([f"pca_{i}" for i in range(PCA_COMPONENTS)])
+
+    features = np.column_stack(feature_arrays)
+
+    return features, pca_model, feature_names
 
 
 # --------------------------------------------------------------------------- #
@@ -424,15 +392,11 @@ def find_optimal_k(
     X_scaled: np.ndarray,
     k_candidates: list[int],
 ) -> tuple[int, dict[int, float]]:
-    """シルエットスコアに基づいて最適なkを決定する。
-
-    全候補の silhouette score が SILHOUETTE_THRESHOLD 未満の場合は k=4 をデフォルトとする。
-    """
+    """シルエットスコアに基づいて最適なkを決定する。"""
     scores: dict[int, float] = {}
     best_k = 4
     best_score = -1.0
 
-    # サンプル数が多い場合はシルエット計算にサンプリングを使用
     n_samples = len(X_scaled)
     sample_size = min(n_samples, 10000)
 
@@ -447,12 +411,10 @@ def find_optimal_k(
         )
         labels = kmeans.fit_predict(X_scaled)
 
-        # 全ラベルが同一の場合はスキップ
         if len(set(labels)) < 2:
             scores[k] = -1.0
             continue
 
-        # シルエットスコア計算（サンプリング）
         if n_samples > sample_size:
             rng = np.random.RandomState(RANDOM_STATE)
             idx = rng.choice(n_samples, sample_size, replace=False)
@@ -465,8 +427,9 @@ def find_optimal_k(
             best_score = score
             best_k = k
 
-    # 全スコアがしきい値未満ならデフォルトk=4
-    if best_score < SILHOUETTE_THRESHOLD:
+    # 絶対閾値でフォールバック判定（best_score が低すぎる場合 k=4 にリセット）
+    if best_score < SILHOUETTE_THRESHOLD_MIN:
+        log(f"  警告: 最高シルエットスコア {best_score:.3f} < 閾値 {SILHOUETTE_THRESHOLD_MIN}")
         best_k = 4
 
     return best_k, scores
@@ -478,20 +441,7 @@ def auto_label_cluster(
     global_means: np.ndarray,
     global_stds: np.ndarray,
 ) -> tuple[str, str]:
-    """クラスタ中心のプロファイルから自動ラベルと説明文を生成する。
-
-    特徴量の偏差が大きい上位2-3要素に基づいてラベルを生成する。
-
-    Args:
-        center: クラスタ中心の特徴量ベクトル（スケーリング前の値）
-        feature_names: 特徴量名リスト
-        global_means: 全データの特徴量平均
-        global_stds: 全データの特徴量標準偏差
-
-    Returns:
-        (label, description)
-    """
-    # 各特徴量の偏差（標準化）を計算
+    """クラスタ中心のプロファイルから自動ラベルと説明文を生成する。"""
     deviations = np.zeros(len(center))
     for i in range(len(center)):
         if global_stds[i] > 1e-9:
@@ -499,27 +449,22 @@ def auto_label_cluster(
         else:
             deviations[i] = 0.0
 
-    # ラベル候補生成ルール（特徴量インデックスに対応）
     label_parts = []
     desc_parts = []
 
-    # 偏差の絶対値が大きい順にソート
     sorted_idx = np.argsort(np.abs(deviations))[::-1]
 
-    # 上位3つの特徴量から特徴を抽出
     for rank, idx in enumerate(sorted_idx):
         if rank >= 3:
             break
         dev = deviations[idx]
         abs_dev = abs(dev)
         name_en = feature_names[idx]
-        name_jp = FEATURE_LABELS_JP[idx]
+        name_jp = FEATURE_LABEL_MAP.get(name_en, name_en)
 
-        # 偏差が小さければスキップ
         if abs_dev < 0.3:
             continue
 
-        # 特徴量ごとのラベル生成ルール
         if name_en == "salary_min_normalized":
             if dev > 0.5:
                 label_parts.append("高給与")
@@ -527,7 +472,6 @@ def auto_label_cluster(
             elif dev < -0.5:
                 label_parts.append("低給与")
                 desc_parts.append(f"給与水準が平均より低い({dev:.1f}σ)")
-
         elif name_en == "benefits_score":
             if dev > 0.5:
                 label_parts.append("高福利厚生")
@@ -535,7 +479,6 @@ def auto_label_cluster(
             elif dev < -0.5:
                 label_parts.append("基本待遇")
                 desc_parts.append(f"福利厚生スコアが低い({dev:.1f}σ)")
-
         elif name_en == "content_richness_score":
             if dev > 0.5:
                 label_parts.append("情報充実")
@@ -543,7 +486,6 @@ def auto_label_cluster(
             elif dev < -0.5:
                 label_parts.append("簡素掲載")
                 desc_parts.append(f"求人情報の充実度が低い({dev:.1f}σ)")
-
         elif name_en == "is_fulltime":
             if dev > 0.5:
                 label_parts.append("正職員中心")
@@ -551,7 +493,6 @@ def auto_label_cluster(
             elif dev < -0.5:
                 label_parts.append("非常勤中心")
                 desc_parts.append(f"パート・非常勤比率が高い({dev:.1f}σ)")
-
         elif name_en == "is_monthly_salary":
             if dev > 0.5:
                 label_parts.append("月給制")
@@ -559,13 +500,11 @@ def auto_label_cluster(
             elif dev < -0.5:
                 label_parts.append("時給制")
                 desc_parts.append(f"時給制が多い({dev:.1f}σ)")
-
         elif name_en == "text_entropy":
             if dev > 0.5:
                 desc_parts.append(f"テキスト情報量が多い(+{dev:.1f}σ)")
             elif dev < -0.5:
                 desc_parts.append(f"テキスト情報量が少ない({dev:.1f}σ)")
-
         elif name_en == "annual_holidays_numeric":
             if dev > 0.5:
                 label_parts.append("休日充実")
@@ -573,37 +512,24 @@ def auto_label_cluster(
             elif dev < -0.5:
                 label_parts.append("休日少")
                 desc_parts.append(f"年間休日数が少ない({dev:.1f}σ)")
-
         elif name_en == "salary_range_ratio":
             if dev > 0.5:
                 desc_parts.append(f"給与レンジが広い(+{dev:.1f}σ)")
             elif dev < -0.5:
                 desc_parts.append(f"給与レンジが狭いまたは固定({dev:.1f}σ)")
-
         elif name_en == "has_salary_range":
             if dev < -0.5:
                 label_parts.append("給与固定")
                 desc_parts.append("給与レンジ記載なしが多い")
-
         elif name_en == "has_holidays_specified":
             if dev < -0.5:
                 label_parts.append("休日未記載")
                 desc_parts.append("年間休日の記載なしが多い")
 
-        elif name_en == "holidays_category_score":
-            if dev > 0.5:
-                label_parts.append("年休120+")
-                desc_parts.append(f"年間休日120日以上が多い(+{dev:.1f}σ)")
-
-        # PCA成分は説明的ラベルにしにくいのでスキップ
-
-    # ラベル組み立て
     if not label_parts:
-        # 偏差が小さい場合は「標準型」
         label = "標準型"
         description = "全体平均に近い標準的な求人群"
     else:
-        # 重複排除して結合（最大3パーツ）
         seen = set()
         unique_parts = []
         for p in label_parts:
@@ -617,23 +543,24 @@ def auto_label_cluster(
 
 
 # --------------------------------------------------------------------------- #
-# 職種別クラスタリング
+# 職種別クラスタリング（雇用形態対応）
 # --------------------------------------------------------------------------- #
 def cluster_job_type(
     conn: sqlite3.Connection,
     job_type: str,
     has_cols: list[str],
+    employment_type: str = "全体",
 ) -> dict:
-    """単一職種のクラスタリングを実行し結果をDBに書き込む。
+    """単一職種・雇用形態のクラスタリングを実行し結果をDBに書き込む。
 
     Returns:
         結果サマリ辞書
     """
-    log(f"--- 職種: {job_type} ---")
+    log(f"--- 職種: {job_type} [{employment_type}] ---")
 
     # データ読み込み
     t0 = time.time()
-    df = load_job_type_data(conn, job_type, has_cols)
+    df = load_job_type_data(conn, job_type, has_cols, employment_type)
     n_total = len(df)
     log(f"  データ読み込み: {n_total:,}件 ({time.time()-t0:.1f}s)")
 
@@ -641,25 +568,25 @@ def cluster_job_type(
     if n_total < MIN_POSTINGS_FOR_CLUSTERING:
         log(f"  件数不足({n_total} < {MIN_POSTINGS_FOR_CLUSTERING}) → "
             f"全件クラスタ0に割当")
-        # 全件をクラスタ0に割り当て
         rows = [
-            (int(row["id"]), job_type, 0, "件数不足", 0.0)
+            (int(row["id"]), job_type, employment_type, 0, "件数不足", 0.0)
             for _, row in df.iterrows()
         ]
         conn.executemany(
-            "INSERT INTO layer_c_clusters VALUES (?, ?, ?, ?, ?)", rows
+            "INSERT INTO layer_c_clusters VALUES (?, ?, ?, ?, ?, ?)", rows
         )
         conn.execute(
             "INSERT INTO layer_c_cluster_profiles VALUES "
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                job_type, 0, "件数不足", n_total, 100.0,
+                job_type, employment_type, 0, "件数不足", n_total, 100.0,
                 None, None, None, None, None, None, None,
                 "[]", "", "{}", "件数不足のためクラスタリング未実施",
             ),
         )
         conn.commit()
-        return {"job_type": job_type, "n": n_total, "k": 0, "status": "skipped"}
+        return {"job_type": job_type, "employment_type": employment_type,
+                "n": n_total, "k": 0, "status": "skipped"}
 
     # 欠損値補完
     df = impute_missing_values(df, job_type)
@@ -667,7 +594,7 @@ def cluster_job_type(
     # 特徴量行列構築
     t1 = time.time()
     features_raw, pca_model, feature_names = build_feature_matrix(
-        df, has_cols
+        df, has_cols, employment_type=employment_type
     )
     log(f"  特徴量構築: {features_raw.shape} ({time.time()-t1:.1f}s)")
 
@@ -680,8 +607,8 @@ def cluster_job_type(
                 log(f"  警告: {feature_names[i]} に {cnt}個のNaN/Inf → 0で補完")
         features_raw = np.nan_to_num(features_raw, nan=0.0, posinf=0.0, neginf=0.0)
 
-    # 16次元特徴量全体をスケーリング（給与(万円)とフラグ(0/1)のスケール差を正規化）
-    scaler = StandardScaler()
+    # スケーリング
+    scaler = RobustScaler()
     features_scaled = scaler.fit_transform(features_raw)
 
     # 最適k探索
@@ -697,7 +624,7 @@ def cluster_job_type(
         n_clusters=best_k,
         random_state=RANDOM_STATE,
         batch_size=min(1024, n_total),
-        n_init=10,  # 本番は初期化回数を増やす
+        n_init=10,
     )
     labels = kmeans.fit_predict(features_scaled)
 
@@ -723,9 +650,8 @@ def cluster_job_type(
         label, desc = auto_label_cluster(
             centers_original[cid], feature_names, global_means, global_stds
         )
-        # 同じラベルの重複を防ぐ（副次特徴量で差別化）
+        # 同じラベルの重複を防ぐ
         if label in cluster_labels_map.values():
-            # 偏差の大きさでソートし、まだラベルに使われていない特徴を追加
             devs = np.zeros(len(centers_original[cid]))
             for fi in range(len(centers_original[cid])):
                 if global_stds[fi] > 1e-9:
@@ -741,7 +667,6 @@ def cluster_job_type(
                 if abs_dev < 0.2:
                     continue
                 fn = feature_names[fi]
-                # ラベル文字列に含まれていない特徴量を探す
                 suffix_map = {
                     "salary_min_normalized": "高給与" if dev > 0 else "低給与",
                     "benefits_score": "高福利" if dev > 0 else "基本待遇",
@@ -752,7 +677,6 @@ def cluster_job_type(
                     "annual_holidays_numeric": "休日多" if dev > 0 else "休日少",
                     "has_salary_range": "レンジ有" if dev > 0 else "固定給",
                     "has_holidays_specified": "休日記載" if dev > 0 else "休日不明",
-                    "holidays_category_score": "年休充実" if dev > 0 else "年休少",
                 }
                 suffix = suffix_map.get(fn, "")
                 if suffix and suffix not in label:
@@ -775,13 +699,14 @@ def cluster_job_type(
         cluster_rows.append((
             int(df.iloc[i]["id"]),
             job_type,
+            employment_type,
             int(labels[i]),
             cluster_labels_map[int(labels[i])],
             round(float(distances[i]), 4),
         ))
 
     conn.executemany(
-        "INSERT INTO layer_c_clusters VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO layer_c_clusters VALUES (?, ?, ?, ?, ?, ?)",
         cluster_rows,
     )
     log(f"  layer_c_clusters: {len(cluster_rows):,}件挿入 ({time.time()-t4:.1f}s)")
@@ -795,38 +720,28 @@ def cluster_job_type(
         c_size = int(mask.sum())
         c_pct = round(c_size / n_total * 100, 2)
 
-        # salary_min（月給換算前の元値）
         sal_vals = cluster_df["salary_min"].values
         sal_valid = sal_vals[sal_vals > 0]
         sal_mean = float(np.mean(sal_valid)) if len(sal_valid) > 0 else None
         sal_median = float(np.median(sal_valid)) if len(sal_valid) > 0 else None
 
-        # text_entropy
         te_vals = cluster_df["text_entropy"].values
         te_valid = te_vals[te_vals > 0]
         te_mean = float(np.mean(te_valid)) if len(te_valid) > 0 else None
 
-        # benefits_score
         bs_mean = float(cluster_df["benefits_score"].mean())
-
-        # content_richness_score
         cr_mean = float(cluster_df["content_richness_score"].mean())
 
-        # fulltime_pct
         ft_pct = round(
             (cluster_df["employment_type"] == "正職員").mean() * 100, 2
         )
-
-        # has_salary_range_pct
         sr_pct = round(
             (cluster_df["salary_max"] > 0).mean() * 100, 2
         )
 
-        # top_benefits: has_*フラグの保有率上位5
         benefit_rates = {}
         for hc in has_cols:
             rate = cluster_df[hc].mean()
-            # has_プレフィックスを除去して表示名にする
             display_name = hc.replace("has_", "")
             benefit_rates[display_name] = round(rate * 100, 1)
         top5 = sorted(benefit_rates.items(), key=lambda x: -x[1])[:5]
@@ -835,11 +750,9 @@ def cluster_job_type(
             ensure_ascii=False,
         )
 
-        # dominant_employment
         emp_counts = Counter(cluster_df["employment_type"].dropna().values)
         dominant_emp = emp_counts.most_common(1)[0][0] if emp_counts else ""
 
-        # feature_means
         feature_means_dict = {}
         cluster_feature_mean = cluster_features.mean(axis=0)
         for fi, fn in enumerate(feature_names):
@@ -848,9 +761,10 @@ def cluster_job_type(
 
         conn.execute(
             "INSERT INTO layer_c_cluster_profiles VALUES "
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 job_type,
+                employment_type,
                 cid,
                 cluster_labels_map[cid],
                 c_size,
@@ -873,12 +787,10 @@ def cluster_job_type(
     # --- layer_c_region_heatmap 書き込み ---
     t6 = time.time()
 
-    # 全国比率
     national_dist: dict[int, float] = {}
     for cid in range(best_k):
         national_dist[cid] = round((labels == cid).sum() / n_total * 100, 2)
 
-    # 都道府県別
     heatmap_rows = []
     prefectures = df["prefecture"].unique()
     for pref in prefectures:
@@ -894,6 +806,7 @@ def cluster_job_type(
             deviation = round(c_pct - n_pct, 2)
             heatmap_rows.append((
                 job_type,
+                employment_type,
                 pref,
                 cid,
                 cluster_labels_map[cid],
@@ -904,7 +817,7 @@ def cluster_job_type(
             ))
 
     conn.executemany(
-        "INSERT INTO layer_c_region_heatmap VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO layer_c_region_heatmap VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         heatmap_rows,
     )
     log(f"  layer_c_region_heatmap: {len(heatmap_rows):,}件挿入 "
@@ -912,9 +825,9 @@ def cluster_job_type(
 
     conn.commit()
 
-    # サマリ
     result = {
         "job_type": job_type,
+        "employment_type": employment_type,
         "n": n_total,
         "k": best_k,
         "silhouette_scores": sil_scores,
@@ -932,7 +845,7 @@ def cluster_job_type(
 # --------------------------------------------------------------------------- #
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Layer C: 求人セグメンテーション（k-meansクラスタリング）"
+        description="Layer C: 求人セグメンテーション（k-meansクラスタリング、雇用形態別分離対応）"
     )
     parser.add_argument(
         "--db-path",
@@ -941,10 +854,18 @@ def main() -> None:
     )
     parser.add_argument(
         "--job-type",
+        nargs="+",
         default=None,
-        help="特定の職種のみ処理する場合に指定",
+        metavar="JT",
+        help="対象職種（複数指定可）例: --job-type 介護職 看護師",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--employment-type",
+        default=None,
+        choices=EMPLOYMENT_TYPES,
+        help="特定の雇用形態のみ処理する場合に指定（デフォルト: 全セグメント）",
+    )
+    args, _ = parser.parse_known_args()
 
     db_path = Path(args.db_path)
     if not db_path.exists():
@@ -954,13 +875,16 @@ def main() -> None:
     log(f"DB: {db_path}")
     log(f"DB size: {db_path.stat().st_size / 1024 / 1024:.1f} MB")
 
+    # 雇用形態セグメント
+    emp_types = [args.employment_type] if args.employment_type else EMPLOYMENT_TYPES
+    log(f"雇用形態セグメント: {emp_types}")
+
     conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA cache_size=-64000")  # 64MB キャッシュ
+    conn.execute("PRAGMA cache_size=-64000")
 
     try:
-        # has_*カラム名取得
         has_cols = get_has_flag_columns(conn)
         if len(has_cols) == 0:
             log("エラー: has_*カラムが見つかりません")
@@ -968,7 +892,7 @@ def main() -> None:
 
         # 職種一覧取得
         if args.job_type:
-            job_types = [args.job_type]
+            job_types = args.job_type  # リスト
         else:
             rows = conn.execute(
                 "SELECT job_type, COUNT(*) as cnt "
@@ -982,11 +906,10 @@ def main() -> None:
         for jt in job_types:
             log(f"  - {jt}")
 
-        # テーブル初期化（全職種処理時のみDROP&CREATE）
-        if args.job_type is None:
+        # テーブル初期化
+        if args.job_type is None and args.employment_type is None:
             drop_and_create_tables(conn)
         else:
-            # 特定職種のみの場合、既存テーブルがなければ作成
             existing = conn.execute(
                 "SELECT name FROM sqlite_master "
                 "WHERE type='table' AND name='layer_c_clusters'"
@@ -994,27 +917,46 @@ def main() -> None:
             if existing is None:
                 drop_and_create_tables(conn)
             else:
-                # 該当職種のデータだけ削除して再投入
+                # 該当データだけ削除して再投入
                 for tbl in [
                     "layer_c_clusters",
                     "layer_c_cluster_profiles",
                     "layer_c_region_heatmap",
                 ]:
-                    conn.execute(
-                        f"DELETE FROM {tbl} WHERE job_type = ?",
-                        (args.job_type,),
-                    )
+                    if args.job_type and args.employment_type:
+                        for jt in job_types:
+                            conn.execute(
+                                f"DELETE FROM {tbl} WHERE job_type = ? AND employment_type = ?",
+                                (jt, args.employment_type),
+                            )
+                    elif args.job_type:
+                        for jt in job_types:
+                            conn.execute(
+                                f"DELETE FROM {tbl} WHERE job_type = ?",
+                                (jt,),
+                            )
+                    elif args.employment_type:
+                        conn.execute(
+                            f"DELETE FROM {tbl} WHERE employment_type = ?",
+                            (args.employment_type,),
+                        )
                 conn.commit()
-                log(f"既存データ削除: {args.job_type}")
+                log(f"既存データ削除完了")
 
-        # 職種別クラスタリング
+        # 職種 × 雇用形態 のクラスタリング
         t_all = time.time()
         results = []
-        for i, jt in enumerate(job_types, 1):
-            log(f"\n[{i}/{len(job_types)}] 処理開始")
-            result = cluster_job_type(conn, jt, has_cols)
-            results.append(result)
-            log(f"  完了: k={result['k']}, {result['status']}")
+        total_combos = len(job_types) * len(emp_types)
+        combo_idx = 0
+
+        for emp_type in emp_types:
+            log(f"\n{'='*40} 雇用形態: {emp_type} {'='*40}")
+            for jt in job_types:
+                combo_idx += 1
+                log(f"\n[{combo_idx}/{total_combos}] 処理開始")
+                result = cluster_job_type(conn, jt, has_cols, emp_type)
+                results.append(result)
+                log(f"  完了: k={result['k']}, {result['status']}")
 
         # インデックス作成
         create_indexes(conn)
@@ -1022,7 +964,7 @@ def main() -> None:
         # サマリ出力
         elapsed = time.time() - t_all
         log(f"\n{'='*60}")
-        log(f"全職種処理完了: {elapsed:.1f}秒")
+        log(f"全処理完了: {elapsed:.1f}秒")
         log(f"{'='*60}")
 
         total_postings = 0
@@ -1034,7 +976,7 @@ def main() -> None:
                 best_s = max(r["silhouette_scores"].values())
                 sil_best = f" (sil={best_s:.3f})"
             log(
-                f"  [{status_mark}] {r['job_type']}: "
+                f"  [{status_mark}] {r['job_type']} [{r['employment_type']}]: "
                 f"{r['n']:,}件 → k={r['k']}{sil_best}"
             )
             if r.get("cluster_sizes"):
@@ -1054,23 +996,32 @@ def main() -> None:
             cnt = conn.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
             log(f"  {tbl}: {cnt:,}件")
 
-        # クラスタ割当の整合性チェック
+        # 雇用形態別行数
+        log("\n  雇用形態別行数:")
+        for tbl in ["layer_c_clusters", "layer_c_cluster_profiles", "layer_c_region_heatmap"]:
+            rows = conn.execute(
+                f"SELECT employment_type, COUNT(*) FROM {tbl} GROUP BY employment_type"
+            ).fetchall()
+            for emp, cnt in rows:
+                log(f"    {tbl} [{emp}]: {cnt:,}")
+
+        # 「全体」セグメントでの整合性チェック
         postings_count = conn.execute(
             "SELECT COUNT(*) FROM postings"
         ).fetchone()[0]
-        clusters_count = conn.execute(
-            "SELECT COUNT(*) FROM layer_c_clusters"
+        clusters_total = conn.execute(
+            "SELECT COUNT(*) FROM layer_c_clusters WHERE employment_type = '全体'"
         ).fetchone()[0]
-        if postings_count == clusters_count:
-            log(f"  整合性OK: postings={postings_count:,} == "
-                f"clusters={clusters_count:,}")
+        if postings_count == clusters_total:
+            log(f"  整合性OK（全体）: postings={postings_count:,} == "
+                f"clusters={clusters_total:,}")
         else:
-            log(f"  警告: postings={postings_count:,} != "
-                f"clusters={clusters_count:,}")
-            # 差分の詳細
+            log(f"  警告（全体）: postings={postings_count:,} != "
+                f"clusters={clusters_total:,}")
             missing = conn.execute(
                 "SELECT COUNT(*) FROM postings p "
                 "LEFT JOIN layer_c_clusters c ON p.id = c.posting_id "
+                "AND c.employment_type = '全体' "
                 "WHERE c.posting_id IS NULL"
             ).fetchone()[0]
             log(f"  未割当: {missing:,}件")
