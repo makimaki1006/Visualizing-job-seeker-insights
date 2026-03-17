@@ -98,11 +98,18 @@ class PerfectJobSeekerAnalyzer:
         """データ処理"""
         print("\n[PROCESS] データ処理...")
 
+        from config import MAX_DESIRED_LOCATIONS
+        capped_count = 0
+
         processed_rows = []
         for idx, row in self.df_normalized.iterrows():
             age, gender = self._parse_age_gender(row.get('age_gender'))
             residence_pref, residence_muni = self._parse_location(row.get('location'))
             desired_areas = self._parse_desired_areas(row.get('desired_area'))
+            # 希望勤務地数の上限適用（リスト自体を切り詰める）
+            if len(desired_areas) > MAX_DESIRED_LOCATIONS:
+                desired_areas = desired_areas[:MAX_DESIRED_LOCATIONS]
+                capped_count += 1
             qualifications = self._parse_qualifications(row.get('qualifications'))
 
             # 年齢層の算出
@@ -137,6 +144,8 @@ class PerfectJobSeekerAnalyzer:
             })
 
         self.processed_data = pd.DataFrame(processed_rows)
+        if capped_count > 0:
+            print(f"  [INFO] 希望勤務地リスト切り詰め: {capped_count}件（上限: {MAX_DESIRED_LOCATIONS}箇所）")
         print(f"  [OK] {len(self.processed_data)}件処理完了")
         return self.processed_data
 
@@ -390,30 +399,31 @@ class PerfectJobSeekerAnalyzer:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # 1. MapMetrics.csv - 地図表示用データ
+        # 1. MapMetrics.csv - 地図表示用データ（居住地ベース：1人1カウント）
         map_data = []
         location_stats = defaultdict(lambda: {
             'count': 0,
             'ages': [],
-            'age_buckets': defaultdict(int),  # 年齢層別カウント追加
+            'age_buckets': defaultdict(int),
             'genders': {'男性': 0, '女性': 0},
             'qualifications': 0,
-            'desired_area_counts': []  # 希望勤務地数リスト追加
+            'desired_area_counts': []
         })
 
         for idx, row in self.processed_data.iterrows():
-            for area in row['desired_areas']:
-                key = area['full']
+            # 居住地ベースでカウント（1人1回）
+            res_pref = row.get('residence_pref')
+            res_muni = row.get('residence_muni')
+            if res_pref:
+                key = f"{res_pref}{res_muni}" if res_muni else res_pref
                 location_stats[key]['count'] += 1
                 if row['age']:
                     location_stats[key]['ages'].append(row['age'])
-                # 年齢層別カウント
                 if row['age_bucket']:
                     location_stats[key]['age_buckets'][row['age_bucket']] += 1
                 if row['gender'] and row['gender'] in location_stats[key]['genders']:
                     location_stats[key]['genders'][row['gender']] += 1
                 location_stats[key]['qualifications'] += row['qualification_count']
-                # 希望勤務地数を記録
                 location_stats[key]['desired_area_counts'].append(len(row['desired_areas']))
 
         for location, stats in location_stats.items():

@@ -1312,6 +1312,50 @@ class MapCompleteCompleteSheetGenerator:
         if total_removed == 0:
             print("    スキップ: 重複なし")
 
+        # BUG 9: 都道府県SUMMARYを市区町村SUMMARYの集約で生成
+        print("  [8/8] 都道府県SUMMARY集約生成...")
+        summary = df[df['row_type'] == 'SUMMARY']
+        muni_summary = summary[summary['municipality'].notna() & (summary['municipality'] != '')]
+        pref_summary = summary[summary['municipality'].isna() | (summary['municipality'] == '')]
+
+        if len(muni_summary) > 0:
+            # 既存の都道府県SUMMARYを削除
+            df = df[~((df['row_type'] == 'SUMMARY') & (df['municipality'].isna() | (df['municipality'] == '')))]
+
+            # 市区町村SUMMARYを都道府県別に集約
+            numeric_cols = ['applicant_count', 'male_count', 'female_count', 'avg_qualifications', 'avg_desired_areas']
+            new_pref_rows = []
+            for pref, group in muni_summary.groupby('prefecture'):
+                row = {'row_type': 'SUMMARY', 'prefecture': pref, 'municipality': ''}
+                for col in numeric_cols:
+                    if col in group.columns:
+                        vals = pd.to_numeric(group[col], errors='coerce')
+                        if col.startswith('avg_'):
+                            row[col] = vals.mean()
+                        else:
+                            row[col] = vals.sum()
+
+                # 加重平均で計算すべきフィールド
+                ac = pd.to_numeric(group['applicant_count'], errors='coerce')
+                total_ac = ac.sum()
+                if total_ac > 0:
+                    avg_age_vals = pd.to_numeric(group.get('avg_age', pd.Series()), errors='coerce')
+                    row['avg_age'] = (avg_age_vals * ac).sum() / total_ac
+                    fr_vals = pd.to_numeric(group.get('female_ratio', pd.Series()), errors='coerce')
+                    row['female_ratio'] = (fr_vals * ac).sum() / total_ac
+
+                # top_age_group: 最頻値
+                if 'top_age_group' in group.columns:
+                    row['top_age_group'] = group['top_age_group'].mode().iloc[0] if not group['top_age_group'].mode().empty else None
+
+                new_pref_rows.append(row)
+
+            if new_pref_rows:
+                df = pd.concat([df, pd.DataFrame(new_pref_rows)], ignore_index=True)
+                print(f"    生成: {len(new_pref_rows)}都道府県のSUMMARY（市区町村集約）")
+        else:
+            print("    スキップ: 市区町村SUMMARYなし")
+
         print("  [OK] データ品質向上処理完了")
         return df
 
