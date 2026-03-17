@@ -1178,6 +1178,8 @@ class MapCompleteCompleteSheetGenerator:
         - BUG 3: GAP欠落都道府県追加（Phase12ソースから追加）
         - BUG 4: RARITY重複削除
         - BUG 6: GAP計算不整合修正（gap = demand_count - supply_count）
+        - BUG 7: 都道府県名正規化（「京都」→「京都府」等）
+        - BUG 8: row_type別一意キー重複除去（WORKSTYLE_MOBILITY, QUALIFICATION_DETAIL等）
 
         注意: BUG 5（gap列負の値クリップ）は削除（仕様として正しいため）
         """
@@ -1263,6 +1265,52 @@ class MapCompleteCompleteSheetGenerator:
                 print(f"    スキップ: 不整合なし")
         else:
             print(f"    スキップ: GAPデータなし")
+
+        # BUG 7: 都道府県名正規化
+        print("  [6/7] 都道府県名正規化...")
+        PREF_NORMALIZE = {
+            '京都': '京都府',
+            '大阪': '大阪府',
+            '東京': '東京都',
+            '北海道': '北海道',
+        }
+        fixed_count = 0
+        for wrong, correct in PREF_NORMALIZE.items():
+            if wrong == correct:
+                continue
+            mask = df['prefecture'] == wrong
+            cnt = mask.sum()
+            if cnt > 0:
+                df.loc[mask, 'prefecture'] = correct
+                fixed_count += cnt
+        if fixed_count > 0:
+            print(f"    修正: {fixed_count}行の都道府県名を正規化")
+        else:
+            print("    スキップ: 正規化不要")
+
+        # BUG 8: row_type別一意キー重複除去
+        print("  [7/7] row_type別重複除去...")
+        DEDUP_KEYS = {
+            'RARITY': ['row_type', 'prefecture', 'municipality', 'category1', 'category2', 'category3', 'latitude', 'longitude'],
+            'QUALIFICATION_DETAIL': ['row_type', 'prefecture', 'municipality', 'category1'],
+            'QUALIFICATION_PERSONA': ['row_type', 'prefecture', 'municipality', 'category1', 'category2'],
+            'WORKSTYLE_MOBILITY': ['row_type', 'prefecture', 'municipality', 'category1', 'category2'],
+        }
+        total_removed = 0
+        for rt, keys in DEDUP_KEYS.items():
+            rt_mask = df['row_type'] == rt
+            before = rt_mask.sum()
+            if before == 0:
+                continue
+            valid_keys = [k for k in keys if k in df.columns]
+            rt_df = df[rt_mask].drop_duplicates(subset=valid_keys, keep='first')
+            removed = before - len(rt_df)
+            if removed > 0:
+                df = pd.concat([df[~rt_mask], rt_df], ignore_index=True)
+                total_removed += removed
+                print(f"    {rt}: {before:,} → {len(rt_df):,} (除去: {removed:,})")
+        if total_removed == 0:
+            print("    スキップ: 重複なし")
 
         print("  [OK] データ品質向上処理完了")
         return df

@@ -818,7 +818,7 @@ def dashboard_page() -> None:
     state.setdefault("tab", "overview")
     state.setdefault("job_type", "介護職")  # 職種セレクター用（将来拡張予定）
 
-    # 利用可能な職種リスト（Tursoに登録済みの12職種）
+    # 利用可能な職種リスト（Tursoに登録済みの職種）
     JOB_TYPE_OPTIONS = [
         "介護職",
         "看護師",
@@ -832,6 +832,7 @@ def dashboard_page() -> None:
         "サービス提供責任者",
         "学童支援",
         "調理師、調理スタッフ",
+        "児童発達支援管理責任者",
     ]
 
     # Header
