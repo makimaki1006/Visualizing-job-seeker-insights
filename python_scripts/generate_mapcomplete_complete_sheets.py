@@ -1327,17 +1327,18 @@ class MapCompleteCompleteSheetGenerator:
             new_pref_rows = []
             for pref, group in muni_summary.groupby('prefecture'):
                 row = {'row_type': 'SUMMARY', 'prefecture': pref, 'municipality': ''}
+                # 合計・加重平均の計算
+                ac = pd.to_numeric(group['applicant_count'], errors='coerce')
+                total_ac = ac.sum()
                 for col in numeric_cols:
                     if col in group.columns:
                         vals = pd.to_numeric(group[col], errors='coerce')
-                        if col.startswith('avg_'):
-                            row[col] = vals.mean()
-                        else:
+                        if col.startswith('avg_') and total_ac > 0:
+                            row[col] = (vals * ac).sum() / total_ac
+                        elif not col.startswith('avg_'):
                             row[col] = vals.sum()
 
-                # 加重平均で計算すべきフィールド
-                ac = pd.to_numeric(group['applicant_count'], errors='coerce')
-                total_ac = ac.sum()
+                # avg_age, female_ratio も加重平均
                 if total_ac > 0:
                     avg_age_vals = pd.to_numeric(group.get('avg_age', pd.Series()), errors='coerce')
                     row['avg_age'] = (avg_age_vals * ac).sum() / total_ac

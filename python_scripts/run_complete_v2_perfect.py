@@ -187,7 +187,14 @@ class PerfectJobSeekerAnalyzer:
 
     def _parse_desired_areas(self, desired_area_str):
         """希望勤務地の解析（カンマ区切り）"""
-        if pd.isna(desired_area_str):
+        try:
+            if desired_area_str is None:
+                return []
+            if pd.isna(desired_area_str):
+                return []
+        except (ValueError, TypeError):
+            return []
+        if isinstance(desired_area_str, (list, tuple)) and len(desired_area_str) == 0:
             return []
 
         areas = []

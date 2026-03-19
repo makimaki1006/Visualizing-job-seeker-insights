@@ -9,6 +9,7 @@ MapComplete_Complete_All_FIXED.csv にjob_type列とID列を追加し、
     python create_ready_csv.py --job_type "歯科衛生士"
 """
 import sys
+import os
 import argparse
 import pandas as pd
 
@@ -30,6 +31,11 @@ def main():
     print(f"出力: {dst}")
     print(f"職種: {args.job_type}")
     print()
+
+    if not os.path.exists(src):
+        print(f"[ERROR] 入力ファイルが見つかりません: {src}")
+        print("generate_mapcomplete_complete_sheets.py を先に実行してください。")
+        sys.exit(1)
 
     df = pd.read_csv(src, dtype=str, low_memory=False)
     print(f"読み込み: {len(df):,}行, 都道府県: {df.prefecture.nunique()}")
