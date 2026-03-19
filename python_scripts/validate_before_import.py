@@ -94,22 +94,35 @@ def validate(csv_path):
                 ratio = st["muni_applicant_total"] / st["pref_applicant_total"]
                 print(f"    {jt}: 都道府県={st['pref_applicant_total']:,.0f}, 市区町村={st['muni_applicant_total']:,.0f}, 比率={ratio:.1f}x")
 
-        # 比率が既存職種と大きく異なる場合はエラー
-        existing_ratios = []
-        for st in existing.values():
-            if st["pref_applicant_total"] > 0:
-                existing_ratios.append(st["muni_applicant_total"] / st["pref_applicant_total"])
-
-        if existing_ratios and pref_total > 0:
-            avg_ratio = sum(existing_ratios) / len(existing_ratios)
+        # 比率チェック: 居住地ベース(1.0x)と希望勤務地ベース(15-60x)を分離
+        # 居住地ベース職種のみ参照（2026-03-17以降に処理された職種）
+        if pref_total > 0:
             my_ratio = muni_total / pref_total
-            if my_ratio > avg_ratio * 2:
+
+            # 居住地ベース: 比率が0.8〜1.5の範囲
+            # 希望勤務地ベース: 比率が10以上
+            residence_based = [(jt, st["muni_applicant_total"] / st["pref_applicant_total"])
+                               for jt, st in existing.items()
+                               if st["pref_applicant_total"] > 0
+                               and st["muni_applicant_total"] / st["pref_applicant_total"] < 3.0]
+            desired_based = [(jt, st["muni_applicant_total"] / st["pref_applicant_total"])
+                             for jt, st in existing.items()
+                             if st["pref_applicant_total"] > 0
+                             and st["muni_applicant_total"] / st["pref_applicant_total"] >= 3.0]
+
+            if residence_based:
+                print(f"\n  居住地ベース職種: {', '.join(jt for jt, _ in residence_based)}")
+            if desired_based:
+                print(f"  希望勤務地ベース職種（旧データ）: {', '.join(jt for jt, _ in desired_based)}")
+
+            # 新職種の比率が居住地ベースの範囲外ならエラー
+            if my_ratio > 3.0:
                 errors.append(
-                    f"市区町村/都道府県比率が異常: {my_ratio:.1f}x（既存平均: {avg_ratio:.1f}x）"
+                    f"市区町村/都道府県比率が異常: {my_ratio:.1f}x（居住地ベースなら1.0x前後が正常）"
                     f"→ 希望勤務地ベースでカウントされている可能性"
                 )
-            elif my_ratio > avg_ratio * 1.5:
-                warnings.append(f"市区町村/都道府県比率がやや高い: {my_ratio:.1f}x（既存平均: {avg_ratio:.1f}x）")
+            elif my_ratio < 0.5:
+                warnings.append(f"市区町村/都道府県比率が低い: {my_ratio:.1f}x（データ欠損の可能性）")
     else:
         print("  既存READY CSVなし（比較スキップ）")
     print()

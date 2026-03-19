@@ -1168,23 +1168,12 @@ class MapCompleteCompleteSheetGenerator:
         return all_rows
 
 
-    def _apply_bugfixes(self, df):
-        """
-        データ品質向上処理（バグ修正）
+    # =========================================================
+    # データ品質向上処理（個別メソッドに分割）
+    # =========================================================
 
-        修正項目:
-        - BUG 1: PERSONA重複削除（全都道府県に複製されているものを1都道府県のみに）
-        - BUG 2: AGE_GENDER NaN municipality処理（空文字列に変換）
-        - BUG 3: GAP欠落都道府県追加（Phase12ソースから追加）
-        - BUG 4: RARITY重複削除
-        - BUG 6: GAP計算不整合修正（gap = demand_count - supply_count）
-        - BUG 7: 都道府県名正規化（「京都」→「京都府」等）
-        - BUG 8: row_type別一意キー重複除去（WORKSTYLE_MOBILITY, QUALIFICATION_DETAIL等）
-
-        注意: BUG 5（gap列負の値クリップ）は削除（仕様として正しいため）
-        """
-        print("  [1/5] PERSONA重複削除...")
-        # 2025-11-26更新: PERSONA行は削除済みのため処理スキップ
+    def _fix_persona_duplicates(self, df):
+        """PERSONA重複削除（全都道府県に複製されているものを1都道府県のみに）"""
         persona_rows = df[df['row_type'] == 'PERSONA']
         if len(persona_rows) > 0:
             first_pref = persona_rows['prefecture'].iloc[0]
@@ -1194,90 +1183,81 @@ class MapCompleteCompleteSheetGenerator:
             ])
             print(f"    修正: {len(persona_rows)}行 → {len(df[df['row_type'] == 'PERSONA'])}行（{first_pref}のみ）")
         else:
-            print("    スキップ: PERSONA行なし（最適化により削除済み）")
+            print("    スキップ: PERSONA行なし")
+        return df
 
-        print("  [2/5] AGE_GENDER NaN municipality処理...")
+    def _fix_nan_municipality(self, df):
+        """AGE_GENDER NaN municipality処理（空文字列に変換）"""
         age_gender_nan = df[(df['row_type'] == 'AGE_GENDER') & (df['municipality'].isna())]
         if len(age_gender_nan) > 0:
             df.loc[(df['row_type'] == 'AGE_GENDER') & (df['municipality'].isna()), 'municipality'] = ''
             print(f"    修正: {len(age_gender_nan)}行のNaN municipalityを空文字列に変換")
         else:
-            print(f"    スキップ: NaN municipalityなし")
+            print("    スキップ: NaN municipalityなし")
+        return df
 
-        print("  [3/5] GAP欠落都道府県追加...")
+    def _fix_gap_missing_prefectures(self, df):
+        """GAP欠落都道府県追加（Phase12ソースから追加）"""
         gap_prefs = df[df['row_type'] == 'GAP']['prefecture'].unique()
         gap_source_path = self.output_base_dir / 'phase12' / 'Phase12_SupplyDemandGap.csv'
 
-        if gap_source_path.exists():
-            gap_source = pd.read_csv(gap_source_path, encoding='utf-8-sig')
-            gap_source_prefs = gap_source['prefecture'].unique()
-            missing_prefs = set(gap_source_prefs) - set(gap_prefs)
+        if not gap_source_path.exists():
+            print("    スキップ: Phase12ソースファイルなし")
+            return df
 
-            if missing_prefs:
-                print(f"    追加: {len(missing_prefs)}都道府県（{', '.join(missing_prefs)}）")
-                for pref in missing_prefs:
-                    pref_data = gap_source[gap_source['prefecture'] == pref]
-                    for _, row in pref_data.iterrows():
-                        df = pd.concat([df, pd.DataFrame([{
-                            'row_type': 'GAP',
-                            'prefecture': pref,
-                            'municipality': row.get('municipality', ''),
-                            'category1': '',
-                            'category2': '',
-                            'category3': '',
-                            'demand_count': row.get('demand_count', 0),
-                            'supply_count': row.get('supply_count', 0),
-                            'gap': row.get('gap', 0),
-                            'demand_supply_ratio': row.get('demand_supply_ratio', None),
-                            'latitude': row.get('latitude', None),
-                            'longitude': row.get('longitude', None)
-                        }])], ignore_index=True)
-            else:
-                print(f"    スキップ: すべての都道府県が存在")
-        else:
-            print(f"    スキップ: Phase12ソースファイルなし")
+        gap_source = pd.read_csv(gap_source_path, encoding='utf-8-sig')
+        missing_prefs = set(gap_source['prefecture'].unique()) - set(gap_prefs)
 
-        print("  [4/5] RARITY重複削除...")
-        print("    スキップ: RARITYは削除済みのため処理不要")
-        # rarity_before = len(df[df['row_type'] == 'RARITY'])
-        # df = df.drop_duplicates(
-        #     subset=['row_type', 'prefecture', 'municipality', 'category1', 'category2'],
-        #     keep='first'
-        # )
-        # rarity_after = len(df[df['row_type'] == 'RARITY'])
-        # print(f"    修正: {rarity_before}行 → {rarity_after}行（削除: {rarity_before - rarity_after}行）")
+        if not missing_prefs:
+            print("    スキップ: すべての都道府県が存在")
+            return df
 
-        print("  [5/5] GAP計算不整合修正...")
+        print(f"    追加: {len(missing_prefs)}都道府県（{', '.join(missing_prefs)}）")
+        new_rows = []
+        for pref in missing_prefs:
+            pref_data = gap_source[gap_source['prefecture'] == pref]
+            for _, row in pref_data.iterrows():
+                new_rows.append({
+                    'row_type': 'GAP', 'prefecture': pref,
+                    'municipality': row.get('municipality', ''),
+                    'category1': '', 'category2': '', 'category3': '',
+                    'demand_count': row.get('demand_count', 0),
+                    'supply_count': row.get('supply_count', 0),
+                    'gap': row.get('gap', 0),
+                    'demand_supply_ratio': row.get('demand_supply_ratio', None),
+                    'latitude': row.get('latitude', None),
+                    'longitude': row.get('longitude', None)
+                })
+        if new_rows:
+            df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
+        return df
+
+    def _fix_gap_calculation(self, df):
+        """GAP計算不整合修正（gap = demand_count - supply_count）"""
         gap_rows = df[df['row_type'] == 'GAP'].copy()
+        if len(gap_rows) == 0:
+            print("    スキップ: GAPデータなし")
+            return df
 
-        if len(gap_rows) > 0:
-            gap_rows['calculated_gap'] = gap_rows['demand_count'] - gap_rows['supply_count']
-            gap_rows['gap_diff'] = abs(gap_rows['gap'] - gap_rows['calculated_gap'])
-            mismatches_before = len(gap_rows[gap_rows['gap_diff'] > 0.01])
+        gap_rows['calculated_gap'] = gap_rows['demand_count'] - gap_rows['supply_count']
+        gap_rows['gap_diff'] = abs(gap_rows['gap'] - gap_rows['calculated_gap'])
+        mismatches = len(gap_rows[gap_rows['gap_diff'] > 0.01])
 
-            if mismatches_before > 0:
-                df.loc[df['row_type'] == 'GAP', 'gap'] = (
-                    df.loc[df['row_type'] == 'GAP', 'demand_count'] -
-                    df.loc[df['row_type'] == 'GAP', 'supply_count']
-                )
-                print(f"    修正: {mismatches_before}行の不整合を修正（gap = demand_count - supply_count）")
-            else:
-                print(f"    スキップ: 不整合なし")
+        if mismatches > 0:
+            df.loc[df['row_type'] == 'GAP', 'gap'] = (
+                df.loc[df['row_type'] == 'GAP', 'demand_count'] -
+                df.loc[df['row_type'] == 'GAP', 'supply_count']
+            )
+            print(f"    修正: {mismatches}行の不整合を修正")
         else:
-            print(f"    スキップ: GAPデータなし")
+            print("    スキップ: 不整合なし")
+        return df
 
-        # BUG 7: 都道府県名正規化
-        print("  [6/7] 都道府県名正規化...")
-        PREF_NORMALIZE = {
-            '京都': '京都府',
-            '大阪': '大阪府',
-            '東京': '東京都',
-            '北海道': '北海道',
-        }
+    def _fix_prefecture_names(self, df):
+        """都道府県名正規化（「京都」→「京都府」等）"""
+        PREF_NORMALIZE = {'京都': '京都府', '大阪': '大阪府', '東京': '東京都'}
         fixed_count = 0
         for wrong, correct in PREF_NORMALIZE.items():
-            if wrong == correct:
-                continue
             mask = df['prefecture'] == wrong
             cnt = mask.sum()
             if cnt > 0:
@@ -1287,9 +1267,10 @@ class MapCompleteCompleteSheetGenerator:
             print(f"    修正: {fixed_count}行の都道府県名を正規化")
         else:
             print("    スキップ: 正規化不要")
+        return df
 
-        # BUG 8: row_type別一意キー重複除去
-        print("  [7/7] row_type別重複除去...")
+    def _fix_dedup_by_row_type(self, df):
+        """row_type別一意キー重複除去"""
         DEDUP_KEYS = {
             'RARITY': ['row_type', 'prefecture', 'municipality', 'category1', 'category2', 'category3', 'latitude', 'longitude'],
             'QUALIFICATION_DETAIL': ['row_type', 'prefecture', 'municipality', 'category1'],
@@ -1311,51 +1292,66 @@ class MapCompleteCompleteSheetGenerator:
                 print(f"    {rt}: {before:,} → {len(rt_df):,} (除去: {removed:,})")
         if total_removed == 0:
             print("    スキップ: 重複なし")
+        return df
 
-        # BUG 9: 都道府県SUMMARYを市区町村SUMMARYの集約で生成
-        print("  [8/8] 都道府県SUMMARY集約生成...")
+    def _rebuild_prefecture_summary(self, df):
+        """都道府県SUMMARYを市区町村SUMMARYの加重集約で生成"""
         summary = df[df['row_type'] == 'SUMMARY']
         muni_summary = summary[summary['municipality'].notna() & (summary['municipality'] != '')]
-        pref_summary = summary[summary['municipality'].isna() | (summary['municipality'] == '')]
 
-        if len(muni_summary) > 0:
-            # 既存の都道府県SUMMARYを削除
-            df = df[~((df['row_type'] == 'SUMMARY') & (df['municipality'].isna() | (df['municipality'] == '')))]
-
-            # 市区町村SUMMARYを都道府県別に集約
-            numeric_cols = ['applicant_count', 'male_count', 'female_count', 'avg_qualifications', 'avg_desired_areas']
-            new_pref_rows = []
-            for pref, group in muni_summary.groupby('prefecture'):
-                row = {'row_type': 'SUMMARY', 'prefecture': pref, 'municipality': ''}
-                # 合計・加重平均の計算
-                ac = pd.to_numeric(group['applicant_count'], errors='coerce')
-                total_ac = ac.sum()
-                for col in numeric_cols:
-                    if col in group.columns:
-                        vals = pd.to_numeric(group[col], errors='coerce')
-                        if col.startswith('avg_') and total_ac > 0:
-                            row[col] = (vals * ac).sum() / total_ac
-                        elif not col.startswith('avg_'):
-                            row[col] = vals.sum()
-
-                # avg_age, female_ratio も加重平均
-                if total_ac > 0:
-                    avg_age_vals = pd.to_numeric(group.get('avg_age', pd.Series()), errors='coerce')
-                    row['avg_age'] = (avg_age_vals * ac).sum() / total_ac
-                    fr_vals = pd.to_numeric(group.get('female_ratio', pd.Series()), errors='coerce')
-                    row['female_ratio'] = (fr_vals * ac).sum() / total_ac
-
-                # top_age_group: 最頻値
-                if 'top_age_group' in group.columns:
-                    row['top_age_group'] = group['top_age_group'].mode().iloc[0] if not group['top_age_group'].mode().empty else None
-
-                new_pref_rows.append(row)
-
-            if new_pref_rows:
-                df = pd.concat([df, pd.DataFrame(new_pref_rows)], ignore_index=True)
-                print(f"    生成: {len(new_pref_rows)}都道府県のSUMMARY（市区町村集約）")
-        else:
+        if len(muni_summary) == 0:
             print("    スキップ: 市区町村SUMMARYなし")
+            return df
+
+        # 既存の都道府県SUMMARYを削除
+        df = df[~((df['row_type'] == 'SUMMARY') & (df['municipality'].isna() | (df['municipality'] == '')))]
+
+        numeric_cols = ['applicant_count', 'male_count', 'female_count', 'avg_qualifications', 'avg_desired_areas']
+        new_pref_rows = []
+        for pref, group in muni_summary.groupby('prefecture'):
+            row = {'row_type': 'SUMMARY', 'prefecture': pref, 'municipality': ''}
+            ac = pd.to_numeric(group['applicant_count'], errors='coerce')
+            total_ac = ac.sum()
+
+            for col in numeric_cols:
+                if col in group.columns:
+                    vals = pd.to_numeric(group[col], errors='coerce')
+                    if col.startswith('avg_') and total_ac > 0:
+                        row[col] = (vals * ac).sum() / total_ac
+                    elif not col.startswith('avg_'):
+                        row[col] = vals.sum()
+
+            if total_ac > 0:
+                for wcol in ['avg_age', 'female_ratio']:
+                    if wcol in group.columns:
+                        wvals = pd.to_numeric(group[wcol], errors='coerce')
+                        row[wcol] = (wvals * ac).sum() / total_ac
+
+            if 'top_age_group' in group.columns:
+                mode = group['top_age_group'].mode()
+                row['top_age_group'] = mode.iloc[0] if not mode.empty else None
+
+            new_pref_rows.append(row)
+
+        if new_pref_rows:
+            df = pd.concat([df, pd.DataFrame(new_pref_rows)], ignore_index=True)
+            print(f"    生成: {len(new_pref_rows)}都道府県のSUMMARY（市区町村集約）")
+        return df
+
+    def _apply_bugfixes(self, df):
+        """データ品質向上処理をパイプライン形式で適用"""
+        fixers = [
+            ("PERSONA重複削除", self._fix_persona_duplicates),
+            ("NaN municipality処理", self._fix_nan_municipality),
+            ("GAP欠落都道府県追加", self._fix_gap_missing_prefectures),
+            ("GAP計算不整合修正", self._fix_gap_calculation),
+            ("都道府県名正規化", self._fix_prefecture_names),
+            ("row_type別重複除去", self._fix_dedup_by_row_type),
+            ("都道府県SUMMARY集約生成", self._rebuild_prefecture_summary),
+        ]
+        for i, (name, fixer) in enumerate(fixers, 1):
+            print(f"  [{i}/{len(fixers)}] {name}...")
+            df = fixer(df)
 
         print("  [OK] データ品質向上処理完了")
         return df
