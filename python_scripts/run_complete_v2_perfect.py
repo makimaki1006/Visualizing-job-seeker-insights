@@ -417,6 +417,7 @@ class PerfectJobSeekerAnalyzer:
             'desired_area_counts': []
         })
 
+        skipped_no_residence = 0
         for idx, row in self.processed_data.iterrows():
             # 居住地ベースでカウント（1人1回）
             res_pref = row.get('residence_pref')
@@ -432,6 +433,11 @@ class PerfectJobSeekerAnalyzer:
                     location_stats[key]['genders'][row['gender']] += 1
                 location_stats[key]['qualifications'] += row['qualification_count']
                 location_stats[key]['desired_area_counts'].append(len(row['desired_areas']))
+            else:
+                skipped_no_residence += 1
+
+        if skipped_no_residence > 0:
+            print(f"  [INFO] 居住地未解析のため除外: {skipped_no_residence}件/{len(self.processed_data)}件")
 
         for location, stats in location_stats.items():
             pref, muni = self._parse_location(location)
