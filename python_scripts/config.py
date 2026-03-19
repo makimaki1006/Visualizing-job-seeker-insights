@@ -121,24 +121,50 @@ MISSING_VALUE_POLICY: Dict[str, any] = {
 # 出力ファイル検証設定
 # ========================================
 
-# 期待される出力ファイル数（品質レポート除く）
+# 期待される出力ファイル数（品質レポート・Matrix除く）
+# ファイル名はPhase{N}_プレフィックス付き（実際の出力と一致）
 EXPECTED_OUTPUT_FILES: Dict[str, List[str]] = {
-    'phase1': ['Applicants.csv', 'DesiredWork.csv', 'AggDesired.csv', 'MapMetrics.csv'],
-    'phase2': ['ChiSquareTests.csv', 'ANOVATests.csv'],
-    'phase3': ['PersonaSummary.csv', 'PersonaDetails.csv'],
-    'phase6': ['MunicipalityFlowEdges.csv', 'MunicipalityFlowNodes.csv', 'ProximityAnalysis.csv'],
-    'phase7': ['SupplyDensityMap.csv', 'QualificationDistribution.csv', 'AgeGenderCrossAnalysis.csv',
-               'MobilityScore.csv', 'DetailedPersonaProfile.csv'],
-    'phase8': ['EducationDistribution.csv', 'EducationAgeCross.csv', 'GraduationYearDistribution.csv'],
+    'phase1': [
+        'Phase1_Applicants.csv', 'Phase1_DesiredWork.csv',
+        'Phase1_AggDesired.csv', 'Phase1_MapMetrics.csv',
+        'Phase1_QualificationMaster.csv', 'Phase1_PrefectureMaster.csv',
+        'Phase1_EmploymentStatusMaster.csv',
+        'Phase1_PersonaByMunicipality_WithResidence.csv',
+        'Phase1_QualificationDistributionByMunicipality.csv',
+    ],
+    'phase2': ['Phase2_ChiSquareTests.csv', 'Phase2_ANOVATests.csv'],
+    'phase3': [
+        'Phase3_PersonaSummary.csv', 'Phase3_PersonaDetails.csv',
+        'Phase3_PersonaSummaryByMunicipality.csv',
+    ],
+    'phase6': [
+        'Phase6_MunicipalityFlowEdges.csv', 'Phase6_MunicipalityFlowNodes.csv',
+        'Phase6_ProximityAnalysis.csv', 'Phase6_AggregatedFlowEdges.csv',
+    ],
+    'phase7': [
+        'Phase7_SupplyDensityMap.csv', 'Phase7_QualificationDistribution.csv',
+        'Phase7_AgeGenderCrossAnalysis.csv', 'Phase7_AgeGenderCrossAnalysis_Residence.csv',
+        'Phase7_MobilityScore.csv', 'Phase7_DetailedPersonaProfile.csv',
+    ],
+    'phase8': [
+        'Phase8_CareerDistribution.csv', 'Phase8_CareerAgeCross.csv',
+        'Phase8_GraduationYearDistribution.csv',
+    ],
     'phase10': [
-        'UrgencyDistribution.csv',
-        'UrgencyDistribution_ByMunicipality.csv',
-        'UrgencyAgeCross.csv',
-        'UrgencyAgeCross_ByMunicipality.csv',
-        'UrgencyEmploymentCross.csv',
-        'UrgencyEmploymentCross_ByMunicipality.csv',
-        'UrgencyDesiredWorkCross.csv'
-    ]
+        'Phase10_UrgencyDistribution.csv',
+        'Phase10_UrgencyByMunicipality.csv',
+        'Phase10_UrgencyAgeCross.csv',
+        'Phase10_UrgencyAgeCross_ByMunicipality.csv',
+        'Phase10_UrgencyEmploymentCross.csv',
+        'Phase10_UrgencyEmploymentCross_ByMunicipality.csv',
+        'Phase10_UrgencyGenderCross.csv',
+        'Phase10_UrgencyGenderCross_ByMunicipality.csv',
+        'Phase10_UrgencyStartCategoryCross.csv',
+        'Phase10_UrgencyStartCategoryCross_ByMunicipality.csv',
+    ],
+    'phase12': ['Phase12_SupplyDemandGap.csv'],
+    'phase13': ['Phase13_RarityScore.csv'],
+    'phase14': ['Phase14_CompetitionProfile.csv'],
 }
 
 # ========================================

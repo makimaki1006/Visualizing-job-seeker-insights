@@ -125,7 +125,7 @@ class PerfectJobSeekerAnalyzer:
                 'card_index': row.get('card_index'),
                 'age': age,
                 'gender': gender,
-                'age_bucket': age_bucket,
+                'age_bucket': age_bucket,  # 10区分（20代/30代/.../70歳以上）: Phase3,7,MapMetrics用
                 'residence_pref': residence_pref,
                 'residence_muni': residence_muni,
                 'desired_areas': desired_areas,
@@ -139,7 +139,7 @@ class PerfectJobSeekerAnalyzer:
                 'has_national_license': has_national_license,
                 'member_id': row.get('member_id'),
                 'status': row.get('status'),
-                '年齢層': self._get_age_group_5year(age),
+                '年齢層': self._get_age_group_5year(age),  # 5区分（20代以下/30代/.../60代以上）: Phase2統計検定用
                 '希望勤務地数': len(desired_areas),
             })
 
