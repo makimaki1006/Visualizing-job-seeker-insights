@@ -160,7 +160,38 @@ def validate(csv_path):
         print(f"  {r['prefecture']}/{r['municipality']}: {r['applicant_count']}")
     print()
 
-    # 6. 結果
+    # 6. データ汚染チェック（前回職種のデータ混入検出）
+    print("[CHECK 5] データ汚染チェック")
+    if existing:
+        current_rt = df["row_type"].value_counts().to_dict()
+        suspect_types = ["RESIDENCE_FLOW", "QUALIFICATION_DETAIL", "QUALIFICATION_PERSONA"]
+        contamination_found = False
+        for jt, st in existing.items():
+            if jt == job_type:
+                continue
+            other_path = os.path.join(MAPCOMPLETE_DIR, f"MapComplete_{jt}_READY.csv")
+            if not os.path.exists(other_path):
+                continue
+            try:
+                other_df = pd.read_csv(other_path, dtype=str, low_memory=False)
+                other_rt = other_df["row_type"].value_counts().to_dict()
+                matches = [rt for rt in suspect_types
+                           if current_rt.get(rt, 0) == other_rt.get(rt, 0) and current_rt.get(rt, 0) > 0]
+                if len(matches) >= 2:
+                    warnings.append(
+                        f"データ汚染の疑い: {jt}と {', '.join(matches)} の行数が完全一致"
+                        f" → generate_residence_flow.py/generate_qualification_detail.pyが未再生成の可能性"
+                    )
+                    contamination_found = True
+            except Exception:
+                pass
+        if not contamination_found:
+            print("  汚染なし [OK]")
+    else:
+        print("  既存READY CSVなし（スキップ）")
+    print()
+
+    # 7. 結果
     print("=" * 60)
     if errors:
         print(f"[NG] セルフレビュー失敗: {len(errors)}件のエラー")

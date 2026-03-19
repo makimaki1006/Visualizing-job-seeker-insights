@@ -147,14 +147,10 @@ class MapCompleteCompleteSheetGenerator:
             'Phase8_CareerAgeCross.csv'  # Matrix版ではなく長形式を使用
         ])
 
-        # カスタムデータ（新規追加）
-        # QUALIFICATION_DETAIL: Top10用（シンプル版）
-        # QUALIFICATION_PERSONA: ペルソナ分析用（年齢×性別×資格）
+        # スタンドアロンスクリプト生成データ（run_complete_v2_perfect.pyのPhase後に生成される）
         self._load_phase('qualification_detail', ['QualificationDetail.csv', 'QualificationPersona.csv'])
-        self._load_phase('desired_area_pattern', ['DesiredAreaPattern.csv'])
         self._load_phase('residence_flow', ['ResidenceFlow.csv'])
-        # 2025-11-26削除: MOBILITY_PATTERN は RESIDENCE_FLOW に統合済み
-        # self._load_phase('mobility_pattern', ['MobilityPattern.csv'])
+        # DESIRED_AREA_PATTERN: Rust Dashboard未使用のため読み込み廃止（2026-03-18）
 
         # Phase 10: URGENCY関連データ（緊急度分析に必要）
         self._load_phase('phase10', [
@@ -795,24 +791,9 @@ class MapCompleteCompleteSheetGenerator:
                         'is_national_license': row.get('is_national_license', False)
                     })
 
-        # 12. DESIRED_AREA_PATTERN（併願パターン）
-        area_pattern = self.phase_data.get('desired_area_pattern', {}).get('DesiredAreaPattern')
-        if area_pattern is not None and not area_pattern.empty:
-            pref_pattern = area_pattern[area_pattern['prefecture'] == prefecture]
-            for _, row in pref_pattern.iterrows():
-                all_rows.append({
-                    'row_type': 'DESIRED_AREA_PATTERN',
-                    'prefecture': prefecture,
-                    'municipality': row.get('municipality', ''),
-                    'category1': row.get('age_group', ''),
-                    'category2': row.get('gender', ''),
-                    'category3': '',
-                    'count': row.get('count', 0),
-                    'co_desired_prefecture': row.get('co_desired_prefecture', ''),
-                    'co_desired_municipality': row.get('co_desired_municipality', '')
-                })
+        # DESIRED_AREA_PATTERN: Rust Dashboard未使用のため生成廃止（2026-03-18）
 
-        # 13. RESIDENCE_FLOW（居住地→希望地フロー）
+        # 12. RESIDENCE_FLOW（居住地→希望地フロー）
         # ※ MOBILITY_PATTERNを統合: mobility_type, 距離統計カラム を追加
         # v2.1: 中央値、最頻値、最小/最大、標準偏差、四分位点を追加
         residence_flow = self.phase_data.get('residence_flow', {}).get('ResidenceFlow')

@@ -51,7 +51,7 @@ UNIQUE_KEY_DEFINITIONS = {
     # cat1+cat2キー
     'AGE_GENDER': ['job_type', 'prefecture', 'municipality', 'category1', 'category2'],
     'AGE_GENDER_RESIDENCE': ['job_type', 'prefecture', 'municipality', 'category1', 'category2'],
-    'DESIRED_AREA_PATTERN': ['job_type', 'prefecture', 'municipality', 'category1', 'category2', 'co_desired_prefecture', 'co_desired_municipality'],
+    # DESIRED_AREA_PATTERN: Rust Dashboard未使用のため廃止（2026-03-18）
     'RESIDENCE_FLOW': ['job_type', 'prefecture', 'municipality', 'category1', 'category2', 'desired_prefecture', 'desired_municipality'],
     'WORKSTYLE_AGE_CROSS': ['job_type', 'prefecture', 'municipality', 'category1', 'category2'],
     'WORKSTYLE_CAREER': ['job_type', 'prefecture', 'municipality', 'category1', 'category2'],

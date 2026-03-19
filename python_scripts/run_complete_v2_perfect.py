@@ -2815,6 +2815,25 @@ if __name__ == "__main__":
     # 統合品質レポート
     analyzer.generate_overall_quality_report()
 
+    # スタンドアロン人口データ生成（Phase1出力を入力として使用）
+    print()
+    print("=" * 80)
+    print("スタンドアロンデータ生成（RESIDENCE_FLOW, QUALIFICATION_DETAIL）")
+    print("=" * 80)
+    try:
+        from generate_residence_flow import generate_residence_flow
+        generate_residence_flow()
+        print("  [OK] ResidenceFlow.csv 生成完了")
+    except Exception as e:
+        print(f"  [WARN] ResidenceFlow生成エラー（スキップ）: {e}")
+
+    try:
+        from generate_qualification_detail import generate_qualification_detail
+        generate_qualification_detail()
+        print("  [OK] QualificationDetail.csv / QualificationPersona.csv 生成完了")
+    except Exception as e:
+        print(f"  [WARN] QualificationDetail生成エラー（スキップ）: {e}")
+
     # MapComplete統合CSV生成
     print()
     print("=" * 80)
