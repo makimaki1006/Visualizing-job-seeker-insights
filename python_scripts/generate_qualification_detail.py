@@ -16,13 +16,13 @@ import sys
 import io
 from pathlib import Path
 
-# Windows環境での絵文字出力対応
-try:
-    if hasattr(sys.stdout, 'buffer'):
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-except (ValueError, AttributeError):
-    # stdout already configured or not available
-    pass
+# Windows環境での絵文字出力対応（直接実行時のみ）
+if __name__ == "__main__":
+    try:
+        if hasattr(sys.stdout, 'buffer'):
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    except (ValueError, AttributeError):
+        pass
 
 # 国家資格リスト（国家資格判定用）
 NATIONAL_LICENSES = [

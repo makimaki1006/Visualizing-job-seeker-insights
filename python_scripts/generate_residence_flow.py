@@ -19,13 +19,13 @@ import re
 from scipy import stats
 from urllib.parse import quote
 
-# Windows環境での絵文字出力対応
-try:
-    if hasattr(sys.stdout, 'buffer'):
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-except (ValueError, AttributeError):
-    # stdout already configured or not available
-    pass
+# Windows環境での絵文字出力対応（直接実行時のみ）
+if __name__ == "__main__":
+    try:
+        if hasattr(sys.stdout, 'buffer'):
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    except (ValueError, AttributeError):
+        pass
 
 
 def extract_prefecture_municipality(location):

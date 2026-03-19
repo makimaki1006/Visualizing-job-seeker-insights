@@ -2732,12 +2732,19 @@ class PerfectJobSeekerAnalyzer:
 
         for phase_dir in output_base.glob('phase*'):
             for csv_file in phase_dir.glob('*.csv'):
-                if 'QualityReport' not in csv_file.name:
-                    try:
-                        df = pd.read_csv(csv_file, encoding='utf-8-sig')
-                        all_csvs.append(df)
-                    except Exception as e:
-                        print(f"  [警告] {csv_file.name}の読み込みに失敗: {e}")
+                # QualityReport、Matrix系ファイルを除外（Matrix系は列数が数千でメモリ爆発の原因）
+                if 'QualityReport' in csv_file.name or 'Matrix' in csv_file.name:
+                    continue
+                try:
+                    # 列数チェック（2000列超のファイルは除外）
+                    df_head = pd.read_csv(csv_file, encoding='utf-8-sig', nrows=1)
+                    if len(df_head.columns) > 2000:
+                        print(f"  [SKIP] {csv_file.name}: 列数過多({len(df_head.columns)})")
+                        continue
+                    df = pd.read_csv(csv_file, encoding='utf-8-sig')
+                    all_csvs.append(df)
+                except Exception as e:
+                    print(f"  [警告] {csv_file.name}の読み込みに失敗: {e}")
 
         if not all_csvs:
             print("  [警告] 統合対象のCSVファイルが見つかりませんでした")
